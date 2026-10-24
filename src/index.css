@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --color-accent: #fbbf24;
+  --color-accent-strong: #f59e0b;
+  --color-surface: #17171b;
+  --color-surface-2: #1e1e23;
+}
+
+html {
+  color-scheme: dark;
+}
+
+html, body {
+  user-select: none;
+}

@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Cue 테스트 시험지</title>
+<style>
+  :root {
+    --ink: #1b1b1f;
+    --muted: #6b6b75;
+    --line: #dddde3;
+    --paper: #ffffff;
+    --bg: #f2f2f5;
+    --accent: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px 80px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  main {
+    max-width: 860px;
+    margin: 0 auto;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 36px 44px 48px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  header h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -.02em; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .guide {
+    margin: 24px 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 18px;
+    background: #fafafc;
+    font-size: 14px;
+  }
+  .guide summary { cursor: pointer; font-weight: 700; }
+  .guide ol { margin: 10px 0 6px; padding-left: 20px; }
+  .guide li { margin: 3px 0; }
+  .guide p { margin: 8px 0 0; color: var(--muted); }
+  .led-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .led-legend span {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 10px;
+    background: #fff;
+  }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 6px; }
+  .toolbar button {
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: #fff;
+    cursor: pointer;
+  }
+  .toolbar button:hover { background: #f4f4f7; }
+  .toolbar .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .toolbar .primary:hover { filter: brightness(.94); }
+  .check-result {
+    margin: 8px 0 0;
+    font-size: 13px;
+    white-space: pre-wrap;
+    font-weight: 600;
+  }
+  .check-result.pass { color: #047857; }
+  .check-result.fail { color: #b91c1c; }
+  .index { margin: 26px 0 10px; }
+  .index h2 { margin: 0 0 4px; font-size: 20px; }
+  .index .hint { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+  .index .group { margin: 0 0 20px; }
+  .index .group h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); letter-spacing: .06em; }
+  .index .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .index button {
+    font: inherit;
+    text-align: left;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: #fff;
+    cursor: pointer;
+  }
+  .index button:hover { border-color: var(--accent); background: #fff7ed; }
+  .index button b { display: block; font-size: 15px; }
+  .index button span { color: var(--muted); font-size: 12px; }
+  .index.hidden { display: none; }
+  .subject-block { display: none; }
+  .subject-block.active { display: block; }
+  #back-index {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 50;
+    display: none;
+    font: inherit;
+    font-size: 13px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+    cursor: pointer;
+  }
+  #back-index.on { display: block; }
+  .subject-title {
+    margin: 44px 0 0;
+    padding: 14px 18px;
+    background: #fff7ed;
+    border: 1px solid #fde3c0;
+    border-radius: 10px;
+    font-size: 22px;
+    letter-spacing: -.01em;
+  }
+  .subject-title span { color: var(--muted); font-size: 13px; font-weight: 500; }
+  .subject-title.major { background: #eef2ff; border-color: #dbe3ff; }
+  .topic-title {
+    margin: 26px 0 2px;
+    padding-top: 14px;
+    border-top: 2px solid var(--line);
+    font-size: 16px;
+  }
+  .topic-title span { color: var(--muted); font-size: 12px; font-weight: 500; }
+  .q {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 4px 18px;
+    padding: 22px 8px;
+    border-top: 1px solid var(--line);
+  }
+  .q:first-of-type { border-top: none; }
+  .body { min-width: 0; }
+  .num {
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--ink);
+    text-align: right;
+    border-radius: 8px;
+    padding: 2px 6px;
+    cursor: crosshair;
+    user-select: none;
+  }
+  .num:hover { background: #fdf3e7; color: var(--accent); }
+  .body p { margin: 0 0 10px; font-size: 17px; font-weight: 600; }
+  .body .answer-hint {
+    margin: 6px 0 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+  .passage {
+    font-size: 15px !important;
+    font-weight: 400 !important;
+    line-height: 1.75;
+    background: #fafafc;
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+  }
+  .code {
+    margin: 0 0 10px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: #1f1f24;
+    color: #f4f4f5;
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+  .opts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 4px 20px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 15px;
+    color: #2c2c33;
+  }
+  .opts li { padding: 1px 0; }
+  .key { display: none; margin-top: 28px; border-top: 2px solid var(--ink); padding-top: 16px; }
+  .key.open { display: block; }
+  .key h2 { margin: 0 0 10px; font-size: 16px; }
+  .key-scroll { overflow-x: auto; }
+  .key table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .key td, .key th { border: 1px solid var(--line); padding: 5px 10px; text-align: center; vertical-align: top; }
+  .key th { background: #fafafc; white-space: nowrap; }
+  .key td:nth-child(6) { text-align: left; min-width: 160px; }
+  footer { max-width: 860px; margin: 14px auto 0; color: var(--muted); font-size: 12px; text-align: center; }
+  #watermark {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    pointer-events: none;
+    opacity: .18;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='260'%20height='120'%3E%3Ctext%20x='0'%20y='60'%20transform='rotate(-24%200%2060)'%20fill='%23b45309'%20font-family='Malgun%20Gothic'%20font-size='18'%3ECUE%20WATERMARK%3C/text%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 260px 120px;
+  }
+  #watermark.on { display: block; }
+  #watermark.level-2 { opacity: .3; background-size: 190px 88px; }
+  #watermark.level-3 { opacity: .45; background-size: 140px 64px; filter: contrast(1.25); }
+  @media (max-width: 560px) {
+    body { padding: 12px 8px 48px; }
+    main { padding: 22px 16px 32px; }
+    .q { grid-template-columns: 44px 1fr; gap: 4px 10px; }
+    .num { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div id="watermark" aria-hidden="true"></div>
+<main>
+  <header>
+    <h1>Cue 테스트 시험지</h1>
+    <p>단축키 → 화면 캡처 → AI → 답 표시까지 실제 흐름을 확인하는 예시 문제 150개 · 20과목 · 10가지 유형</p>
+  </header>
+
+  <details class="guide" open>
+    <summary>테스트 방법</summary>
+    <ol>
+      <li>Cue 설정 → 모드에서 원하는 표시 모드를 켭니다. LED 모드를 쓰려면 <b>키보드 LED</b>를 켜고 키를 고른 뒤 <b>깜빡임 테스트</b>로 하드웨어를 확인하세요.</li>
+      <li>이 페이지를 전체 화면(F11)으로 띄웁니다.</li>
+      <li>문제 번호 위에 마우스 포인터를 두고 <b>Ctrl + Alt + Win</b>을 누릅니다.</li>
+      <li>표시된 답을 확인합니다. LED 모드는 <b>깜빡인 횟수</b>가 답입니다.</li>
+      <li>맨 아래 <b>정답 보기</b>를 눌러 맞았는지 확인합니다.</li>
+    </ol>
+    <p>서술형·단답형 문제는 AI 탭에서 답변 유형을 <b>서술형</b>으로 바꿔 테스트하세요. 복수 선택은 정답이 두 개이며, 오버레이에는 <b>A, C</b>처럼 함께 표시됩니다. LED·트레이·밝기 모드는 첫 번째 답만 사용합니다. 문제는 과목별로 난이도가 낮은 순서대로 배치되어 있습니다.</p>
+    <div class="led-legend">
+      <span>1회 = A</span><span>2회 = B</span><span>3회 = C</span><span>4회 = D</span><span>5회 = E</span>
+      <span>O/X: 1회 = O, 2회 = X</span><span>복수·서술·단답: —</span>
+    </div>
+  </details>
+
+  <div class="toolbar">
+    <button class="primary" id="toggle-key" type="button">정답 보기</button>
+    <button id="self-check" type="button">시험지 검증</button>
+    <button id="fullscreen" type="button">전체 화면</button>
+    <button id="toggle-watermark" type="button">워터마크 켜기</button>
+    <button id="watermark-strength" type="button">워터마크 강도 1</button>
+  </div>
+  <div id="check-result" class="check-result" role="status" aria-live="polite"></div>
+
+  <div id="index" class="index">
+    <h2>과목 선택</h2>
+    <p class="hint">과목을 클릭하면 해당 문제만 표시됩니다. 오른쪽 아래 <b>목차</b> 버튼으로 돌아올 수 있습니다.</p>
+    <div id="index-groups"></div>
+  </div>
+  <button id="back-index" type="button">← 목차</button>
+
+  <h2 class="subject-title">국어 <span>12문제 · 어휘·한자 / 문법 / 독해</span></h2>
+
+  <h3 class="topic-title">어휘·한자 <span>4문제</span></h3>
+  <section class="q" data-subject="국어" data-topic="어휘·한자" data-type="choice5" data-answer="B" data-difficulty="1">
+    <div class="num">1</div>
+    <div class="body">
+      <p>다음 중 띄어쓰기가 옳은 것은?</p>
+      <ul class="opts">
+        <li>A. 할수있다</li><li>B. 할 수 있다</li><li>C. 할수 있다</li><li>D. 할 수있다</li><li>E. 할수있 다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="국어" data-topic="어휘·한자" data-type="choice4" data-answer="B" data-difficulty="2">
+    <div class="num">2</div>
+    <div class="body">
+      <p>다음 중 ‘환하다’와 가장 가까운 뜻의 단어는?</p>
+      <ul class="opts">
+        <li>A. 어둡다</li><li>B. 밝다</li><li>C. 차갑다</li><li>D. 무겁다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="국어" data-topic="어휘·한자" data-type="choice5" data-answer="B" data-difficulty="3">
+    <div class="num">3</div>
+    <div class="body">
+      <p>‘새옹지마(塞翁之馬)’의 뜻으로 가장 알맞은 것은?</p>
+      <ul class="opts">
+        <li>A. 좋은 일 뒤에는 반드시 나쁜 일이 온다</li><li>B. 인생의 길흉화복은 예측하기 어렵다</li><li>C. 말은 사람에게 해를 끼친다</li><li>D. 이웃과 사이좋게 지내야 한다</li><li>E. 노력하면 반드시 성공한다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="국어" data-topic="어휘·한자" data-type="descriptive" data-answer="처지를 바꾸어 상대의 입장에서 생각함" data-difficulty="4">
+    <div class="num">4</div>
+    <div class="body">
+      <p>‘역지사지(易地思之)’의 뜻을 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">문법 <span>4문제</span></h3>
+  <section class="q" data-subject="국어" data-topic="문법" data-type="choice5" data-answer="A" data-difficulty="1">
+    <div class="num">5</div>
+    <div class="body">
+      <p>다음 중 품사가 나머지와 다른 하나는?</p>
+      <ul class="opts">
+        <li>A. 달리다</li><li>B. 빠르다</li><li>C. 예쁘다</li><li>D. 높다</li><li>E. 맑다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="국어" data-topic="문법" data-type="choice4" data-answer="B" data-difficulty="2">
+    <div class="num">6</div>
+    <div class="body">
+      <p>‘먹었다’의 구성으로 옳은 것은?</p>
+      <ul class="opts">
+        <li>A. 어간 + 어미</li><li>B. 어간 + 선어말어미 + 어미</li><li>C. 접두사 + 어근</li><li>D. 어근 + 접미사</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="국어" data-topic="문법" data-type="short" data-answer="원인" data-difficulty="3">
+    <div class="num">7</div>
+    <div class="body">
+      <p>문장 ‘비가 와서 길이 젖었다.’에서 ‘와서’가 나타내는 문법 기능은?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="국어" data-topic="문법" data-type="multi" data-answer="A, C" data-difficulty="4">
+    <div class="num">8</div>
+    <div class="body">
+      <p>다음 중 높임 표현이 바르게 쓰인 것을 모두 고르시오.</p>
+      <ul class="opts">
+        <li>A. 할아버지께서 진지를 드신다.</li><li>B. 할아버지가 밥을 먹는다.</li><li>C. 선생님께서 오셨다.</li><li>D. 선생님이 왔다.</li><li>E. 부모님께 말했다.</li>
+      </ul>
+      <p class="answer-hint">복수 선택 (2개)</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">독해 <span>4문제</span></h3>
+  <section class="q" data-subject="국어" data-topic="독해" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">9</div>
+    <div class="body">
+      <p>다음 글의 중심 내용으로 가장 알맞은 것은?</p>
+      <p class="passage">공유지의 비극이란 여러 사람이 공동으로 쓰는 자원을 각자 이익을 위해 과도하게 사용해 결국 모두가 피해를 보는 현상을 말한다. 개인은 자원을 아껴 쓸 유인이 적고, 비용은 공동체가 나누어 부담하기 때문이다. 이를 해결하려면 사용 규칙을 정하고 감시와 처벌을 마련하거나, 자원을 사유화하거나, 공동체가 직접 관리하는 방식이 쓰인다.</p>
+      <ul class="opts">
+        <li>A. 공유 자원은 항상 사유화해야 한다</li><li>B. 공유 자원의 과도한 사용 문제와 해결 방안</li><li>C. 개인의 이익 추구는 항상 억제해야 한다</li><li>D. 감시와 처벌은 비효율적이다</li><li>E. 공동체 관리는 실패한다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="국어" data-topic="독해" data-type="reading" data-answer="A" data-difficulty="3">
+    <div class="num">10</div>
+    <div class="body">
+      <p>글에서 ‘이를’이 가리키는 것은?</p>
+      <p class="passage">공유지의 비극이란 여러 사람이 공동으로 쓰는 자원을 각자 이익을 위해 과도하게 사용해 결국 모두가 피해를 보는 현상을 말한다. 개인은 자원을 아껴 쓸 유인이 적고, 비용은 공동체가 나누어 부담하기 때문이다. <b>이를</b> 해결하려면 사용 규칙을 정하고 감시와 처벌을 마련하거나, 자원을 사유화하거나, 공동체가 직접 관리하는 방식이 쓰인다.</p>
+      <ul class="opts">
+        <li>A. 공유지의 비극</li><li>B. 개인의 이익</li><li>C. 자원의 사유화</li><li>D. 감시와 처벌</li><li>E. 공동체 관리</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="국어" data-topic="독해" data-type="short" data-answer="사유화" data-difficulty="4">
+    <div class="num">11</div>
+    <div class="body">
+      <p>글에서 제시한 해결 방식 중 ‘자원을 개인에게 나누어 주는 것’을 가리키는 말은?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="국어" data-topic="독해" data-type="descriptive" data-answer="개인은 자원을 아껴 쓸 유인이 적고 비용은 공동체가 나누어 부담하기 때문" data-difficulty="4">
+    <div class="num">12</div>
+    <div class="body">
+      <p>공유지의 비극이 발생하는 이유를 글에 근거해 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title">영어 <span>12문제 · 어휘 / 문법 / 독해</span></h2>
+
+  <h3 class="topic-title">어휘 <span>4문제</span></h3>
+  <section class="q" data-subject="영어" data-topic="어휘" data-type="choice5" data-answer="B" data-difficulty="1">
+    <div class="num">13</div>
+    <div class="body">
+      <p>Choose the word closest in meaning to “rapid”.</p>
+      <ul class="opts">
+        <li>A. slow</li><li>B. quick</li><li>C. late</li><li>D. heavy</li><li>E. weak</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="영어" data-topic="어휘" data-type="choice4" data-answer="B" data-difficulty="2">
+    <div class="num">14</div>
+    <div class="body">
+      <p>Choose the antonym of “scarce”.</p>
+      <ul class="opts">
+        <li>A. rare</li><li>B. plentiful</li><li>C. tiny</li><li>D. brief</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="영어" data-topic="어휘" data-type="short" data-answer="empirical" data-difficulty="3">
+    <div class="num">15</div>
+    <div class="body">
+      <p>Fill in the blank with one word: The theory was widely accepted because it was supported by ___ evidence.</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="영어" data-topic="어휘" data-type="descriptive" data-answer="affect는 동사로 영향을 주다, effect는 명사로 영향·결과" data-difficulty="4">
+    <div class="num">16</div>
+    <div class="body">
+      <p>Explain the difference between “affect” and “effect”.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">문법 <span>4문제</span></h3>
+  <section class="q" data-subject="영어" data-topic="문법" data-type="choice5" data-answer="B" data-difficulty="1">
+    <div class="num">17</div>
+    <div class="body">
+      <p>Choose the correct sentence.</p>
+      <ul class="opts">
+        <li>A. She go to school.</li><li>B. She goes to school.</li><li>C. She going school.</li><li>D. She gone school.</li><li>E. She go school.</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="영어" data-topic="문법" data-type="choice4" data-answer="B" data-difficulty="2">
+    <div class="num">18</div>
+    <div class="body">
+      <p>Choose the correct preposition: I am interested ___ biology.</p>
+      <ul class="opts">
+        <li>A. on</li><li>B. in</li><li>C. at</li><li>D. for</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="영어" data-topic="문법" data-type="short" data-answer="were" data-difficulty="3">
+    <div class="num">19</div>
+    <div class="body">
+      <p>Fill in the blank with the correct form: If I ___ (be) you, I would apologize.</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="영어" data-topic="문법" data-type="multi" data-answer="A, C" data-difficulty="4">
+    <div class="num">20</div>
+    <div class="body">
+      <p>Choose all grammatically correct sentences.</p>
+      <ul class="opts">
+        <li>A. She has lived here for ten years.</li><li>B. She have lived here for ten years.</li><li>C. Each of the students has a book.</li><li>D. Each of the students have a book.</li><li>E. The news are bad.</li>
+      </ul>
+      <p class="answer-hint">복수 선택 (2개)</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">독해 <span>4문제</span></h3>
+  <section class="q" data-subject="영어" data-topic="독해" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">21</div>
+    <div class="body">
+      <p>What is the main idea of the passage?</p>
+      <p class="passage">Many students believe that studying longer always leads to better results. However, research on memory shows that spaced repetition—reviewing material at increasing intervals—produces stronger long-term retention than cramming the night before an exam. Sleep also matters: the brain consolidates new memories during sleep, so pulling an all-nighter can reduce recall.</p>
+      <ul class="opts">
+        <li>A. Long study hours guarantee success</li><li>B. Spaced repetition and sleep improve retention</li><li>C. Cramming is the best method</li><li>D. Sleep has no effect on memory</li><li>E. Exams should be shorter</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="영어" data-topic="독해" data-type="reading" data-answer="A" data-difficulty="3">
+    <div class="num">22</div>
+    <div class="body">
+      <p>According to the passage, what happens during sleep?</p>
+      <p class="passage">Many students believe that studying longer always leads to better results. However, research on memory shows that spaced repetition—reviewing material at increasing intervals—produces stronger long-term retention than cramming the night before an exam. Sleep also matters: the brain consolidates new memories during sleep, so pulling an all-nighter can reduce recall.</p>
+      <ul class="opts">
+        <li>A. Memories are consolidated</li><li>B. Material is forgotten</li><li>C. Cramming becomes easier</li><li>D. Study time increases</li><li>E. Recall is reduced</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="영어" data-topic="독해" data-type="short" data-answer="spaced repetition" data-difficulty="4">
+    <div class="num">23</div>
+    <div class="body">
+      <p>What is the term for reviewing material at increasing intervals?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="영어" data-topic="독해" data-type="descriptive" data-answer="수면 부족으로 기억 고정(consolidation)이 줄어들기 때문" data-difficulty="4">
+    <div class="num">24</div>
+    <div class="body">
+      <p>Why can an all-nighter reduce recall, according to the passage?</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title">수학 <span>16문제 · 대수 / 기하 / 확률·통계</span></h2>
+
+  <h3 class="topic-title">대수 <span>5문제</span></h3>
+  <section class="q" data-subject="수학" data-topic="대수" data-type="choice5" data-answer="B" data-difficulty="1">
+    <div class="num">25</div>
+    <div class="body">
+      <p>x + 3 = 7일 때 x는?</p>
+      <ul class="opts">
+        <li>A. 3</li><li>B. 4</li><li>C. 5</li><li>D. 10</li><li>E. 21</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="대수" data-type="calc" data-answer="41" data-difficulty="2">
+    <div class="num">26</div>
+    <div class="body">
+      <p>2^5 + 3^2 = ?</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="대수" data-type="choice4" data-answer="B" data-difficulty="2">
+    <div class="num">27</div>
+    <div class="body">
+      <p>다음 중 일차방정식인 것은?</p>
+      <ul class="opts">
+        <li>A. x^2 = 1</li><li>B. 2x + 1 = 5</li><li>C. 1/x = 2</li><li>D. x^3 = 8</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="대수" data-type="short" data-answer="x^2-4" data-difficulty="3">
+    <div class="num">28</div>
+    <div class="body">
+      <p>다항식 (x+2)(x-2)를 전개하면?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="대수" data-type="choice5" data-answer="C" data-difficulty="4">
+    <div class="num">29</div>
+    <div class="body">
+      <p>방정식 x^2 - 5x + 6 = 0의 두 근의 합은?</p>
+      <ul class="opts">
+        <li>A. 2</li><li>B. 3</li><li>C. 5</li><li>D. 6</li><li>E. -5</li>
+      </ul>
+    </div>
+  </section>
+
+  <h3 class="topic-title">기하 <span>5문제</span></h3>
+  <section class="q" data-subject="수학" data-topic="기하" data-type="choice5" data-answer="C" data-difficulty="1">
+    <div class="num">30</div>
+    <div class="body">
+      <p>삼각형 내각의 합은?</p>
+      <ul class="opts">
+        <li>A. 90°</li><li>B. 120°</li><li>C. 180°</li><li>D. 270°</li><li>E. 360°</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="기하" data-type="calc" data-answer="9π" data-difficulty="2">
+    <div class="num">31</div>
+    <div class="body">
+      <p>반지름이 3인 원의 넓이는? (π를 사용해 쓰시오)</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="기하" data-type="choice4" data-answer="C" data-difficulty="3">
+    <div class="num">32</div>
+    <div class="body">
+      <p>직각삼각형에서 빗변의 제곱은?</p>
+      <ul class="opts">
+        <li>A. 두 변의 합</li><li>B. 두 변의 곱</li><li>C. 다른 두 변의 제곱의 합</li><li>D. 넓이의 두 배</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="기하" data-type="short" data-answer="6√2" data-difficulty="4">
+    <div class="num">33</div>
+    <div class="body">
+      <p>한 변의 길이가 6인 정사각형의 대각선 길이는?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="기하" data-type="calc" data-answer="5" data-difficulty="4">
+    <div class="num">34</div>
+    <div class="body">
+      <p>원의 둘레가 10π일 때 반지름은?</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">확률·통계 <span>6문제</span></h3>
+  <section class="q" data-subject="수학" data-topic="확률·통계" data-type="choice5" data-answer="C" data-difficulty="1">
+    <div class="num">35</div>
+    <div class="body">
+      <p>주사위 한 개를 던질 때 3이 나올 확률은?</p>
+      <ul class="opts">
+        <li>A. 1/2</li><li>B. 1/3</li><li>C. 1/6</li><li>D. 1/12</li><li>E. 3/6</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="확률·통계" data-type="calc" data-answer="5.5" data-difficulty="2">
+    <div class="num">36</div>
+    <div class="body">
+      <p>1부터 10까지 자연수의 평균은?</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="확률·통계" data-type="choice4" data-answer="D" data-difficulty="2">
+    <div class="num">37</div>
+    <div class="body">
+      <p>다음 중 중앙값이 3인 것은?</p>
+      <ul class="opts">
+        <li>A. 1, 2, 3</li><li>B. 1, 2, 100</li><li>C. 2, 2, 2</li><li>D. 1, 3, 3</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="확률·통계" data-type="short" data-answer="10" data-difficulty="3">
+    <div class="num">38</div>
+    <div class="body">
+      <p>5명 중 2명을 뽑는 경우의 수는?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="확률·통계" data-type="calc" data-answer="1/8" data-difficulty="4">
+    <div class="num">39</div>
+    <div class="body">
+      <p>공정한 동전을 3번 던져 모두 앞면이 나올 확률은? (분수)</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+  <section class="q" data-subject="수학" data-topic="확률·통계" data-type="choice5" data-answer="B" data-difficulty="4">
+    <div class="num">40</div>
+    <div class="body">
+      <p>표준정규분포의 평균과 표준편차는?</p>
+      <ul class="opts">
+        <li>A. 0, 0</li><li>B. 0, 1</li><li>C. 1, 0</li><li>D. 1, 1</li><li>E. 2, 1</li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="subject-title">과학 <span>12문제 · 물리 / 화학 / 생물·지구과학</span></h2>
+
+  <h3 class="topic-title">물리 <span>4문제</span></h3>
+  <section class="q" data-subject="과학" data-topic="물리" data-type="choice5" data-answer="B" data-difficulty="1">
+    <div class="num">41</div>
+    <div class="body">
+      <p>힘의 단위는?</p>
+      <ul class="opts">
+        <li>A. J</li><li>B. N</li><li>C. W</li><li>D. Pa</li><li>E. kg</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="과학" data-topic="물리" data-type="calc" data-answer="6" data-difficulty="2">
+    <div class="num">42</div>
+    <div class="body">
+      <p>질량 2kg인 물체에 3m/s²의 가속도가 생길 때 힘은? (단위 N)</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+  <section class="q" data-subject="과학" data-topic="물리" data-type="choice4" data-answer="A" data-difficulty="3">
+    <div class="num">43</div>
+    <div class="body">
+      <p>빛의 속도에 가장 가까운 값은?</p>
+      <ul class="opts">
+        <li>A. 3×10^5 km/s</li><li>B. 3×10^5 m/s</li><li>C. 3×10^8 km/s</li><li>D. 3×10^3 m/s</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="과학" data-topic="물리" data-type="descriptive" data-answer="작용과 반작용은 크기가 같고 방향이 반대" data-difficulty="4">
+    <div class="num">44</div>
+    <div class="body">
+      <p>뉴턴의 제3법칙(작용·반작용)을 설명하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">화학 <span>4문제</span></h3>
+  <section class="q" data-subject="과학" data-topic="화학" data-type="choice5" data-answer="B" data-difficulty="1">
+    <div class="num">45</div>
+    <div class="body">
+      <p>물의 화학식은?</p>
+      <ul class="opts">
+        <li>A. CO2</li><li>B. H2O</li><li>C. O2</li><li>D. NaCl</li><li>E. CH4</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="과학" data-topic="화학" data-type="calc" data-answer="18" data-difficulty="2">
+    <div class="num">46</div>
+    <div class="body">
+      <p>H2O 1몰의 질량은? (H=1, O=16)</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+  <section class="q" data-subject="과학" data-topic="화학" data-type="choice4" data-answer="A" data-difficulty="3">
+    <div class="num">47</div>
+    <div class="body">
+      <p>산성 용액의 pH 범위는?</p>
+      <ul class="opts">
+        <li>A. 0~6</li><li>B. 7</li><li>C. 8~14</li><li>D. 14 이상</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="과학" data-topic="화학" data-type="short" data-answer="C" data-difficulty="4">
+    <div class="num">48</div>
+    <div class="body">
+      <p>원자번호 6번 원소의 기호는?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">생물·지구과학 <span>4문제</span></h3>
+  <section class="q" data-subject="과학" data-topic="생물·지구과학" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">49</div>
+    <div class="body">
+      <p>세포에서 에너지를 생산하는 소기관은?</p>
+      <ul class="opts">
+        <li>A. 리보솜</li><li>B. 미토콘드리아</li><li>C. 골지체</li><li>D. 핵</li><li>E. 액포</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="과학" data-topic="생물·지구과학" data-type="choice4" data-answer="C" data-difficulty="3">
+    <div class="num">50</div>
+    <div class="body">
+      <p>지구 대기에서 가장 많은 비율을 차지하는 기체는?</p>
+      <ul class="opts">
+        <li>A. 산소</li><li>B. 이산화탄소</li><li>C. 질소</li><li>D. 아르곤</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="과학" data-topic="생물·지구과학" data-type="short" data-answer="티민" data-difficulty="4">
+    <div class="num">51</div>
+    <div class="body">
+      <p>DNA를 구성하는 4가지 염기 중 아데닌(A)과 짝을 이루는 염기는?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="과학" data-topic="생물·지구과학" data-type="descriptive" data-answer="빛 에너지로 이산화탄소와 물에서 포도당과 산소를 만든다" data-difficulty="4">
+    <div class="num">52</div>
+    <div class="body">
+      <p>광합성의 기본 과정을 간단히 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title">사회 <span>10문제 · 경제 / 법·정치 / 지리</span></h2>
+
+  <h3 class="topic-title">경제 <span>4문제</span></h3>
+  <section class="q" data-subject="사회" data-topic="경제" data-type="choice5" data-answer="B" data-difficulty="1">
+    <div class="num">53</div>
+    <div class="body">
+      <p>경제학에서 ‘희소성’의 의미로 가장 알맞은 것은?</p>
+      <ul class="opts">
+        <li>A. 자원이 무한하다</li><li>B. 자원이 욕구에 비해 부족하다</li><li>C. 가격이 계속 오른다</li><li>D. 소비자가 돈이 없다</li><li>E. 수요가 없다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="사회" data-topic="경제" data-type="choice4" data-answer="B" data-difficulty="2">
+    <div class="num">54</div>
+    <div class="body">
+      <p>수요가 증가할 때 일반적으로 가격은?</p>
+      <ul class="opts">
+        <li>A. 하락한다</li><li>B. 상승한다</li><li>C. 변하지 않는다</li><li>D. 0이 된다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="사회" data-topic="경제" data-type="short" data-answer="국내총생산" data-difficulty="3">
+    <div class="num">55</div>
+    <div class="body">
+      <p>GDP의 우리말은?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="사회" data-topic="경제" data-type="descriptive" data-answer="화폐 가치가 떨어져 같은 돈으로 살 수 있는 상품이 줄어든다" data-difficulty="4">
+    <div class="num">56</div>
+    <div class="body">
+      <p>인플레이션이 소비자에게 미치는 영향을 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">법·정치 <span>3문제</span></h3>
+  <section class="q" data-subject="사회" data-topic="법·정치" data-type="choice5" data-answer="E" data-difficulty="1">
+    <div class="num">57</div>
+    <div class="body">
+      <p>대한민국 헌법상 국민의 의무가 아닌 것은?</p>
+      <ul class="opts">
+        <li>A. 교육의 의무</li><li>B. 근로의 의무</li><li>C. 납세의 의무</li><li>D. 국방의 의무</li><li>E. 투표의 의무</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="사회" data-topic="법·정치" data-type="choice4" data-answer="B" data-difficulty="2">
+    <div class="num">58</div>
+    <div class="body">
+      <p>민법상 성년의 기준 나이는?</p>
+      <ul class="opts">
+        <li>A. 18세</li><li>B. 19세</li><li>C. 20세</li><li>D. 21세</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="사회" data-topic="법·정치" data-type="descriptive" data-answer="권력을 나누어 서로 견제와 균형을 이루게 해 자의적 행사를 막는다" data-difficulty="4">
+    <div class="num">59</div>
+    <div class="body">
+      <p>권력분립 원리의 목적을 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">지리 <span>3문제</span></h3>
+  <section class="q" data-subject="사회" data-topic="지리" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">60</div>
+    <div class="body">
+      <p>우리나라에서 가장 긴 강은?</p>
+      <ul class="opts">
+        <li>A. 한강</li><li>B. 낙동강</li><li>C. 금강</li><li>D. 영산강</li><li>E. 대동강</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="사회" data-topic="지리" data-type="choice4" data-answer="C" data-difficulty="3">
+    <div class="num">61</div>
+    <div class="body">
+      <p>다음 중 고위도 지역에서 나타나는 기후는?</p>
+      <ul class="opts">
+        <li>A. 열대우림</li><li>B. 사막</li><li>C. 툰드라</li><li>D. 지중해성</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="사회" data-topic="지리" data-type="short" data-answer="24" data-difficulty="4">
+    <div class="num">62</div>
+    <div class="body">
+      <p>지구의 자전 주기는 약 몇 시간인가?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title">역사 <span>10문제 · 한국사 / 세계사</span></h2>
+
+  <h3 class="topic-title">한국사 <span>5문제</span></h3>
+  <section class="q" data-subject="역사" data-topic="한국사" data-type="choice5" data-answer="B" data-difficulty="1">
+    <div class="num">63</div>
+    <div class="body">
+      <p>훈민정음을 창제한 왕은?</p>
+      <ul class="opts">
+        <li>A. 태조</li><li>B. 세종</li><li>C. 정조</li><li>D. 영조</li><li>E. 광개토대왕</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="역사" data-topic="한국사" data-type="choice4" data-answer="B" data-difficulty="2">
+    <div class="num">64</div>
+    <div class="body">
+      <p>임진왜란 때 수군을 이끈 장군은?</p>
+      <ul class="opts">
+        <li>A. 강감찬</li><li>B. 이순신</li><li>C. 을지문덕</li><li>D. 김유신</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="역사" data-topic="한국사" data-type="short" data-answer="왕건" data-difficulty="3">
+    <div class="num">65</div>
+    <div class="body">
+      <p>고려를 건국한 인물은?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="역사" data-topic="한국사" data-type="choice5" data-answer="B" data-difficulty="4">
+    <div class="num">66</div>
+    <div class="body">
+      <p>대한민국 임시정부가 수립된 해는?</p>
+      <ul class="opts">
+        <li>A. 1910</li><li>B. 1919</li><li>C. 1945</li><li>D. 1948</li><li>E. 1950</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="역사" data-topic="한국사" data-type="descriptive" data-answer="현실 문제 해결을 추구한 실용적 학문으로 농업·상공업·과학기술의 개혁을 주장" data-difficulty="4">
+    <div class="num">67</div>
+    <div class="body">
+      <p>조선 후기 실학의 특징을 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">세계사 <span>5문제</span></h3>
+  <section class="q" data-subject="역사" data-topic="세계사" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">68</div>
+    <div class="body">
+      <p>프랑스 혁명이 시작된 해는?</p>
+      <ul class="opts">
+        <li>A. 1776</li><li>B. 1789</li><li>C. 1815</li><li>D. 1848</li><li>E. 1914</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="역사" data-topic="세계사" data-type="choice4" data-answer="C" data-difficulty="3">
+    <div class="num">69</div>
+    <div class="body">
+      <p>산업혁명이 가장 먼저 시작된 나라는?</p>
+      <ul class="opts">
+        <li>A. 프랑스</li><li>B. 독일</li><li>C. 영국</li><li>D. 미국</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="역사" data-topic="세계사" data-type="short" data-answer="1918" data-difficulty="4">
+    <div class="num">70</div>
+    <div class="body">
+      <p>제1차 세계대전이 끝난 해는?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="역사" data-topic="세계사" data-type="choice5" data-answer="B" data-difficulty="4">
+    <div class="num">71</div>
+    <div class="body">
+      <p>마그나 카르타가 체결된 나라는?</p>
+      <ul class="opts">
+        <li>A. 프랑스</li><li>B. 영국</li><li>C. 독일</li><li>D. 스페인</li><li>E. 이탈리아</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="역사" data-topic="세계사" data-type="descriptive" data-answer="고대 그리스·로마 문화를 되살려 인간 중심의 사고와 예술을 발전시킨 운동" data-difficulty="4">
+    <div class="num">72</div>
+    <div class="body">
+      <p>르네상스의 의미를 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title">IT·코딩 <span>14문제 · 프로그래밍 / 자료구조·알고리즘 / 네트워크·보안</span></h2>
+
+  <h3 class="topic-title">프로그래밍 <span>6문제</span></h3>
+  <section class="q" data-subject="IT·코딩" data-topic="프로그래밍" data-type="choice5" data-answer="C" data-difficulty="1">
+    <div class="num">73</div>
+    <div class="body">
+      <p>다음 중 변수 선언 없이 값을 바로 사용하는 언어는?</p>
+      <ul class="opts">
+        <li>A. C</li><li>B. Java</li><li>C. Python</li><li>D. Rust</li><li>E. Go</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="프로그래밍" data-type="calc" data-answer="14" data-difficulty="2">
+    <div class="num">74</div>
+    <div class="body">
+      <p>다음 코드의 출력은?</p>
+      <pre class="code">print(2 + 3 * 4)</pre>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="프로그래밍" data-type="choice4" data-answer="C" data-difficulty="2">
+    <div class="num">75</div>
+    <div class="body">
+      <p>다음 중 컴파일 언어는?</p>
+      <ul class="opts">
+        <li>A. Python</li><li>B. JavaScript</li><li>C. C</li><li>D. Ruby</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="프로그래밍" data-type="short" data-answer="len" data-difficulty="3">
+    <div class="num">76</div>
+    <div class="body">
+      <p>Python에서 리스트의 길이를 구하는 내장 함수는?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="프로그래밍" data-type="code" data-answer="[3, 2, 1]" data-difficulty="4">
+    <div class="num">77</div>
+    <div class="body">
+      <p>다음 코드의 출력은?</p>
+      <pre class="code">print([1, 2, 3][::-1])</pre>
+      <p class="answer-hint">코드 출력</p>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="프로그래밍" data-type="descriptive" data-answer="간결하게 표현할 수 있지만 호출이 깊어지면 스택 오버플로 위험이 있다" data-difficulty="4">
+    <div class="num">78</div>
+    <div class="body">
+      <p>재귀 함수의 장단점을 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">자료구조·알고리즘 <span>4문제</span></h3>
+  <section class="q" data-subject="IT·코딩" data-topic="자료구조·알고리즘" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">79</div>
+    <div class="body">
+      <p>스택의 특징은?</p>
+      <ul class="opts">
+        <li>A. FIFO</li><li>B. LIFO</li><li>C. 랜덤 접근만 가능</li><li>D. 항상 정렬 상태</li><li>E. 해시 기반</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="자료구조·알고리즘" data-type="choice4" data-answer="B" data-difficulty="3">
+    <div class="num">80</div>
+    <div class="body">
+      <p>정렬된 배열에서 이진 탐색의 평균 시간 복잡도는?</p>
+      <ul class="opts">
+        <li>A. O(n)</li><li>B. O(log n)</li><li>C. O(n log n)</li><li>D. O(1)</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="자료구조·알고리즘" data-type="short" data-answer="FIFO" data-difficulty="4">
+    <div class="num">81</div>
+    <div class="body">
+      <p>큐에서 먼저 들어온 것이 먼저 나가는 규칙을 영문 약자로 쓰시오.</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="자료구조·알고리즘" data-type="calc" data-answer="3" data-difficulty="4">
+    <div class="num">82</div>
+    <div class="body">
+      <p>정렬된 배열 8개에서 이진 탐색으로 찾을 때 최대 비교 횟수는?</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">네트워크·보안 <span>4문제</span></h3>
+  <section class="q" data-subject="IT·코딩" data-topic="네트워크·보안" data-type="choice5" data-answer="C" data-difficulty="2">
+    <div class="num">83</div>
+    <div class="body">
+      <p>HTTPS의 기본 포트 번호는?</p>
+      <ul class="opts">
+        <li>A. 21</li><li>B. 80</li><li>C. 443</li><li>D. 22</li><li>E. 25</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="네트워크·보안" data-type="choice4" data-answer="B" data-difficulty="3">
+    <div class="num">84</div>
+    <div class="body">
+      <p>다음 중 대칭키 암호 방식은?</p>
+      <ul class="opts">
+        <li>A. RSA</li><li>B. AES</li><li>C. ECC</li><li>D. Diffie-Hellman</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="네트워크·보안" data-type="short" data-answer="DNS" data-difficulty="4">
+    <div class="num">85</div>
+    <div class="body">
+      <p>IP 주소를 도메인 이름으로 바꾸는 시스템을 영문 약자로 쓰시오.</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="IT·코딩" data-topic="네트워크·보안" data-type="descriptive" data-answer="입력값 검증과 파라미터화된 쿼리를 사용한다" data-difficulty="4">
+    <div class="num">86</div>
+    <div class="body">
+      <p>SQL 인젝션을 막는 기본 방법을 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title">논리·추리 <span>10문제 · 명제 / 수열·추리</span></h2>
+
+  <h3 class="topic-title">명제 <span>5문제</span></h3>
+  <section class="q" data-subject="논리·추리" data-topic="명제" data-type="choice5" data-answer="A" data-difficulty="1">
+    <div class="num">87</div>
+    <div class="body">
+      <p>‘모든 사람은 죽는다. 소크라테스는 사람이다.’에서 따라나는 결론은?</p>
+      <ul class="opts">
+        <li>A. 소크라테스는 죽는다</li><li>B. 소크라테스는 사람이 아니다</li><li>C. 모든 사람은 소크라테스다</li><li>D. 아무도 죽지 않는다</li><li>E. 소크라테스는 신이다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="논리·추리" data-topic="명제" data-type="choice4" data-answer="B" data-difficulty="2">
+    <div class="num">88</div>
+    <div class="body">
+      <p>명제 ‘p이면 q’의 대우는?</p>
+      <ul class="opts">
+        <li>A. q이면 p</li><li>B. not q이면 not p</li><li>C. not p이면 not q</li><li>D. p 그리고 q</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="논리·추리" data-topic="명제" data-type="short" data-answer="모두 거짓" data-difficulty="3">
+    <div class="num">89</div>
+    <div class="body">
+      <p>‘p 또는 q’가 거짓일 때 p와 q의 진리값은?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="논리·추리" data-topic="명제" data-type="choice5" data-answer="B" data-difficulty="4">
+    <div class="num">90</div>
+    <div class="body">
+      <p>명제 ‘p → q’가 거짓이 되는 경우는?</p>
+      <ul class="opts">
+        <li>A. p 참, q 참</li><li>B. p 참, q 거짓</li><li>C. p 거짓, q 참</li><li>D. p 거짓, q 거짓</li><li>E. 항상 참</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="논리·추리" data-topic="명제" data-type="descriptive" data-answer="연역은 전제에서 필연적 결론을 이끌고, 귀납은 관찰에서 일반화해 개연적 결론을 얻는다" data-difficulty="4">
+    <div class="num">91</div>
+    <div class="body">
+      <p>귀납 추론과 연역 추론의 차이를 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">수열·추리 <span>5문제</span></h3>
+  <section class="q" data-subject="논리·추리" data-topic="수열·추리" data-type="calc" data-answer="32" data-difficulty="2">
+    <div class="num">92</div>
+    <div class="body">
+      <p>2, 4, 8, 16, ? 다음 수는?</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+  <section class="q" data-subject="논리·추리" data-topic="수열·추리" data-type="short" data-answer="25" data-difficulty="3">
+    <div class="num">93</div>
+    <div class="body">
+      <p>1, 4, 9, 16, ? 다음 수는?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="논리·추리" data-topic="수열·추리" data-type="choice5" data-answer="C" data-difficulty="4">
+    <div class="num">94</div>
+    <div class="body">
+      <p>3, 7, 15, 31, ? 다음 수는?</p>
+      <ul class="opts">
+        <li>A. 47</li><li>B. 55</li><li>C. 63</li><li>D. 64</li><li>E. 71</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="논리·추리" data-topic="수열·추리" data-type="calc" data-answer="55" data-difficulty="4">
+    <div class="num">95</div>
+    <div class="body">
+      <p>1 + 2 + 3 + … + 10 = ?</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+  <section class="q" data-subject="논리·추리" data-topic="수열·추리" data-type="descriptive" data-answer="피보나치 수열로 앞 두 수의 합이 다음 수이며 빈칸은 13" data-difficulty="4">
+    <div class="num">96</div>
+    <div class="body">
+      <p>다음 수열의 규칙을 설명하고 빈칸의 값을 쓰시오: 1, 1, 2, 3, 5, 8, ?</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title">상식·시사 <span>8문제 · 일반상식 / 시사</span></h2>
+
+  <h3 class="topic-title">일반상식 <span>4문제</span></h3>
+  <section class="q" data-subject="상식·시사" data-topic="일반상식" data-type="choice5" data-answer="C" data-difficulty="1">
+    <div class="num">97</div>
+    <div class="body">
+      <p>태양계에서 가장 큰 행성은?</p>
+      <ul class="opts">
+        <li>A. 지구</li><li>B. 화성</li><li>C. 목성</li><li>D. 금성</li><li>E. 수성</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="상식·시사" data-topic="일반상식" data-type="choice4" data-answer="B" data-difficulty="2">
+    <div class="num">98</div>
+    <div class="body">
+      <p>국제연합(UN) 본부가 있는 도시는?</p>
+      <ul class="opts">
+        <li>A. 제네바</li><li>B. 뉴욕</li><li>C. 파리</li><li>D. 런던</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="상식·시사" data-topic="일반상식" data-type="choice3" data-answer="A" data-difficulty="3">
+    <div class="num">99</div>
+    <div class="body">
+      <p>대한민국의 수도는?</p>
+      <ul class="opts">
+        <li>A. 서울</li><li>B. 부산</li><li>C. 인천</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="상식·시사" data-topic="일반상식" data-type="choice5" data-answer="D" data-difficulty="4">
+    <div class="num">100</div>
+    <div class="body">
+      <p>노벨상이 수여되지 않는 분야는?</p>
+      <ul class="opts">
+        <li>A. 물리학</li><li>B. 화학</li><li>C. 문학</li><li>D. 수학</li><li>E. 평화</li>
+      </ul>
+    </div>
+  </section>
+
+  <h3 class="topic-title">시사 <span>4문제</span></h3>
+  <section class="q" data-subject="상식·시사" data-topic="시사" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">101</div>
+    <div class="body">
+      <p>2015년 유엔 기후변화회의에서 채택된 협정은?</p>
+      <ul class="opts">
+        <li>A. 교토 의정서</li><li>B. 파리 협정</li><li>C. 몬트리올 의정서</li><li>D. 바젤 협약</li><li>E. 람사르 협약</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="상식·시사" data-topic="시사" data-type="choice4" data-answer="C" data-difficulty="3">
+    <div class="num">102</div>
+    <div class="body">
+      <p>유럽연합(EU)의 공용 통화는?</p>
+      <ul class="opts">
+        <li>A. 달러</li><li>B. 파운드</li><li>C. 유로</li><li>D. 프랑</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="상식·시사" data-topic="시사" data-type="short" data-answer="WHO" data-difficulty="4">
+    <div class="num">103</div>
+    <div class="body">
+      <p>세계보건기구의 영문 약자는?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+  <section class="q" data-subject="상식·시사" data-topic="시사" data-type="descriptive" data-answer="생산성 향상과 함께 저작권·일자리·오정보 문제를 낳는다" data-difficulty="4">
+    <div class="num">104</div>
+    <div class="body">
+      <p>생성형 AI가 사회에 미치는 영향 한 가지를 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title">기타 <span>6문제 · 예술 / 한자</span></h2>
+
+  <h3 class="topic-title">예술 <span>3문제</span></h3>
+  <section class="q" data-subject="기타" data-topic="예술" data-type="choice5" data-answer="B" data-difficulty="1">
+    <div class="num">105</div>
+    <div class="body">
+      <p>‘모나리자’를 그린 화가는?</p>
+      <ul class="opts">
+        <li>A. 미켈란젤로</li><li>B. 레오나르도 다 빈치</li><li>C. 라파엘로</li><li>D. 보티첼리</li><li>E. 카라바조</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="기타" data-topic="예술" data-type="choice4" data-answer="A" data-difficulty="2">
+    <div class="num">106</div>
+    <div class="body">
+      <p>베토벤 교향곡 9번 4악장에 포함된 합창은?</p>
+      <ul class="opts">
+        <li>A. 환희의 송가</li><li>B. 운명</li><li>C. 월광</li><li>D. 영웅</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="기타" data-topic="예술" data-type="descriptive" data-answer="빛과 색의 순간적 인상을 중시한 미술 사조" data-difficulty="4">
+    <div class="num">107</div>
+    <div class="body">
+      <p>인상주의 미술의 특징을 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">한자 <span>3문제</span></h3>
+  <section class="q" data-subject="기타" data-topic="한자" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">108</div>
+    <div class="body">
+      <p>한자 ‘學生’의 뜻은?</p>
+      <ul class="opts">
+        <li>A. 선생</li><li>B. 학생</li><li>C. 학교</li><li>D. 공부</li><li>E. 시험</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="기타" data-topic="한자" data-type="ox" data-answer="A" data-difficulty="3">
+    <div class="num">109</div>
+    <div class="body">
+      <p>한자 ‘大’는 ‘크다’라는 뜻이다.</p>
+      <ul class="opts">
+        <li>A. O</li><li>B. X</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="기타" data-topic="한자" data-type="choice5" data-answer="A" data-difficulty="4">
+    <div class="num">110</div>
+    <div class="body">
+      <p>다음 중 뜻이 서로 반대인 한자끼리 짝지어진 것은?</p>
+      <ul class="opts">
+        <li>A. 上 - 下</li><li>B. 山 - 川</li><li>C. 日 - 月</li><li>D. 木 - 林</li><li>E. 水 - 江</li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 class="subject-title major">컴퓨터공학 <span>4문제 · 운영체제 / 데이터베이스</span></h2>
+
+  <h3 class="topic-title">운영체제 <span>2문제</span></h3>
+  <section class="q" data-subject="컴퓨터공학" data-topic="운영체제" data-type="choice5" data-answer="C" data-difficulty="2">
+    <div class="num">111</div>
+    <div class="body">
+      <p>프로세스와 스레드의 차이로 옳은 것은?</p>
+      <ul class="opts">
+        <li>A. 스레드는 독립적인 메모리 공간을 가진다</li><li>B. 프로세스는 코드와 데이터를 공유한다</li><li>C. 스레드는 같은 프로세스의 자원을 공유한다</li><li>D. 프로세스가 스레드보다 가볍다</li><li>E. 스레드는 항상 병렬로 실행된다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="컴퓨터공학" data-topic="운영체제" data-type="descriptive" data-answer="물리 메모리보다 큰 주소 공간을 제공하고 프로세스를 격리한다" data-difficulty="4">
+    <div class="num">112</div>
+    <div class="body">
+      <p>가상 메모리의 목적을 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">데이터베이스 <span>2문제</span></h3>
+  <section class="q" data-subject="컴퓨터공학" data-topic="데이터베이스" data-type="choice4" data-answer="B" data-difficulty="3">
+    <div class="num">113</div>
+    <div class="body">
+      <p>ACID에서 ‘원자성(Atomicity)’의 의미는?</p>
+      <ul class="opts">
+        <li>A. 일부만 반영해도 된다</li><li>B. 모두 반영되거나 전혀 반영되지 않는다</li><li>C. 동시에 여러 트랜잭션을 허용한다</li><li>D. 결과가 영구히 저장된다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="컴퓨터공학" data-topic="데이터베이스" data-type="short" data-answer="중복 제거" data-difficulty="4">
+    <div class="num">114</div>
+    <div class="body">
+      <p>관계형 데이터베이스 정규화의 주된 목적은?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title major">전자공학 <span>4문제 · 회로이론 / 신호처리</span></h2>
+
+  <h3 class="topic-title">회로이론 <span>2문제</span></h3>
+  <section class="q" data-subject="전자공학" data-topic="회로이론" data-type="choice5" data-answer="A" data-difficulty="2">
+    <div class="num">115</div>
+    <div class="body">
+      <p>옴의 법칙으로 옳은 것은?</p>
+      <ul class="opts">
+        <li>A. V = IR</li><li>B. V = I / R</li><li>C. I = VR</li><li>D. R = VI</li><li>E. V = I²R</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="전자공학" data-topic="회로이론" data-type="calc" data-answer="2" data-difficulty="4">
+    <div class="num">116</div>
+    <div class="body">
+      <p>10V 전압에 5Ω 저항이 연결될 때 전류는? (단위 A)</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">신호처리 <span>2문제</span></h3>
+  <section class="q" data-subject="전자공학" data-topic="신호처리" data-type="choice4" data-answer="B" data-difficulty="3">
+    <div class="num">117</div>
+    <div class="body">
+      <p>나이퀴스트 정리에 따르면 최대 주파수 f인 신호를 복원하려면 샘플링 주파수가 최소 얼마여야 하는가?</p>
+      <ul class="opts">
+        <li>A. f</li><li>B. 2f</li><li>C. f/2</li><li>D. 4f</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="전자공학" data-topic="신호처리" data-type="short" data-answer="주파수" data-difficulty="4">
+    <div class="num">118</div>
+    <div class="body">
+      <p>푸리에 변환은 시간 영역 신호를 무엇의 영역으로 바꾸는가?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title major">기계공학 <span>4문제 · 열역학 / 재료역학</span></h2>
+
+  <h3 class="topic-title">열역학 <span>2문제</span></h3>
+  <section class="q" data-subject="기계공학" data-topic="열역학" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">119</div>
+    <div class="body">
+      <p>열역학 제1법칙의 내용은?</p>
+      <ul class="opts">
+        <li>A. 엔트로피는 항상 증가한다</li><li>B. 에너지는 보존된다</li><li>C. 열은 저온에서 고온으로 흐른다</li><li>D. 압력은 항상 일정하다</li><li>E. 부피는 온도에 반비례한다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="기계공학" data-topic="열역학" data-type="calc" data-answer="300" data-difficulty="4">
+    <div class="num">120</div>
+    <div class="body">
+      <p>이상기체 상태방정식 PV = nRT에서 n=1, R=8.31, T=300K, V=8.31L일 때 P는? (kPa)</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">재료역학 <span>2문제</span></h3>
+  <section class="q" data-subject="기계공학" data-topic="재료역학" data-type="choice4" data-answer="A" data-difficulty="3">
+    <div class="num">121</div>
+    <div class="body">
+      <p>응력(stress)의 정의는?</p>
+      <ul class="opts">
+        <li>A. 힘 / 면적</li><li>B. 면적 / 힘</li><li>C. 변형량 / 원래 길이</li><li>D. 힘 × 거리</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="기계공학" data-topic="재료역학" data-type="descriptive" data-answer="탄성 변형은 하중 제거 시 원상복구되고, 소성 변형은 영구 변형으로 남는다" data-difficulty="4">
+    <div class="num">122</div>
+    <div class="body">
+      <p>탄성 변형과 소성 변형의 차이를 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title major">화학공학 <span>4문제 · 반응공학 / 공정열역학</span></h2>
+
+  <h3 class="topic-title">반응공학 <span>2문제</span></h3>
+  <section class="q" data-subject="화학공학" data-topic="반응공학" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">123</div>
+    <div class="body">
+      <p>촉매의 역할로 가장 알맞은 것은?</p>
+      <ul class="opts">
+        <li>A. 평형 상수를 바꾼다</li><li>B. 활성화 에너지를 낮춘다</li><li>C. 반응열을 증가시킨다</li><li>D. 생성물을 제거한다</li><li>E. 반응물 농도를 높인다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="화학공학" data-topic="반응공학" data-type="calc" data-answer="20" data-difficulty="4">
+    <div class="num">124</div>
+    <div class="body">
+      <p>1차 반응의 반감기가 10분일 때, 초기 농도의 1/4로 줄어드는 데 걸리는 시간은? (분)</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">공정열역학 <span>2문제</span></h3>
+  <section class="q" data-subject="화학공학" data-topic="공정열역학" data-type="choice4" data-answer="B" data-difficulty="3">
+    <div class="num">125</div>
+    <div class="body">
+      <p>발열 반응에서 엔탈피 변화(ΔH)의 부호는?</p>
+      <ul class="opts">
+        <li>A. 양(+)</li><li>B. 음(−)</li><li>C. 0</li><li>D. 정의할 수 없다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="화학공학" data-topic="공정열역학" data-type="short" data-answer="증가" data-difficulty="4">
+    <div class="num">126</div>
+    <div class="body">
+      <p>자발적 과정에서 계와 주변을 합친 전체 엔트로피 변화는 항상 어떻게 되는가?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title major">경영학 <span>4문제 · 재무관리 / 마케팅</span></h2>
+
+  <h3 class="topic-title">재무관리 <span>2문제</span></h3>
+  <section class="q" data-subject="경영학" data-topic="재무관리" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">127</div>
+    <div class="body">
+      <p>순현재가치(NPV)가 0보다 크면?</p>
+      <ul class="opts">
+        <li>A. 투자를 기각해야 한다</li><li>B. 기업 가치를 창출한다</li><li>C. 반드시 손실이 난다</li><li>D. 회수할 수 없다</li><li>E. 이자가 없다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="경영학" data-topic="재무관리" data-type="calc" data-answer="10" data-difficulty="4">
+    <div class="num">128</div>
+    <div class="body">
+      <p>100만원을 연 10%로 1년 투자할 때 이자는? (만원)</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">마케팅 <span>2문제</span></h3>
+  <section class="q" data-subject="경영학" data-topic="마케팅" data-type="choice4" data-answer="D" data-difficulty="3">
+    <div class="num">129</div>
+    <div class="body">
+      <p>전통적인 마케팅 4P에 해당하지 않는 것은?</p>
+      <ul class="opts">
+        <li>A. Product</li><li>B. Price</li><li>C. Place</li><li>D. People</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="경영학" data-topic="마케팅" data-type="descriptive" data-answer="고객을 동질적인 집단으로 나누어 효율적으로 공략하기 위해" data-difficulty="4">
+    <div class="num">130</div>
+    <div class="body">
+      <p>시장 세분화의 목적을 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title major">경제학 <span>4문제 · 미시경제 / 거시경제</span></h2>
+
+  <h3 class="topic-title">미시경제 <span>2문제</span></h3>
+  <section class="q" data-subject="경제학" data-topic="미시경제" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">131</div>
+    <div class="body">
+      <p>수요의 가격탄력성이 1보다 클 때 가격을 인상하면 총수입은?</p>
+      <ul class="opts">
+        <li>A. 증가한다</li><li>B. 감소한다</li><li>C. 변하지 않는다</li><li>D. 0이 된다</li><li>E. 예측할 수 없다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="경제학" data-topic="미시경제" data-type="calc" data-answer="2" data-difficulty="4">
+    <div class="num">132</div>
+    <div class="body">
+      <p>가격이 10% 오를 때 수요가 20% 감소하면 수요의 가격탄력성 절댓값은?</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">거시경제 <span>2문제</span></h3>
+  <section class="q" data-subject="경제학" data-topic="거시경제" data-type="choice4" data-answer="A" data-difficulty="3">
+    <div class="num">133</div>
+    <div class="body">
+      <p>GDP 디플레이터는?</p>
+      <ul class="opts">
+        <li>A. 명목 GDP / 실질 GDP</li><li>B. 실질 GDP / 명목 GDP</li><li>C. 소비 / 투자</li><li>D. 수출 / 수입</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="경제학" data-topic="거시경제" data-type="short" data-answer="내린다" data-difficulty="4">
+    <div class="num">134</div>
+    <div class="body">
+      <p>중앙은행이 경기 침체에 대응해 기준금리를 어떻게 하는가?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title major">법학 <span>4문제 · 민법 / 형법</span></h2>
+
+  <h3 class="topic-title">민법 <span>2문제</span></h3>
+  <section class="q" data-subject="법학" data-topic="민법" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">135</div>
+    <div class="body">
+      <p>민법상 계약이 성립하려면 필요한 것은?</p>
+      <ul class="opts">
+        <li>A. 공증</li><li>B. 청약과 승낙의 합치</li><li>C. 등기</li><li>D. 인증</li><li>E. 신고</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="법학" data-topic="민법" data-type="choice4" data-answer="D" data-difficulty="4">
+    <div class="num">136</div>
+    <div class="body">
+      <p>불법행위 성립 요건이 아닌 것은?</p>
+      <ul class="opts">
+        <li>A. 고의 또는 과실</li><li>B. 위법성</li><li>C. 손해의 발생</li><li>D. 계약의 체결</li>
+      </ul>
+    </div>
+  </section>
+
+  <h3 class="topic-title">형법 <span>2문제</span></h3>
+  <section class="q" data-subject="법학" data-topic="형법" data-type="choice5" data-answer="B" data-difficulty="3">
+    <div class="num">137</div>
+    <div class="body">
+      <p>죄형법정주의의 내용으로 가장 알맞은 것은?</p>
+      <ul class="opts">
+        <li>A. 죄를 자유롭게 정할 수 있다</li><li>B. 법률이 없으면 처벌할 수 없다</li><li>C. 관습으로 처벌할 수 있다</li><li>D. 행정명령으로 처벌할 수 있다</li><li>E. 재판관 재량으로 처벌할 수 있다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="법학" data-topic="형법" data-type="short" data-answer="형사미성년자" data-difficulty="4">
+    <div class="num">138</div>
+    <div class="body">
+      <p>형법상 만 14세 미만인 자를 부르는 말은?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title major">심리학 <span>4문제 · 인지심리 / 연구방법</span></h2>
+
+  <h3 class="topic-title">인지심리 <span>2문제</span></h3>
+  <section class="q" data-subject="심리학" data-topic="인지심리" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">139</div>
+    <div class="body">
+      <p>단기기억의 대표적인 용량은?</p>
+      <ul class="opts">
+        <li>A. 3±2개</li><li>B. 7±2개</li><li>C. 20±5개</li><li>D. 100개</li><li>E. 무제한</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="심리학" data-topic="인지심리" data-type="descriptive" data-answer="작업기억의 한계 때문에 학습 시 불필요한 인지 부하를 줄여야 한다" data-difficulty="4">
+    <div class="num">140</div>
+    <div class="body">
+      <p>인지 부하 이론을 간단히 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">연구방법 <span>2문제</span></h3>
+  <section class="q" data-subject="심리학" data-topic="연구방법" data-type="choice4" data-answer="A" data-difficulty="3">
+    <div class="num">141</div>
+    <div class="body">
+      <p>상관관계가 인과관계를 의미하지 않는 이유로 가장 알맞은 것은?</p>
+      <ul class="opts">
+        <li>A. 제3의 변수나 우연이 작용할 수 있다</li><li>B. 측정이 불가능하다</li><li>C. 표본이 크면 안 된다</li><li>D. 항상 음의 관계만 나타난다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="심리학" data-topic="연구방법" data-type="calc" data-answer="65" data-difficulty="4">
+    <div class="num">142</div>
+    <div class="body">
+      <p>평균 50, 표준편차 10인 정규분포에서 z점수가 1.5인 원점수는?</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title major">의학·간호 <span>4문제 · 생리학 / 약리학</span></h2>
+
+  <h3 class="topic-title">생리학 <span>2문제</span></h3>
+  <section class="q" data-subject="의학·간호" data-topic="생리학" data-type="choice5" data-answer="B" data-difficulty="2">
+    <div class="num">143</div>
+    <div class="body">
+      <p>심장에서 혈액을 전신으로 내보내는 주된 펌프는?</p>
+      <ul class="opts">
+        <li>A. 좌심방</li><li>B. 좌심실</li><li>C. 우심방</li><li>D. 우심실</li><li>E. 판막</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="의학·간호" data-topic="생리학" data-type="short" data-answer="헤모글로빈" data-difficulty="4">
+    <div class="num">144</div>
+    <div class="body">
+      <p>적혈구에서 산소를 운반하는 단백질은?</p>
+      <p class="answer-hint">단답형</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">약리학 <span>2문제</span></h3>
+  <section class="q" data-subject="의학·간호" data-topic="약리학" data-type="choice4" data-answer="B" data-difficulty="3">
+    <div class="num">145</div>
+    <div class="body">
+      <p>약물의 치료지수가 작을수록?</p>
+      <ul class="opts">
+        <li>A. 안전성이 높다</li><li>B. 안전성이 낮다</li><li>C. 효과가 없다</li><li>D. 반감기가 길다</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="의학·간호" data-topic="약리학" data-type="descriptive" data-answer="내성균이 발생해 치료가 어려워진다" data-difficulty="4">
+    <div class="num">146</div>
+    <div class="body">
+      <p>항생제 남용의 위험을 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+  <h2 class="subject-title major">건축·토목 <span>4문제 · 구조역학 / 건축계획</span></h2>
+
+  <h3 class="topic-title">구조역학 <span>2문제</span></h3>
+  <section class="q" data-subject="건축·토목" data-topic="구조역학" data-type="choice5" data-answer="C" data-difficulty="2">
+    <div class="num">147</div>
+    <div class="body">
+      <p>경간 L인 단순보 중앙에 집중하중 P가 작용할 때 최대 휨모멘트는?</p>
+      <ul class="opts">
+        <li>A. PL</li><li>B. PL/2</li><li>C. PL/4</li><li>D. PL/8</li><li>E. 0</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="건축·토목" data-topic="구조역학" data-type="calc" data-answer="8" data-difficulty="4">
+    <div class="num">148</div>
+    <div class="body">
+      <p>길이 4m 단순보 중앙에 8kN 집중하중이 작용할 때 최대 휨모멘트는? (kN·m)</p>
+      <p class="answer-hint">계산</p>
+    </div>
+  </section>
+
+  <h3 class="topic-title">건축계획 <span>2문제</span></h3>
+  <section class="q" data-subject="건축·토목" data-topic="건축계획" data-type="choice4" data-answer="A" data-difficulty="3">
+    <div class="num">149</div>
+    <div class="body">
+      <p>용적률 계산에 쓰이는 것은?</p>
+      <ul class="opts">
+        <li>A. 대지면적에 대한 연면적의 비율</li><li>B. 건축면적에 대한 층수의 비율</li><li>C. 높이에 대한 폭의 비율</li><li>D. 대지면적에 대한 건축면적의 비율</li>
+      </ul>
+    </div>
+  </section>
+  <section class="q" data-subject="건축·토목" data-topic="건축계획" data-type="descriptive" data-answer="이용자의 이동을 효율화하고 혼잡과 충돌을 줄이기 위해" data-difficulty="4">
+    <div class="num">150</div>
+    <div class="body">
+      <p>건축계획에서 동선 계획이 중요한 이유를 서술하시오.</p>
+      <p class="answer-hint">서술형</p>
+    </div>
+  </section>
+
+
+
+  <section class="key" id="key">
+    <h2>정답표</h2>
+    <div class="key-scroll">
+      <table>
+        <thead>
+          <tr><th>번호</th><th>과목</th><th>주제</th><th>유형</th><th>난이도</th><th>정답</th><th>LED</th></tr>
+        </thead>
+        <tbody id="key-body"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<footer>Cue 테스트 시험지 · MIT License · 만든 사람: kalpha (최재영)</footer>
+<script>
+  const TYPE_LABEL = {
+    choice5: '5지선다',
+    choice4: '4지선다',
+    choice3: '3지선다',
+    ox: 'O/X',
+    descriptive: '서술형',
+    short: '단답형',
+    multi: '복수 선택',
+    calc: '계산',
+    code: '코드 출력',
+    reading: '독해 5지선다',
+  }
+  const DIFF_LABEL = { 1: '쉬움', 2: '보통', 3: '어려움', 4: '최상' }
+  const SUBJECTS = {
+    '국어': ['어휘·한자', '문법', '독해'],
+    '영어': ['어휘', '문법', '독해'],
+    '수학': ['대수', '기하', '확률·통계'],
+    '과학': ['물리', '화학', '생물·지구과학'],
+    '사회': ['경제', '법·정치', '지리'],
+    '역사': ['한국사', '세계사'],
+    'IT·코딩': ['프로그래밍', '자료구조·알고리즘', '네트워크·보안'],
+    '논리·추리': ['명제', '수열·추리'],
+    '상식·시사': ['일반상식', '시사'],
+    '기타': ['예술', '한자'],
+    '컴퓨터공학': ['운영체제', '데이터베이스'],
+    '전자공학': ['회로이론', '신호처리'],
+    '기계공학': ['열역학', '재료역학'],
+    '화학공학': ['반응공학', '공정열역학'],
+    '경영학': ['재무관리', '마케팅'],
+    '경제학': ['미시경제', '거시경제'],
+    '법학': ['민법', '형법'],
+    '심리학': ['인지심리', '연구방법'],
+    '의학·간호': ['생리학', '약리학'],
+    '건축·토목': ['구조역학', '건축계획'],
+  }
+  const SUBJECT_ORDER = Object.keys(SUBJECTS)
+
+  const key = document.getElementById('key')
+  const toggle = document.getElementById('toggle-key')
+  const result = document.getElementById('check-result')
+
+  function optionsFor(type) {
+    if (type === 'choice5' || type === 'reading' || type === 'multi') return 5
+    if (type === 'choice4') return 4
+    if (type === 'choice3') return 3
+    if (type === 'ox') return 2
+    return 0
+  }
+
+  function ledFor(type, answer) {
+    if (type === 'ox') return answer === 'A' ? '1회 (O)' : '2회 (X)'
+    if (['choice5', 'choice4', 'choice3', 'reading'].includes(type)) {
+      const index = 'ABCDE'.indexOf(answer)
+      return index >= 0 ? `${index + 1}회` : '—'
+    }
+    return '—'
+  }
+
+  function buildKey() {
+    const body = document.getElementById('key-body')
+    body.innerHTML = ''
+    document.querySelectorAll('.q').forEach((q, index) => {
+      const answer = (q.dataset.answer || '').trim()
+      const tr = document.createElement('tr')
+      tr.dataset.subject = q.dataset.subject || ''
+      const cells = [
+        String(index + 1),
+        q.dataset.subject || '',
+        q.dataset.topic || '',
+        TYPE_LABEL[q.dataset.type] || q.dataset.type,
+        DIFF_LABEL[q.dataset.difficulty] || q.dataset.difficulty || '',
+        answer,
+        ledFor(q.dataset.type, answer),
+      ]
+      cells.forEach((text) => {
+        const td = document.createElement('td')
+        td.textContent = text
+        tr.appendChild(td)
+      })
+      body.appendChild(tr)
+    })
+    applyKeyFilter()
+  }
+
+  let activeSubject = null
+
+  function applyKeyFilter() {
+    document.querySelectorAll('#key-body tr').forEach((tr) => {
+      tr.style.display = activeSubject && tr.dataset.subject !== activeSubject ? 'none' : ''
+    })
+  }
+
+  function validate() {
+    const errors = []
+    const questions = [...document.querySelectorAll('.q')]
+    if (questions.length < 100) errors.push(`문제가 ${questions.length}개뿐입니다.`)
+
+    const seen = new Set()
+    const bodies = new Set()
+    const subjectSeen = new Set()
+    const topicSeen = new Set()
+    let lastSubject = -1
+    let lastTopic = -1
+    let lastDiff = 0
+    const diffCount = { 1: 0, 2: 0, 3: 0, 4: 0 }
+
+    questions.forEach((q, index) => {
+      const n = index + 1
+      const num = q.querySelector('.num')?.firstChild?.textContent?.trim()
+      const type = q.dataset.type
+      const answer = (q.dataset.answer || '').trim()
+      const subject = q.dataset.subject || ''
+      const topic = q.dataset.topic || ''
+      const diff = Number(q.dataset.difficulty)
+      if (num !== String(n)) errors.push(`${n}번: 문제 번호가 ${num}입니다.`)
+      if (seen.has(num)) errors.push(`${n}번: 문제 번호 중복`)
+      seen.add(num)
+      if (!TYPE_LABEL[type]) errors.push(`${n}번: 알 수 없는 유형 ${type}`)
+      if (!answer) errors.push(`${n}번: 정답이 없습니다.`)
+      if (!SUBJECTS[subject]) errors.push(`${n}번: 알 수 없는 과목 ${subject}`)
+      if (SUBJECTS[subject] && !SUBJECTS[subject].includes(topic)) {
+        errors.push(`${n}번: ${subject}에 없는 주제 ${topic}`)
+      }
+      if (!DIFF_LABEL[diff]) errors.push(`${n}번: 잘못된 난이도 ${q.dataset.difficulty}`)
+      else diffCount[diff] += 1
+
+      const subjectIndex = SUBJECT_ORDER.indexOf(subject)
+      const topicIndex = SUBJECTS[subject] ? SUBJECTS[subject].indexOf(topic) : -1
+      if (subjectIndex < lastSubject) errors.push(`${n}번: 과목 순서가 뒤바뀌었습니다.`)
+      if (subjectIndex !== lastSubject) {
+        lastSubject = subjectIndex
+        lastTopic = -1
+        lastDiff = 0
+      }
+      if (topicIndex < lastTopic) errors.push(`${n}번: ${subject} 주제 순서가 뒤바뀌었습니다.`)
+      if (topicIndex > lastTopic) {
+        lastTopic = topicIndex
+        lastDiff = 0
+      }
+      if (diff < lastDiff) errors.push(`${n}번: ${subject} 난이도가 오름차순이 아닙니다.`)
+      lastDiff = Math.max(lastDiff, diff)
+      subjectSeen.add(subject)
+      topicSeen.add(`${subject}/${topic}`)
+
+      const text = (q.querySelector('.body')?.textContent || '').replace(/\s+/g, ' ').trim()
+      if (bodies.has(text)) errors.push(`${n}번: 중복 문제`)
+      bodies.add(text)
+
+      const opts = [...q.querySelectorAll('.opts li')].map((li) => li.textContent.trim())
+      const expected = optionsFor(type)
+      if (expected === 0) {
+        if (opts.length) errors.push(`${n}번: ${type} 문제에 보기가 있습니다.`)
+      } else {
+        if (opts.length !== expected) errors.push(`${n}번: 보기 ${opts.length}개 (기대 ${expected}개)`)
+        const letters = 'ABCDE'.slice(0, expected)
+        opts.forEach((opt, i) => {
+          if (!opt.startsWith(`${letters[i]}.`)) errors.push(`${n}번: 보기 기호가 ${letters[i]}가 아닙니다.`)
+        })
+        if (type === 'multi') {
+          const picks = answer.split(',').map((s) => s.trim())
+          if (picks.length !== 2) errors.push(`${n}번: 복수 선택 정답은 2개여야 합니다.`)
+          picks.forEach((pick) => {
+            if (!letters.includes(pick)) errors.push(`${n}번: 잘못된 복수 선택 ${pick}`)
+          })
+        } else if (!letters.includes(answer)) {
+          errors.push(`${n}번: 정답 ${answer}이 보기에 없습니다.`)
+        }
+      }
+    })
+
+    SUBJECT_ORDER.forEach((subject) => {
+      if (!subjectSeen.has(subject)) errors.push(`과목 누락: ${subject}`)
+      SUBJECTS[subject].forEach((topic) => {
+        if (!topicSeen.has(`${subject}/${topic}`)) errors.push(`주제 누락: ${subject} / ${topic}`)
+      })
+    })
+
+    const types = new Set(questions.map((q) => q.dataset.type))
+    Object.keys(TYPE_LABEL).forEach((type) => {
+      if (!types.has(type)) errors.push(`유형 누락: ${TYPE_LABEL[type]}`)
+    })
+
+    const total = questions.length || 1
+    if (diffCount[4] / total < 0.3) errors.push(`최상 난이도 비중이 ${Math.round((diffCount[4] / total) * 100)}% (30% 이상 필요)`)
+    if (diffCount[1] / total > 0.2) errors.push(`쉬움 난이도 비중이 ${Math.round((diffCount[1] / total) * 100)}% (20% 이하 필요)`)
+
+    const rows = document.querySelectorAll('#key-body tr')
+    if (rows.length !== questions.length) {
+      errors.push(`정답표 행 ${rows.length}개 (문제 ${questions.length}개)`)
+    }
+
+    const external = [...document.querySelectorAll('[src], [href]')].filter((el) => {
+      const value = el.getAttribute('src') || el.getAttribute('href')
+      return value && !value.startsWith('#') && !value.startsWith('data:')
+    })
+    if (external.length) errors.push(`외부 리소스 ${external.length}개`)
+
+    if (errors.length) {
+      result.textContent = `검증 실패 ${errors.length}건\n${errors.slice(0, 20).join('\n')}`
+      result.className = 'check-result fail'
+    } else {
+      result.textContent = `검증 통과: ${questions.length}문제, ${subjectSeen.size}과목, ${types.size}종 유형 · 난이도 ${diffCount[1]}/${diffCount[2]}/${diffCount[3]}/${diffCount[4]}`
+      result.className = 'check-result pass'
+    }
+    return errors
+  }
+
+  toggle.addEventListener('click', () => {
+    const open = key.classList.toggle('open')
+    toggle.textContent = open ? '정답 숨기기' : '정답 보기'
+    if (open) key.scrollIntoView({ block: 'start' })
+  })
+
+  document.getElementById('self-check').addEventListener('click', () => {
+    buildKey()
+    validate()
+  })
+
+  document.getElementById('fullscreen').addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen()
+    else document.documentElement.requestFullscreen()
+  })
+
+  const watermark = document.getElementById('watermark')
+  const watermarkToggle = document.getElementById('toggle-watermark')
+  const watermarkStrength = document.getElementById('watermark-strength')
+  let watermarkLevel = 1
+  function applyWatermarkLevel() {
+    watermark.classList.toggle('level-2', watermarkLevel === 2)
+    watermark.classList.toggle('level-3', watermarkLevel === 3)
+    watermarkStrength.textContent = `워터마크 강도 ${watermarkLevel}`
+  }
+  watermarkToggle.addEventListener('click', () => {
+    const on = watermark.classList.toggle('on')
+    watermarkToggle.textContent = on ? '워터마크 끄기' : '워터마크 켜기'
+  })
+  watermarkStrength.addEventListener('click', () => {
+    watermarkLevel = (watermarkLevel % 3) + 1
+    if (!watermark.classList.contains('on')) {
+      watermark.classList.add('on')
+      watermarkToggle.textContent = '워터마크 끄기'
+    }
+    applyWatermarkLevel()
+  })
+  applyWatermarkLevel()
+
+  const indexEl = document.getElementById('index')
+  const groupsEl = document.getElementById('index-groups')
+  const backBtn = document.getElementById('back-index')
+  const mainEl = document.querySelector('main')
+  let currentBlock = null
+  let blockIndex = -1
+  ;[...mainEl.children].forEach((node) => {
+    if (node.classList && node.classList.contains('subject-title')) {
+      blockIndex += 1
+      currentBlock = document.createElement('div')
+      currentBlock.className = 'subject-block'
+      currentBlock.dataset.name = SUBJECT_ORDER[blockIndex] || node.firstChild.textContent.trim()
+      mainEl.insertBefore(currentBlock, node)
+      currentBlock.appendChild(node)
+    } else if (currentBlock && node.id !== 'key') {
+      currentBlock.appendChild(node)
+    }
+  })
+  const blocks = [...document.querySelectorAll('.subject-block')]
+
+  function showSubject(name) {
+    const target = name ? blocks.find((b) => b.dataset.name === name) : null
+    activeSubject = target ? target.dataset.name : null
+    blocks.forEach((b) => b.classList.toggle('active', b === target))
+    indexEl.classList.toggle('hidden', Boolean(target))
+    backBtn.classList.toggle('on', Boolean(target))
+    applyKeyFilter()
+    if (target) {
+      target.scrollIntoView({ block: 'start' })
+      history.replaceState(null, '', '#' + encodeURIComponent(target.dataset.name))
+      if (key.classList.contains('open')) key.scrollIntoView({ block: 'start' })
+    } else {
+      window.scrollTo({ top: 0 })
+      history.replaceState(null, '', location.pathname)
+    }
+  }
+
+  const groups = [
+    { title: '일반 과목', from: 0, to: 10 },
+    { title: '전공 과목', from: 10, to: 20 },
+  ]
+  groups.forEach((group) => {
+    const box = document.createElement('div')
+    box.className = 'group'
+    const title = document.createElement('h3')
+    title.textContent = group.title
+    const grid = document.createElement('div')
+    grid.className = 'grid'
+    blocks.slice(group.from, group.to).forEach((b) => {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      const label = document.createElement('b')
+      label.textContent = b.dataset.name
+      const count = document.createElement('span')
+      count.textContent = `${b.querySelectorAll('.q').length}문제`
+      btn.append(label, count)
+      btn.addEventListener('click', () => showSubject(b.dataset.name))
+      grid.appendChild(btn)
+    })
+    box.append(title, grid)
+    groupsEl.appendChild(box)
+  })
+
+  backBtn.addEventListener('click', () => showSubject(null))
+
+  const initial = decodeURIComponent(location.hash.slice(1))
+  showSubject(blocks.some((b) => b.dataset.name === initial) ? initial : null)
+
+  buildKey()
+  validate()
+</script>
+</body>
+</html>

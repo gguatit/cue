@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+target/
+src-tauri/gen/
+public/test-exam.html
+
+# env
+.env
+.env.*
+
+# logs
+*.log
+
+# local agent workspaces
+.superpowers/
+
+# local build artifacts kept for convenience
+artifacts/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
