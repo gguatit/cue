@@ -1,6 +1,7 @@
 import { invoke as tauriInvoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import type { AnswerLanguage, AnswerLevel } from '../stores/settings'
+import type { MouseButton } from './shortcutKeys'
 
 export const isTauri = (): boolean => '__TAURI_INTERNALS__' in window
 
@@ -38,7 +39,8 @@ export const setTrayMenuLabels = (
 export const copyText = (text: string) => invoke<void>('copy_text', { text })
 export const cancelAnswer = () => invoke<void>('cancel_answer')
 export const clearClipboard = () => invoke<void>('clear_clipboard')
-export const setShortcut = (accelerator: string) => invoke<void>('set_shortcut', { accelerator })
+export const setShortcut = (accelerator: string, click: boolean, button: MouseButton) =>
+  invoke<void>('set_shortcut', { accelerator, click, button })
 export const setPanicShortcut = (accelerator: string) =>
   invoke<void>('set_panic_shortcut', { accelerator })
 export const setShortcutRecording = (recording: boolean) => invoke<void>('set_shortcut_recording', { recording })

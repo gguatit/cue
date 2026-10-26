@@ -33,6 +33,46 @@ describe('mergeSettings', () => {
     expect(duplicate.shortcut.accelerator).not.toBe(duplicate.panic.accelerator)
   })
 
+  it('defaults answer shortcuts to a left mouse click', () => {
+    const merged = mergeSettings({})
+    expect(merged.shortcut.click).toBe(true)
+    expect(merged.shortcut.button).toBe('left')
+  })
+
+  it('turns click off for keyed answer shortcuts', () => {
+    const merged = mergeSettings({
+      shortcut: { accelerator: 'Control+Alt+Q', display: 'Ctrl + Alt + Q' },
+    })
+    expect(merged.shortcut.click).toBe(false)
+  })
+
+  it('keeps an explicit mouse button', () => {
+    const merged = mergeSettings({
+      shortcut: { accelerator: 'Control+Alt', display: 'Ctrl + Alt', click: false, button: 'right' },
+      panic: { accelerator: 'Control+Shift+P', display: 'Ctrl + Shift + P' },
+    })
+    expect(merged.shortcut.click).toBe(false)
+    expect(merged.shortcut.button).toBe('right')
+  })
+
+  it('auto-enables click for a modifier-only answer conflict', () => {
+    const merged = mergeSettings({
+      shortcut: { accelerator: 'Control+Alt', display: 'Ctrl + Alt', click: false },
+      panic: { accelerator: 'Control+Alt+X', display: 'Ctrl + Alt + X' },
+    })
+    expect(merged.shortcut.click).toBe(true)
+    expect(merged.panic.accelerator).toBe('Control+Alt+X')
+  })
+
+  it('defaults a missing click setting to the conflict-safe mode', () => {
+    const merged = mergeSettings({
+      shortcut: { accelerator: 'Control+Alt', display: 'Ctrl + Alt' },
+      panic: { accelerator: 'Control+Alt+X', display: 'Ctrl + Alt + X' },
+    })
+    expect(merged.shortcut.click).toBe(true)
+    expect(merged.panic.accelerator).toBe('Control+Alt+X')
+  })
+
   it('merges stored storage preferences', () => {
     expect(defaults.storage).toEqual({ history: true, errors: true })
     const merged = mergeSettings({ storage: { history: false } })
@@ -145,6 +185,22 @@ describe('mergeSettings', () => {
     const next = mergePersisted({ display: { tray: true } }, current)
     expect(typeof next.setProvider).toBe('function')
     expect(next.display.flashMs).toBe(800)
+  })
+})
+
+describe('setShortcut options', () => {
+  it('clears the click requirement for keyed shortcuts', () => {
+    useSettings.setState({ shortcut: { ...defaults.shortcut, click: true } })
+    useSettings.getState().setShortcut('Control+Alt+Q', 'Ctrl + Alt + Q')
+    expect(useSettings.getState().shortcut.click).toBe(false)
+  })
+
+  it('stores the click requirement and mouse button', () => {
+    useSettings.setState({ shortcut: { ...defaults.shortcut, click: true, button: 'left' } })
+    useSettings.getState().setShortcutButton('right')
+    useSettings.getState().setShortcutClick(false)
+    expect(useSettings.getState().shortcut.button).toBe('right')
+    expect(useSettings.getState().shortcut.click).toBe(false)
   })
 })
 

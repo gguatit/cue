@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useT } from '../i18n'
-import { buildAccel, commitsOnBlur, keyName, modifierName } from '../lib/shortcutKeys'
+import {
+  buildAccel,
+  commitsOnBlur,
+  isModifierOnly,
+  keyName,
+  modifierName,
+  shortcutConflicts,
+} from '../lib/shortcutKeys'
 import { setPanicShortcut, setShortcut, setShortcutRecording } from '../lib/tauri'
 import { useSettings } from '../stores/settings'
 import { Button } from './ui'
@@ -12,6 +19,8 @@ export default function ShortcutRecorder({ panic = false }: { panic?: boolean })
   const t = useT()
   const shortcut = useSettings((s) => (panic ? s.panic : s.shortcut))
   const saveShortcut = useSettings((s) => (panic ? s.setPanicShortcut : s.setShortcut))
+  const click = useSettings((s) => s.shortcut.click)
+  const button = useSettings((s) => s.shortcut.button)
   const [recording, setRecording] = useState(false)
   const [preview, setPreview] = useState('')
   const [error, setError] = useState('')
@@ -34,19 +43,23 @@ export default function ShortcutRecorder({ panic = false }: { panic?: boolean })
         setPreview('')
         return false
       }
-      const other = panic ? useSettings.getState().shortcut : useSettings.getState().panic
-      if (built.accelerator === other.accelerator) {
+      const current = useSettings.getState()
+      const nextClick = panic ? false : isModifierOnly(built.accelerator) ? click : false
+      const answer = panic ? current.shortcut : { accelerator: built.accelerator, click: nextClick }
+      const panicSpec = panic ? { accelerator: built.accelerator } : current.panic
+      if (shortcutConflicts(answer, panicSpec)) {
         setError(
           t(
-            'That combination is already used by the other shortcut',
-            '이미 다른 단축키에서 사용 중인 조합입니다',
+            'That combination conflicts with the other shortcut',
+            '다른 단축키와 충돌하는 조합입니다',
           ),
         )
         setPreview('')
         return false
       }
       try {
-        await (panic ? setPanicShortcut : setShortcut)(built.accelerator)
+        if (panic) await setPanicShortcut(built.accelerator)
+        else await setShortcut(built.accelerator, nextClick, button)
         saveShortcut(built.accelerator, built.display)
         return true
       } catch {
@@ -96,7 +109,7 @@ export default function ShortcutRecorder({ panic = false }: { panic?: boolean })
       window.removeEventListener('keyup', onUp, true)
       window.removeEventListener('blur', onBlur)
     }
-  }, [recording, t, saveShortcut, panic])
+  }, [recording, t, saveShortcut, panic, click, button])
 
   useEffect(() => {
     if (!recording) return
@@ -122,11 +135,20 @@ export default function ShortcutRecorder({ panic = false }: { panic?: boolean })
     void setShortcutRecording(true).catch(() => {})
   }
 
+  const clickText =
+    button === 'left'
+      ? t('Left click', '왼쪽 클릭')
+      : button === 'right'
+        ? t('Right click', '오른쪽 클릭')
+        : t('Middle click', '가운데 클릭')
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3">
         <span className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 font-mono text-sm text-zinc-200">
-          {recording ? preview || t('Press a combination…', '조합을 누르세요…') : shortcut.display}
+          {recording
+            ? preview || t('Press a combination…', '조합을 누르세요…')
+            : `${shortcut.display}${!panic && click ? ` + ${clickText}` : ''}`}
         </span>
         <Button
           variant={recording ? 'secondary' : 'primary'}

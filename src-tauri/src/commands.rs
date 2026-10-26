@@ -407,8 +407,8 @@ pub fn set_tray_menu_labels(
 }
 
 #[tauri::command]
-pub fn set_shortcut(accelerator: String) -> Result<(), String> {
-    crate::shortcut::set_spec(&accelerator)
+pub fn set_shortcut(accelerator: String, click: bool, button: String) -> Result<(), String> {
+    crate::shortcut::set_spec(&accelerator, click, &button)
 }
 
 #[tauri::command]

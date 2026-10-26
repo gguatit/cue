@@ -1,5 +1,10 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import {
+  isModifierOnly,
+  shortcutConflicts,
+  type MouseButton,
+} from '../lib/shortcutKeys'
 
 export const CAMOUFLAGE_ICONS = [
   'alyac', 'battery-medium', 'volume-2', 'wifi', 'clock', 'shield',
@@ -22,7 +27,7 @@ export type AnswerLanguage = 'auto' | 'ko' | 'en'
 export type AnswerLevel = 'concise' | 'normal' | 'detailed'
 
 export interface Settings {
-  shortcut: { accelerator: string; display: string }
+  shortcut: { accelerator: string; display: string; click: boolean; button: MouseButton }
   panic: { accelerator: string; display: string }
   language: 'ko' | 'en'
   display: {
@@ -60,6 +65,8 @@ export interface Settings {
 
 interface Actions {
   setShortcut: (accelerator: string, display: string) => void
+  setShortcutClick: (click: boolean) => void
+  setShortcutButton: (button: MouseButton) => void
   setPanicShortcut: (accelerator: string, display: string) => void
   setLanguage: (language: 'ko' | 'en') => void
   setDisplayMode: (mode: DisplayMode, on: boolean) => boolean
@@ -78,7 +85,12 @@ interface Actions {
 }
 
 export const defaults: Settings = {
-  shortcut: { accelerator: 'Control+Alt+Super', display: 'Ctrl + Alt + Win' },
+  shortcut: {
+    accelerator: 'Control+Alt+Super',
+    display: 'Ctrl + Alt + Win',
+    click: true,
+    button: 'left',
+  },
   panic: { accelerator: 'Control+Alt+Shift+X', display: 'Ctrl + Alt + Shift + X' },
   language: 'ko',
   display: {
@@ -127,10 +139,14 @@ export function mergeSettings(persisted: unknown): Settings {
     answerType: oneOf(providerRaw.answerType, ['choice', 'text'] as const, 'choice'),
     paraphrase: bool(providerRaw.paraphrase, false),
   }
+  const shortcutAccel = str(p.shortcut?.accelerator, defaults.shortcut.accelerator)
   const merged: Settings = {
     shortcut: {
-      accelerator: str(p.shortcut?.accelerator, defaults.shortcut.accelerator),
+      accelerator: shortcutAccel,
       display: str(p.shortcut?.display, defaults.shortcut.display),
+      click:
+        bool(p.shortcut?.click, defaults.shortcut.click) && isModifierOnly(shortcutAccel),
+      button: oneOf(p.shortcut?.button, ['left', 'right', 'middle'] as const, 'left'),
     },
     panic: {
       accelerator: str(p.panic?.accelerator, defaults.panic.accelerator),
@@ -179,10 +195,15 @@ export function mergeSettings(persisted: unknown): Settings {
     (mode) => merged.display[mode],
   )
   if (!anyDisplay) merged.display = { ...merged.display, tray: true }
-  if (merged.panic.accelerator === merged.shortcut.accelerator) {
-    merged.panic = { ...defaults.panic }
-    if (merged.panic.accelerator === merged.shortcut.accelerator) {
-      merged.shortcut = { ...defaults.shortcut }
+  if (shortcutConflicts(merged.shortcut, merged.panic)) {
+    if (isModifierOnly(merged.shortcut.accelerator) && !merged.shortcut.click) {
+      merged.shortcut = { ...merged.shortcut, click: true }
+    }
+    if (shortcutConflicts(merged.shortcut, merged.panic)) {
+      merged.panic = { ...defaults.panic }
+      if (shortcutConflicts(merged.shortcut, merged.panic)) {
+        merged.shortcut = { ...defaults.shortcut }
+      }
     }
   }
   return merged
@@ -199,7 +220,20 @@ export const useSettings = create<Settings & Actions>()(
   persist(
     (set, get) => ({
       ...defaults,
-      setShortcut: (accelerator, display) => set({ shortcut: { accelerator, display } }),
+      setShortcut: (accelerator, display) =>
+        set((s) => ({
+          shortcut: {
+            ...s.shortcut,
+            accelerator,
+            display,
+            click: isModifierOnly(accelerator) ? s.shortcut.click : false,
+          },
+        })),
+      setShortcutClick: (click) =>
+        set((s) => ({
+          shortcut: { ...s.shortcut, click: click && isModifierOnly(s.shortcut.accelerator) },
+        })),
+      setShortcutButton: (button) => set((s) => ({ shortcut: { ...s.shortcut, button } })),
       setPanicShortcut: (accelerator, display) => set({ panic: { accelerator, display } }),
       setLanguage: (language) => set({ language }),
       setDisplayMode: (mode, on) => {
@@ -239,7 +273,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 12,
+      version: 13,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

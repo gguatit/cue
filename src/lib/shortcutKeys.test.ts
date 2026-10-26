@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { buildAccel, commitsOnBlur, keyName, modifierName } from './shortcutKeys'
+import {
+  buildAccel,
+  commitsOnBlur,
+  isModifierOnly,
+  keyName,
+  modifierName,
+  shortcutConflicts,
+} from './shortcutKeys'
 
 describe('shortcutKeys', () => {
   it('maps modifier keys', () => {
@@ -30,5 +37,23 @@ describe('shortcutKeys', () => {
     expect(commitsOnBlur(['Control', 'Alt'])).toBe(true)
     expect(commitsOnBlur(['Control'])).toBe(false)
     expect(commitsOnBlur([])).toBe(false)
+  })
+  it('detects modifier-only shortcuts', () => {
+    expect(isModifierOnly('Control+Alt')).toBe(true)
+    expect(isModifierOnly('Control+Alt+Super')).toBe(true)
+    expect(isModifierOnly('Control+Alt+Q')).toBe(false)
+    expect(isModifierOnly('Control')).toBe(false)
+    expect(isModifierOnly('A')).toBe(false)
+  })
+  it('detects conflicts with and without a required click', () => {
+    const answer = { accelerator: 'Control+Alt', click: false }
+    expect(shortcutConflicts(answer, { accelerator: 'Control+Alt+X' })).toBe(true)
+    expect(shortcutConflicts({ ...answer, click: true }, { accelerator: 'Control+Alt+X' })).toBe(false)
+    expect(shortcutConflicts({ ...answer, click: true }, { accelerator: 'Control+Alt' })).toBe(true)
+    expect(shortcutConflicts({ ...answer, click: true }, { accelerator: 'Control+Alt+Shift' })).toBe(false)
+    expect(shortcutConflicts({ accelerator: 'Control+Alt+Shift', click: true }, { accelerator: 'Control+Alt' })).toBe(true)
+    expect(shortcutConflicts({ accelerator: 'Control+Alt+Q', click: false }, { accelerator: 'Control+Alt' })).toBe(true)
+    expect(shortcutConflicts({ ...answer, click: false }, { accelerator: 'Alt+Shift' })).toBe(false)
+    expect(shortcutConflicts({ accelerator: 'Control+Alt+Q' }, { accelerator: 'Control+Alt+Q' })).toBe(true)
   })
 })

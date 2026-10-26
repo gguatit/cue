@@ -56,7 +56,7 @@ export async function runStartup(): Promise<void> {
   if (s.stealth.guard) {
     await setGuard(true).catch(() => useAnswer.getState().logError('guard'))
   }
-  await setShortcut(s.shortcut.accelerator).catch(() =>
+  await setShortcut(s.shortcut.accelerator, s.shortcut.click, s.shortcut.button).catch(() =>
     useAnswer.getState().logError('shortcut'),
   )
   await setPanicShortcut(s.panic.accelerator).catch(() =>

@@ -10,6 +10,7 @@ import {
   parseImport,
   type Profile,
 } from '../../lib/settingsBackup'
+import { isModifierOnly, shortcutConflicts, type MouseButton } from '../../lib/shortcutKeys'
 import { applyTrayMenuLabels } from '../../lib/startup'
 import { getAutostart, setAutostart, setContentProtection, setGuard, setHideFromTaskbar, setPanicShortcut, setShortcut } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
@@ -19,6 +20,10 @@ export default function GeneralTab() {
   const t = useT()
   const language = useSettings((s) => s.language)
   const setLanguage = useSettings((s) => s.setLanguage)
+  const shortcut = useSettings((s) => s.shortcut)
+  const panic = useSettings((s) => s.panic)
+  const setShortcutClick = useSettings((s) => s.setShortcutClick)
+  const setShortcutButton = useSettings((s) => s.setShortcutButton)
   const storage = useSettings((s) => s.storage)
   const setStorage = useSettings((s) => s.setStorage)
   const [auto, setAuto] = useState(false)
@@ -30,7 +35,9 @@ export default function GeneralTab() {
   const applySettings = async (next: ReturnType<typeof mergeSettings>) => {
     const log = (code: string) => void useAnswer.getState().logError(code)
     await Promise.all([
-      setShortcut(next.shortcut.accelerator).catch(() => log('shortcut')),
+      setShortcut(next.shortcut.accelerator, next.shortcut.click, next.shortcut.button).catch(() =>
+        log('shortcut'),
+      ),
       setPanicShortcut(next.panic.accelerator).catch(() => log('shortcut')),
       setContentProtection(next.stealth.contentProtection).catch(() => log('stealth')),
       setHideFromTaskbar(next.stealth.skipTaskbar).catch(() => log('stealth')),
@@ -115,12 +122,64 @@ export default function GeneralTab() {
     }
   }
 
+  const toggleClick = async (next: boolean) => {
+    try {
+      await setShortcut(shortcut.accelerator, next, shortcut.button)
+      setShortcutClick(next)
+    } catch {
+      void useAnswer.getState().logError('shortcut')
+    }
+  }
+
+  const changeButton = async (next: MouseButton) => {
+    try {
+      await setShortcut(shortcut.accelerator, shortcut.click, next)
+      setShortcutButton(next)
+    } catch {
+      void useAnswer.getState().logError('shortcut')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <Card className="space-y-4">
         <div>
           <SectionTitle>{t('Answer shortcut', '답변 단축키')}</SectionTitle>
           <ShortcutRecorder />
+          <div className="mt-3 space-y-2 border-t border-zinc-800 pt-3">
+            <Toggle
+              checked={shortcut.click}
+              onChange={(v) => void toggleClick(v)}
+              disabled={!isModifierOnly(shortcut.accelerator)}
+              label={t('Require mouse click', '마우스 클릭 필요')}
+              hint={
+                isModifierOnly(shortcut.accelerator)
+                  ? t(
+                      'Hold the shortcut and click the selected button. The keys alone do nothing.',
+                      '단축키를 누른 채 선택한 버튼을 클릭해야 발동합니다. 키만 누르면 아무 일도 일어나지 않습니다.',
+                    )
+                  : t(
+                      'Only modifier-only shortcuts can require a click.',
+                      '보조키만 쓰는 단축키에서만 클릭을 요구할 수 있습니다.',
+                    )
+              }
+            />
+            {shortcut.click && (
+              <div className="flex items-center justify-between gap-3 px-1">
+                <span className="text-sm text-zinc-300">{t('Mouse button', '마우스 버튼')}</span>
+                <Select
+                  className="w-36"
+                  aria-label={t('Mouse button', '마우스 버튼')}
+                  value={shortcut.button}
+                  onChange={(e) => void changeButton(e.target.value as MouseButton)}
+                >
+                  <option value="left">{t('Left', '왼쪽')}</option>
+                  <option value="right">{t('Right', '오른쪽')}</option>
+                  <option value="middle">{t('Middle', '가운데')}</option>
+                </Select>
+              </div>
+            )}
+          </div>
         </div>
         <div>
           <SectionTitle>{t('Panic clear', '패닉 클리어')}</SectionTitle>
@@ -131,6 +190,23 @@ export default function GeneralTab() {
               '답변·기록·오류 로그를 지우고 Cue 창을 숨깁니다.',
             )}
           </p>
+        </div>
+        <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-3 text-xs text-amber-300">
+          <p className="font-medium">{t('Shortcut conflicts', '단축키 충돌')}</p>
+          <p className="mt-1">
+            {t(
+              'Global shortcuts can conflict with other apps or Windows. Modifier-only combinations may be captured by another program first. The answer requires a click while the modifiers are held. Avoid sharing modifiers with the panic shortcut. If the target app runs as administrator, run Cue in administrator mode too.',
+              '전역 단축키는 다른 앱이나 Windows 단축키와 충돌할 수 있습니다. 보조키만 쓰는 조합은 다른 프로그램이 먼저 가로챌 수 있습니다. 답변은 보조키를 누른 채 클릭해야 발동합니다. 패닉 단축키와 같은 보조키를 공유하지 마세요. 대상 앱이 관리자 권한이면 Cue도 관리자 모드로 실행하세요.',
+            )}
+          </p>
+          {shortcutConflicts(shortcut, panic) && (
+            <p className="mt-2 text-red-300">
+              {t(
+                'The answer and panic shortcuts share modifiers. Turn on Require mouse click or choose a different panic shortcut.',
+                '답변과 패닉 단축키가 같은 보조키를 공유합니다. 마우스 클릭 필요를 켜거나 패닉 단축키를 바꾸세요.',
+              )}
+            </p>
+          )}
         </div>
       </Card>
       <Card>

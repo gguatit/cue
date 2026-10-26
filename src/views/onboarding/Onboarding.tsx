@@ -110,8 +110,8 @@ export default function Onboarding() {
             <h2 className="text-sm font-semibold">{t('Choose your shortcut', '단축키 설정')}</h2>
             <p className="text-sm text-zinc-400">
               {t(
-                'Point at a question and press the shortcut. The answer appears on the tray icon.',
-                '문제 위에 포인터를 두고 단축키를 누르면 트레이 아이콘에 답이 나타납니다.',
+                'Point at a question, hold the shortcut and click the selected mouse button. The answer appears on the tray icon.',
+                '문제 위에 포인터를 두고 단축키를 누른 채 선택한 마우스 버튼을 클릭하면 트레이 아이콘에 답이 나타납니다.',
               )}
             </p>
             <ShortcutRecorder />
@@ -132,8 +132,8 @@ export default function Onboarding() {
           <div className="space-y-2 text-sm text-zinc-300">
             <p>
               {t(
-                'Ready. Press the shortcut while pointing at any question. You can test with the sample question in Settings → Mode.',
-                '준비됐습니다. 아무 문제 위에서 단축키를 누르세요. 설정 → 모드의 예시 문제로 테스트할 수 있습니다.',
+                'Ready. Hold the shortcut and click while pointing at any question. You can test with the sample question in Settings → Mode.',
+                '준비됐습니다. 아무 문제 위에서 단축키를 누른 채 클릭하세요. 설정 → 모드의 예시 문제로 테스트할 수 있습니다.',
               )}
             </p>
             <Button onClick={() => void useAnswer.getState().run(true)}>

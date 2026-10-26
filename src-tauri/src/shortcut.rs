@@ -6,14 +6,50 @@ use windows::core::Error;
 use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, HHOOK, KBDLLHOOKSTRUCT, SetWindowsHookExW, WH_KEYBOARD_LL, WM_KEYDOWN,
-    WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    CallNextHookEx, HHOOK, KBDLLHOOKSTRUCT, SetWindowsHookExW, WH_KEYBOARD_LL, WH_MOUSE_LL,
+    WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP,
+    WM_RBUTTONDOWN, WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 pub const MOD_CTRL: u8 = 1;
 pub const MOD_ALT: u8 = 2;
 pub const MOD_SHIFT: u8 = 4;
 pub const MOD_SUPER: u8 = 8;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MouseButton {
+    Left,
+    Right,
+    Middle,
+}
+
+impl MouseButton {
+    fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "left" => Ok(Self::Left),
+            "right" => Ok(Self::Right),
+            "middle" => Ok(Self::Middle),
+            _ => Err("shortcut".into()),
+        }
+    }
+
+    fn code(self) -> u8 {
+        match self {
+            Self::Left => 1,
+            Self::Right => 2,
+            Self::Middle => 3,
+        }
+    }
+
+    fn from_code(code: u8) -> Option<Self> {
+        match code {
+            1 => Some(Self::Left),
+            2 => Some(Self::Right),
+            3 => Some(Self::Middle),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ShortcutSpec {
@@ -64,6 +100,24 @@ fn parse_key(s: &str) -> Result<u32, String> {
     Err("shortcut".into())
 }
 
+fn conflicts(answer: ShortcutSpec, click: bool, panic: ShortcutSpec) -> bool {
+    if answer == panic {
+        return true;
+    }
+    if click {
+        return panic.key.is_none() && (panic.mods & answer.mods) == panic.mods;
+    }
+    match (answer.key, panic.key) {
+        (None, None) => {
+            (answer.mods & panic.mods) == answer.mods
+                || (panic.mods & answer.mods) == panic.mods
+        }
+        (None, Some(_)) => (answer.mods & panic.mods) == answer.mods,
+        (Some(_), None) => (panic.mods & answer.mods) == panic.mods,
+        (Some(_), Some(_)) => false,
+    }
+}
+
 pub struct HookCtx {
     pub app: AppHandle,
     pub spec: Mutex<Option<ShortcutSpec>>,
@@ -71,6 +125,9 @@ pub struct HookCtx {
     pub settings: Mutex<()>,
     pub recording: AtomicBool,
     pub hook_installed: AtomicBool,
+    pub answer_click: AtomicBool,
+    pub answer_button: AtomicU8,
+    pub mouse_hook_installed: AtomicBool,
 }
 
 static CTX: OnceLock<HookCtx> = OnceLock::new();
@@ -81,6 +138,8 @@ static PANIC_MODS_LATCH: AtomicBool = AtomicBool::new(false);
 static PANIC_KEY_LATCH: AtomicBool = AtomicBool::new(false);
 // vkCode whose down/up events are consumed so the hotkey never reaches the foreground app.
 static SUPPRESS: AtomicU32 = AtomicU32::new(0);
+static MOUSE_LATCH: AtomicBool = AtomicBool::new(false);
+static MOUSE_SUPPRESS: AtomicU8 = AtomicU8::new(0);
 
 pub fn install(app: &AppHandle, spec: ShortcutSpec) {
     let ctx = CTX.get_or_init(|| HookCtx {
@@ -90,6 +149,9 @@ pub fn install(app: &AppHandle, spec: ShortcutSpec) {
         settings: Mutex::new(()),
         recording: AtomicBool::new(false),
         hook_installed: AtomicBool::new(false),
+        answer_click: AtomicBool::new(false),
+        answer_button: AtomicU8::new(MouseButton::Left.code()),
+        mouse_hook_installed: AtomicBool::new(false),
     });
     if let Ok(mut g) = ctx.spec.lock() {
         *g = Some(spec);
@@ -98,23 +160,46 @@ pub fn install(app: &AppHandle, spec: ShortcutSpec) {
     let hook = unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook_proc), hmod, 0) };
     ctx.hook_installed
         .store(hook_install_ok(&hook), Ordering::Relaxed);
+    ensure_mouse_hook(ctx);
+}
+
+fn ensure_mouse_hook(ctx: &HookCtx) -> bool {
+    if ctx.mouse_hook_installed.load(Ordering::Relaxed) {
+        return true;
+    }
+    let hmod = unsafe { GetModuleHandleW(None) }.ok().map(Into::into);
+    let hook = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_hook_proc), hmod, 0) };
+    let ok = hook_install_ok(&hook);
+    ctx.mouse_hook_installed.store(ok, Ordering::Relaxed);
+    ok
 }
 
 fn hook_install_ok(result: &Result<HHOOK, Error>) -> bool {
     result.is_ok()
 }
 
-pub fn set_spec(accel: &str) -> Result<(), String> {
+pub fn set_spec(accel: &str, click: bool, button: &str) -> Result<(), String> {
     let spec = ShortcutSpec::parse(accel)?;
+    let button = MouseButton::parse(button)?;
+    if click && spec.key.is_some() {
+        return Err("shortcut".into());
+    }
     let ctx = CTX.get().ok_or("shortcut")?;
     let _settings = ctx.settings.lock().map_err(|_| "shortcut")?;
     if let Ok(panic) = ctx.panic.lock() {
-        if *panic == Some(spec) {
-            return Err("shortcut".into());
+        if let Some(panic) = *panic {
+            if conflicts(spec, click, panic) {
+                return Err("shortcut".into());
+            }
         }
+    }
+    if click && !ensure_mouse_hook(ctx) {
+        return Err("shortcut".into());
     }
     let mut g = ctx.spec.lock().map_err(|_| "shortcut")?;
     *g = Some(spec);
+    ctx.answer_click.store(click, Ordering::Relaxed);
+    ctx.answer_button.store(button.code(), Ordering::Relaxed);
     Ok(())
 }
 
@@ -123,8 +208,10 @@ pub fn set_panic_spec(accel: &str) -> Result<(), String> {
     let ctx = CTX.get().ok_or("shortcut")?;
     let _settings = ctx.settings.lock().map_err(|_| "shortcut")?;
     if let Ok(answer) = ctx.spec.lock() {
-        if *answer == Some(spec) {
-            return Err("shortcut".into());
+        if let Some(answer) = *answer {
+            if conflicts(answer, ctx.answer_click.load(Ordering::Relaxed), spec) {
+                return Err("shortcut".into());
+            }
         }
     }
     let mut g = ctx.panic.lock().map_err(|_| "shortcut")?;
@@ -143,13 +230,18 @@ pub fn set_recording(recording: bool) {
             PANIC_MODS_LATCH.store(false, Ordering::Relaxed);
             PANIC_KEY_LATCH.store(false, Ordering::Relaxed);
             SUPPRESS.store(0, Ordering::Relaxed);
+            MOUSE_LATCH.store(false, Ordering::Relaxed);
+            MOUSE_SUPPRESS.store(0, Ordering::Relaxed);
         }
     }
 }
 
 pub fn installed() -> bool {
-    CTX.get()
-        .map_or(false, |c| c.hook_installed.load(Ordering::Relaxed))
+    CTX.get().map_or(false, |c| {
+        c.hook_installed.load(Ordering::Relaxed)
+            && (!c.answer_click.load(Ordering::Relaxed)
+                || c.mouse_hook_installed.load(Ordering::Relaxed))
+    })
 }
 
 fn group_of(vk: u32) -> u8 {
@@ -219,7 +311,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                             }
                         }
                     }
-                    if !fired {
+                    if !fired && !ctx.answer_click.load(Ordering::Relaxed) {
                         if let Ok(guard) = ctx.spec.try_lock() {
                             if let Some(spec) = *guard {
                                 if check_spec(spec, kb, group, down, up, &MODS_LATCH, &KEY_LATCH) {
@@ -235,6 +327,72 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                         SUPPRESS.store(0, Ordering::Relaxed);
                     }
                     return LRESULT(1);
+                }
+            }
+        }
+    }
+    unsafe { CallNextHookEx(None, code, wparam, lparam) }
+}
+
+fn mouse_button(message: u32) -> Option<(MouseButton, bool)> {
+    match message {
+        WM_LBUTTONDOWN => Some((MouseButton::Left, true)),
+        WM_LBUTTONUP => Some((MouseButton::Left, false)),
+        WM_RBUTTONDOWN => Some((MouseButton::Right, true)),
+        WM_RBUTTONUP => Some((MouseButton::Right, false)),
+        WM_MBUTTONDOWN => Some((MouseButton::Middle, true)),
+        WM_MBUTTONUP => Some((MouseButton::Middle, false)),
+        _ => None,
+    }
+}
+
+fn should_fire_on_mouse(
+    click: bool,
+    spec: ShortcutSpec,
+    selected: MouseButton,
+    button: MouseButton,
+    down: bool,
+    mods: u8,
+) -> bool {
+    click && down && spec.key.is_none() && selected == button && mods == spec.mods
+}
+
+unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    if code >= 0 {
+        if let Some(ctx) = CTX.get() {
+            if !ctx.recording.load(Ordering::Relaxed) {
+                if let Some((button, down)) = mouse_button(wparam.0 as u32) {
+                    if !down {
+                        if MOUSE_SUPPRESS.load(Ordering::Relaxed) == button.code() {
+                            MOUSE_SUPPRESS.store(0, Ordering::Relaxed);
+                            MOUSE_LATCH.store(false, Ordering::Relaxed);
+                            return LRESULT(1);
+                        }
+                    } else if let Ok(guard) = ctx.spec.try_lock() {
+                        if let Some(spec) = *guard {
+                            let mods = current_mods();
+                            if mods != spec.mods {
+                                MOUSE_LATCH.store(false, Ordering::Relaxed);
+                            }
+                            let selected = MouseButton::from_code(
+                                ctx.answer_button.load(Ordering::Relaxed),
+                            )
+                            .unwrap_or(MouseButton::Left);
+                            if should_fire_on_mouse(
+                                ctx.answer_click.load(Ordering::Relaxed),
+                                spec,
+                                selected,
+                                button,
+                                true,
+                                mods,
+                            ) && !MOUSE_LATCH.swap(true, Ordering::Relaxed)
+                            {
+                                fire(ctx);
+                                MOUSE_SUPPRESS.store(button.code(), Ordering::Relaxed);
+                                return LRESULT(1);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -346,5 +504,88 @@ mod tests {
         assert!(!hook_install_ok(&Err(Error::from_hresult(
             windows::core::HRESULT(-1)
         ))));
+    }
+
+    #[test]
+    fn keyboard_shortcut_conflicts_use_modifier_overlap() {
+        let answer = ShortcutSpec::parse("Control+Alt").unwrap();
+        let panic = ShortcutSpec::parse("Control+Alt+X").unwrap();
+        let panic_shift = ShortcutSpec::parse("Control+Alt+Shift+X").unwrap();
+        let modifier_panic = ShortcutSpec::parse("Control+Alt+Shift").unwrap();
+        let keyed_answer = ShortcutSpec::parse("Control+Alt+Q").unwrap();
+        let unrelated = ShortcutSpec::parse("Alt+Shift").unwrap();
+
+        assert!(conflicts(answer, false, panic));
+        assert!(!conflicts(answer, true, panic));
+        assert!(conflicts(answer, false, panic_shift));
+        assert!(!conflicts(answer, true, panic_shift));
+        assert!(conflicts(modifier_panic, true, answer));
+        assert!(!conflicts(answer, true, modifier_panic));
+        assert!(conflicts(keyed_answer, false, answer));
+        assert!(!conflicts(answer, false, unrelated));
+        assert!(conflicts(panic, false, panic));
+    }
+
+    #[test]
+    fn mouse_buttons_parse() {
+        assert_eq!(MouseButton::parse("left"), Ok(MouseButton::Left));
+        assert_eq!(MouseButton::parse("right"), Ok(MouseButton::Right));
+        assert_eq!(MouseButton::parse("middle"), Ok(MouseButton::Middle));
+        assert!(MouseButton::parse("x").is_err());
+    }
+
+    #[test]
+    fn mouse_click_fires_only_for_selected_button_and_exact_modifiers() {
+        let spec = ShortcutSpec::parse("Control+Alt").unwrap();
+        let button = MouseButton::Left;
+        assert!(should_fire_on_mouse(
+            true,
+            spec,
+            button,
+            button,
+            true,
+            MOD_CTRL | MOD_ALT
+        ));
+        assert!(!should_fire_on_mouse(
+            false,
+            spec,
+            button,
+            button,
+            true,
+            MOD_CTRL | MOD_ALT
+        ));
+        assert!(!should_fire_on_mouse(
+            true,
+            spec,
+            MouseButton::Right,
+            button,
+            true,
+            MOD_CTRL | MOD_ALT
+        ));
+        assert!(!should_fire_on_mouse(
+            true,
+            spec,
+            button,
+            button,
+            false,
+            MOD_CTRL | MOD_ALT
+        ));
+        assert!(!should_fire_on_mouse(
+            true,
+            spec,
+            button,
+            button,
+            true,
+            MOD_CTRL
+        ));
+        let keyed = ShortcutSpec::parse("Control+Alt+Q").unwrap();
+        assert!(!should_fire_on_mouse(
+            true,
+            keyed,
+            button,
+            button,
+            true,
+            MOD_CTRL | MOD_ALT
+        ));
     }
 }

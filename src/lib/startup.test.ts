@@ -66,6 +66,7 @@ describe('runStartup shortcut check', () => {
     await runStartup()
     expect(useAnswer.getState().log).toEqual([])
     expect(mocks.setTrayError).not.toHaveBeenCalled()
+    expect(mocks.setShortcut).toHaveBeenCalledWith('Control+Alt+Super', true, 'left')
   })
 
   it('treats a rejected check as unknown', async () => {

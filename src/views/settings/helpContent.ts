@@ -29,8 +29,12 @@ export const SECTIONS: HelpSection[] = [
     title: ['Daily use', '기본 사용법'],
     bullets: [
       [
-        'Hover the pointer over a question number, then press Ctrl + Alt + Win.',
-        '마우스 포인터를 문제 번호 위에 두고 Ctrl + Alt + Win을 누르세요.',
+        'Hover the pointer over a question number, then hold Ctrl + Alt + Win and click the selected mouse button. The keys alone do nothing.',
+        '마우스 포인터를 문제 번호 위에 두고 Ctrl + Alt + Win을 누른 채 선택한 마우스 버튼을 클릭하세요. 키만 누르면 아무 일도 일어나지 않습니다.',
+      ],
+      [
+        'Global shortcuts can conflict with other apps or Windows. Avoid sharing modifiers with the panic shortcut; if they overlap, turn on Require mouse click or choose a different panic shortcut. If the target app runs as administrator, run Cue in administrator mode too.',
+        '전역 단축키는 다른 앱이나 Windows와 충돌할 수 있습니다. 패닉 단축키와 같은 보조키를 공유하지 마세요. 겹치면 마우스 클릭 필요를 켜거나 패닉 단축키를 바꾸세요. 대상 앱이 관리자 권한이면 Cue도 관리자 모드로 실행하세요.',
       ],
       [
         'The tray icon shows "…" while thinking, then displays the answer. It resets after the configured badge duration.',
@@ -41,8 +45,8 @@ export const SECTIONS: HelpSection[] = [
         '검색 중에 다시 눌러도 무시됩니다. 한 번에 하나만 실행됩니다.',
       ],
       [
-        'Press the shortcut with the pointer over the Cue window to get a sample answer (B) after 4 seconds — useful for testing.',
-        '포인터를 Cue 창 위에 두고 단축키를 누르면 4초 뒤 샘플 답변(B)이 나옵니다 — 동작 확인용입니다.',
+        'Hold the shortcut and click with the pointer over the Cue window to get a sample answer (B) after 4 seconds — useful for testing.',
+        '포인터를 Cue 창 위에 두고 단축키를 누른 채 클릭하면 4초 뒤 샘플 답변(B)이 나옵니다 — 동작 확인용입니다.',
       ],
       [
         'Download the practice exam from the GitHub link in the Help tab. It covers choice, OX, short, descriptive, calculation, code and reading questions.',

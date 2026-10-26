@@ -33,7 +33,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - **창은 `tauri.conf.json`이 아니라 `src-tauri/src/windows.rs`에서 코드로 만든다.** 설정의 `"windows": []`는 비어 있는 게 정상. main/overlay 두 웹뷰가 같은 `index.html`을 쓰고 `App.tsx`가 웹뷰 label로 분기한다(`?view=` 아님). config에 창을 추가하면 중복 생성된다.
 - Rust (`src-tauri/src/`): `main.rs`(CLI 모드 `--background`, `--elevated`, `--guard`, `--system`, `--service`, `--admin-setup`, `--admin-teardown`, single-instance, setup), `commands.rs`(invoke 커맨드·`AppState`·HTTP 클라이언트), `ai.rs`(프롬프트·프리셋/API 라우팅·base URL 검증·HTTP·파싱·재시도), `capture.rs`(GDI 캡처·커서 모니터·축소·크롭), `shortcut.rs`(저수준 키보드 훅, Tauri 플러그인 아님), `guard.rs`/`elevation.rs`(워치독·예약 작업·서비스·UAC·ProgramData 상태), `windows.rs`(main/overlay 창·DPI·스텔스·캡처 보호), `tray.rs`, `meeting.rs`, `led.rs`, `brightness.rs`, `models.rs`, `secrets.rs`.
 - Frontend: `src/lib/tauri.ts`의 래퍼로만 invoke한다(컴포넌트 직접 invoke 금지). `src/App.tsx`가 main/overlay를 label로 분기. 설정 탭은 `src/views/settings/*`, 오버레이는 `src/overlay/*`.
-- 저장소: 설정은 zustand persist `cue-settings`(`src/stores/settings.ts`, `version: 12`, `mergeSettings`). 답변 기록/오류 로그는 `cue-history`/`cue-errors`. 프로필은 `cue-profiles`(`src/lib/settingsBackup.ts`).
+- 저장소: 설정은 zustand persist `cue-settings`(`src/stores/settings.ts`, `version: 13`, `mergeSettings`). 답변 기록/오류 로그는 `cue-history`/`cue-errors`. 프로필은 `cue-profiles`(`src/lib/settingsBackup.ts`).
 - 오류: Rust는 문자열 코드(`no_key`, `busy`, `http_401`, `config`, `defender` …)로 반환하고 `src/i18n.ts::ERRORS`에서 en/ko로 매핑한다. **새 오류 코드는 반드시 `ERRORS`에 쌍으로 추가** — 없으면 raw 코드가 UI에 노출된다.
 - NSIS 훅: `src-tauri/windows/hooks.nsh`. 설치/제거 시 Run 키·예약 작업·서비스·ProgramData 정리를 유지한다.
 - 문서: 사용법 `README.md`, 변경 기록 `docs/CHANGELOG.md`.
@@ -73,10 +73,10 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한 뒤 `vX.Y.Z` 태그/`gh release create`. 현재 버전: **0.1.0**.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한 뒤 `vX.Y.Z` 태그/`gh release create`. 현재 버전: **0.1.1**.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.1.0 검증: `npm run check`, `npm test`(128), `cargo test`(123), `npm run tauri build` 성공.
+- 0.1.1 검증: `npm run check`, `npm test`(138), `cargo test`(126), `npm run tauri build` 성공.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
 - README의 시험 규정·제재 경고는 의도된 내용이므로 삭제하거나 약화하지 말 것.
 - 워치독·관리자 모드·회의 감지·LED/밝기·언인스톨은 헤드리스로 검증 불가. 릴리스 전 수동으로 확인한다.
@@ -87,6 +87,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - `npm run dev`는 Tauri IPC가 없어 invoke가 `'network'`로 거부된다.
 - `tauri.conf.json`의 `"windows": []`는 정상이다. 창을 추가하면 중복 생성된다.
 - Windows 11 트레이 표시는 exe 전체 경로별로 저장된다. 관리자 모드 보호 복사본은 별도 경로라 `NotifyIconSettings`의 `IsPromoted`를 한 번 복사한다. 사용자가 숨기면 `CuePromoted` 마커로 재강제하지 않는다.
+- 전역 키보드/마우스 훅은 다른 앱·Windows 단축키와 충돌할 수 있다. 답변 단축키가 modifier-only이고 패닉과 mods가 겹치면 패닉이 가려질 수 있다. `shortcut.click` 기본값(true)과 `shortcut.button`을 유지하고, 클릭 모드에서는 키보드 답변 발동을 끈다.
 - OpenCode/Anthropic 네이티브 엔드포인트는 `temperature`를 거부한다.
 - `cargo fmt`는 강제가 아니고 저장소가 rustfmt-clean이 아니다. 전체 포맷 금지.
 - 서명 없는 빌드는 Defender가 `Behavior:Win32/Execution.A!ml`/`Behavior:Win32/Persistence.A!ml`로 오탐할 수 있다. 보안 탭의 "Defender 예외 추가"가 현재 exe 폴더·`C:\ProgramData\Cue`·`cue.exe`/`cue-guard.exe`를 예외 처리한다. 이미 격리됐으면 보호 기록에서 복원하거나 폴더를 수동 제외한 뒤 실행한다. 근본 해결은 코드 서명.
