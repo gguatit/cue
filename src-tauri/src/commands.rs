@@ -471,8 +471,6 @@ pub fn set_hide_from_taskbar(app: tauri::AppHandle, hidden: bool) -> Result<(), 
     if let Some(w) = app.get_webview_window("main") {
         w.set_skip_taskbar(hidden)
             .map_err(|_| "stealth".to_string())?;
-        // DeleteTab only hides the taskbar button; Alt+Tab still lists a normal window.
-        crate::windows::set_tool_window(&w, hidden)?;
     }
     Ok(())
 }

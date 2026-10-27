@@ -100,6 +100,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - guard/service 상태는 `C:\ProgramData\Cue`에 남는다. 언인스톨 훅의 정리를 깨지 말 것.
 - 관리자 모드는 설치 위치와 무관하게 동작한다. 설치 프로그램이 `C:\ProgramData\Cue\cue.exe` 보호 복사본을 만들고, 그 복사본이 없거나 ProgramData ACL이 사용자 쓰기 가능하면 관리자 모드는 `admin_copy` 오류로 거부된다. 설치 프로그램을 다시 실행하거나 `C:\ProgramData\Cue`를 직접 정리하는 것은 사용자가 한다.
 - 업데이트는 perMachine NSIS라 UAC가 필요하고, WebView2 offline 포함 221MB를 받는다. `quiet`/currentUser로 바꾸면 UAC 없이 설치되지만 보호·설치 동작이 달라지므로 릴리스 검증 없이 바꾸지 말 것.
+- Windows updater는 설치 직전 `%TEMP%\Cue-<version>-updater-*`에 221MB 설치 파일을 쓰고 종료한다. `updates::cleanup_temp_installers`가 시작 시 10분 지난 것만 정리한다.
 - GitHub Release가 draft/prerelease면 `/releases/latest/download/latest.json`이 404다. 정식 published 릴리스만 updater가 본다.
 - 서명 키를 잃으면 `latest.json`을 서명할 수 없어 자동 업데이트가 영구히 끊긴다. 키 교체는 기존 사용자의 수동 설치를 의미한다.
 - `admin-prepare.failed` 마커는 업데이트 중 관리자 보호 복사본 갱신 실패를 뜻한다. `main.rs`는 마커가 있으면 오래된 보호 복사본으로 재실행하지 않고, 보안 탭의 보호 복구가 `setAdminMode(true)`로 복구한다.

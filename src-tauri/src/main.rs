@@ -255,6 +255,7 @@ fn main() {
             if let Ok(exe) = std::env::current_exe() {
                 watch_guard(exe);
             }
+            std::thread::spawn(crate::updates::cleanup_temp_installers);
             Ok(())
         })
         .build(tauri::generate_context!())
