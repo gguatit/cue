@@ -51,7 +51,6 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 코드 규칙
 
 - 사용자 노출 문자열은 전부 `t('English', '한국어')` / `useT()`를 거친다. 기본 언어는 ko. 하드코딩 금지. README·CHANGELOG는 한국어, 커밋 제목은 영어 Conventional Commits(`feat:`, `fix:`, `docs:`).
-- 문서는 README의 **개발자 추천 지시문**을 따른다. 핵심 먼저, 불필요한 서론·반복·메타 설명 금지, `'커서는'` 표현 금지.
 - TypeScript: 세미콜론 없음, 작은따옴표, 2칸 들여쓰기. 주변 코드를 따른다.
 - 주석은 "왜"만 한 줄. `ponytail:` / `shortcut:` 접두 주석은 알려진 한계·차후 업그레이드 지점 표시 관례다.
 - 테스트는 대상 파일 옆 `*.test.ts(x)`. **DOM/jsdom 없음** — vitest environment는 `node`이고 `src/test/setup.ts`는 localStorage 스텁만 넣는다. 컴포넌트 테스트는 `renderToStaticMarkup`으로 HTML 문자열을 검증한다. @testing-library/jsdom을 추가하지 말 것.
@@ -71,7 +70,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 새 오류: `ERRORS` en/ko. 업데이트 오류는 `update_check`, `update_install`, `update_signature`, `update_unavailable`, `update_busy`.
 - 창/오버레이 변경: `windows.rs`와 `App.tsx` label 분기, DPI·음수 좌표 테스트 확인.
 - 업데이트 변경: `updates.rs` + `commands.rs` + `main.rs` 등록 + `src/lib/tauri.ts` 래퍼 + `src/stores/updates.ts`. `npm run check`, `npm test`, `cargo test` 후 서명 빌드로 `.sig`/`latest.json` 확인.
-- 자유 모드/교차 검증 변경: `settings.ts` v15, `shortcut.rs`의 free 버튼, `ai.rs`의 free prompt/consensus, `commands.rs`의 mode/consensus 인자, `answer.ts`의 텍스트/검증 표시, `OverlayView.tsx`의 일치 배지를 함께 확인.
+- 자유 모드/교차 검증 변경: `settings.ts` v15, `shortcut.rs`의 free 버튼, `ai.rs`의 free prompt/consensus, `commands.rs`의 mode/consensus 인자, `answer.ts`의 텍스트/검증 표시, `OverlayView.tsx`의 일치 배지를 함께 확인. README의 **자유 모드 추천 지시문**도 유지한다.
 - 변경 후: `npm run check`, `npm test`, (Rust) `cargo test`; 릴리스는 `npm run tauri build`.
 - 빌드 산출물: 최신 릴리스만 `src-tauri/target/release/`와 `artifacts/`에 두고, `artifacts/`에는 `Cue_<version>_x64-setup.exe`, `cue.exe`, `SHA256.txt`만 유지한다.
 
