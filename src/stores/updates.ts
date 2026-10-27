@@ -76,6 +76,5 @@ export async function maybeCheckForUpdates(): Promise<void> {
   const lastCheck = raw === null ? null : Number(raw)
   const autoCheck = useSettings.getState().updates.autoCheck
   if (!shouldAutoCheck(autoCheck, Number.isFinite(lastCheck) ? lastCheck : null)) return
-  localStorage.setItem(UPDATE_CHECK_KEY, String(Date.now()))
   await useUpdates.getState().check(true)
 }
