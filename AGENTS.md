@@ -21,7 +21,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 | `npm run build` | check + vite build | 프론트 배포 빌드 |
 | `cargo check --manifest-path src-tauri/Cargo.toml` | 빠른 Rust 컴파일 확인 | Windows |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | Rust 테스트 | Windows |
-| `npm run tauri build` | release + NSIS | 서명 키가 있으면 `.sig` 생성. `latest.json`은 GitHub Actions가 업로드. `src-tauri/target/release/bundle/nsis/` |
+| `npm run tauri build` | release + NSIS | 서명 키가 있으면 `.sig` 생성. `latest.json`은 릴리스 시 직접 생성·업로드. `src-tauri/target/release/bundle/nsis/` |
 | `npm run icon` | 아이콘 재생성 | 아이콘 변경 시만 |
 
 - 검증 순서: `npm run check` → `npm test` → (Rust 변경 시) `cargo test` → 릴리스는 `npm run tauri build`.
@@ -46,7 +46,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - **오버레이 DPI**: 배지/텍스트 크기는 창의 `scale_factor`가 아니라 대상 모니터의 DPI(`windows::monitor_scale`)로 계산한다.
 - **설정 마이그레이션**: shape를 바꾸면 `defaults` + `mergeSettings` + `version`을 함께 올리고 `settings.test.ts`를 갱신한다. 기존 사용자 설정이 깨지면 안 된다.
 - **보호 기능**: guard/elevation은 서비스 설정을 HKLM `Software\Cue`(`App`, `User`)에 저장하고 `C:\ProgramData\Cue` ACL을 SYSTEM/Administrators Full + Users RX로 강제한다. 예약 작업(`Cue Elevated`, `Cue Guard`, `Cue Guard Boot`, `Cue Guard System`), 서비스(`CueWatchdog`), HKCU Run 키를 만든다. 관리자 모드가 실행할 exe는 Program Files 또는 설치 프로그램이 `--admin-prepare`로 만든 `C:\ProgramData\Cue\cue.exe` 보호 복사본이어야 한다(`elevation::is_admin_path`). 설치 폴더가 사용자 쓰기 가능해도 관리자 모드는 그 경로를 실행하지 않는다. HKLM `User`가 없으면 `/RU` 없는 작업을 만들지 않는다. 프로그램 마커가 있으면 비관리자 실행도 보호 복사본으로 자동 재실행된다. 에이전트가 `taskkill`/`sc`/`schtasks`로 앱 상태를 바꾸지 말 것.
-- **업데이트**: 엔드포인트는 `https://github.com/gguatit/cue/releases/latest/download/latest.json` 고정 HTTPS. 서명 검증(`pubkey`, `requireSignedVersion`)을 끄거나 느슨하게 하지 말 것. `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`는 GitHub Actions secret과 `%USERPROFILE%\.tauri\cue\`에만 두고 저장소·로그·설정 내보내기에 넣지 말 것. 키를 분실하거나 교체하면 기존 사용자는 수동 설치해야 한다. 업데이트는 사용자 클릭 후 NSIS `/P /UPDATE /R`로 실행하며, uninstaller 훅을 호출하지 않아 제거 정리를 보존한다. draft/prerelease는 `/releases/latest`에 노출되지 않는다.
+- **업데이트**: 엔드포인트는 `https://github.com/gguatit/cue/releases/latest/download/latest.json` 고정 HTTPS. 서명 검증(`pubkey`, `requireSignedVersion`)을 끄거나 느슨하게 하지 말 것. `TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`는 `%USERPROFILE%\.tauri\cue\`에만 두고 저장소·로그·설정 내보내기에 넣지 말 것. 키를 분실하거나 교체하면 기존 사용자는 수동 설치해야 한다. 업데이트는 사용자 클릭 후 NSIS `/P /UPDATE /R`로 실행하며, uninstaller 훅을 호출하지 않아 제거 정리를 보존한다. draft/prerelease는 `/releases/latest`에 노출되지 않는다.
 
 ## 코드 규칙
 
@@ -82,12 +82,19 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한 뒤 `vX.Y.Z` 태그를 push한다. GitHub Actions `.github/workflows/release.yml`가 테스트·서명 빌드·`latest.json` 업로드·릴리스를 수행한다. 현재 버전: **0.1.2**.
-- 서명 키는 `%USERPROFILE%\.tauri\cue\cue.key`와 비밀번호 관리자에만 보관하고, CI에는 `TAURI_SIGNING_PRIVATE_KEY`/`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secret으로 넣는다. 키를 분실하거나 교체하면 기존 사용자는 수동 설치해야 한다.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.1.2**.
+- 릴리스는 GitHub Actions 없이 수동으로 진행한다.
+  1. `npm run check`, `npm test`, Rust 변경 시 `cargo test`.
+  2. 서명 키 환경 변수를 설정하고 `npm run tauri build`.
+  3. `artifacts/`에 설치 파일과 `cue.exe`를 복사하고 `SHA256.txt`를 갱신.
+  4. `.sig` 내용으로 `latest.json`을 생성한다. `windows-x86_64.signature`는 `.sig` 원문, `url`은 `https://github.com/gguatit/cue/releases/download/vX.Y.Z/Cue_X.Y.Z_x64-setup.exe`.
+  5. `gh release create vX.Y.Z --draft ...`로 setup, `.sig`, `latest.json`, `SHA256.txt`, `cue.exe`를 업로드한 뒤 `gh release edit vX.Y.Z --draft=false --latest`로 게시.
+  6. `https://github.com/gguatit/cue/releases/latest/download/latest.json`이 200이고 version이 맞는지 확인.
+- 서명 키는 `%USERPROFILE%\.tauri\cue\cue.key`와 비밀번호 관리자에만 보관한다. 키를 분실하거나 교체하면 기존 사용자는 수동 설치해야 한다.
 - 첫 업데이터 릴리스(0.1.2)는 0.1.0/0.1.1 사용자가 한 번 직접 설치해야 한다. 이후 버전은 설정 → 정보에서 자동으로 확인·설치할 수 있다.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.1.2 코드 검증: `npm run check`, `npm test`(161), `cargo test`(128). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build` 또는 태그 push로 확인한다.
+- 0.1.2 코드 검증: `npm run check`, `npm test`(161), `cargo test`(130). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
 - README의 시험 규정·제재 경고는 의도된 내용이므로 삭제하거나 약화하지 말 것.
 - 워치독·관리자 모드·회의 감지·LED/밝기·언인스톨은 헤드리스로 검증 불가. 릴리스 전 수동으로 확인한다.
