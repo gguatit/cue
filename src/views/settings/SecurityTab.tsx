@@ -170,6 +170,21 @@ export default function SecurityTab() {
     }
   }
 
+  let adminLabel = t('Checking…', '확인 중…')
+  let adminTone = 'bg-zinc-800 text-zinc-500'
+  if (protection) {
+    if (protection.elevated) {
+      adminLabel = t('Configured', '설정됨')
+      adminTone = 'bg-emerald-500/15 text-emerald-400'
+    } else if (stealth.admin) {
+      adminLabel = t('Restart required', '재시작 필요')
+      adminTone = 'bg-amber-500/15 text-amber-400'
+    } else {
+      adminLabel = t('Not configured', '설정 안 됨')
+      adminTone = 'bg-zinc-800 text-zinc-400'
+    }
+  }
+
   let defenderLabel = t('Checking…', '확인 중…')
   let defenderTone = 'bg-zinc-800 text-zinc-500'
   if (defenderStatus) {
@@ -340,7 +355,12 @@ export default function SecurityTab() {
         </p>
       </Card>
       <Card>
-        <SectionTitle>{t('Maximum protection', '최대 보호')}</SectionTitle>
+        <div className="flex items-center justify-between gap-3">
+          <SectionTitle>{t('Maximum protection', '최대 보호')}</SectionTitle>
+          <span className={`mb-3 rounded-full px-2 py-0.5 text-xs font-medium ${adminTone}`}>
+            {adminLabel}
+          </span>
+        </div>
         <Toggle
           checked={stealth.admin}
           onChange={(v) => void toggleAdmin(v)}
@@ -429,8 +449,8 @@ export default function SecurityTab() {
             {guardStatus === null
               ? t('Unknown', '알 수 없음')
               : guardStatus
-                ? t('On', '켜짐')
-                : t('Off', '꺼짐')}
+                ? t('Configured', '설정됨')
+                : t('Not configured', '설정 안 됨')}
           </span>
         </div>
         <Toggle
