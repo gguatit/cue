@@ -33,10 +33,11 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - **창은 `tauri.conf.json`이 아니라 `src-tauri/src/windows.rs`에서 코드로 만든다.** 설정의 `"windows": []`는 비어 있는 게 정상. main/overlay 두 웹뷰가 같은 `index.html`을 쓰고 `App.tsx`가 웹뷰 label로 분기한다(`?view=` 아님). config에 창을 추가하면 중복 생성된다.
 - Rust (`src-tauri/src/`): `main.rs`(CLI 모드 `--background`, `--elevated`, `--guard`, `--system`, `--service`, `--admin-setup`, `--admin-prepare`, `--admin-teardown`, single-instance, setup), `commands.rs`(invoke 커맨드·`AppState`·HTTP 클라이언트), `updates.rs`(GitHub Releases 업데이트 확인·다운로드·서명 설치), `ai.rs`(프롬프트·프리셋/API 라우팅·base URL 검증·HTTP·파싱·재시도), `capture.rs`(GDI 캡처·커서 모니터·축소·크롭), `shortcut.rs`(저수준 키보드 훅, Tauri 플러그인 아님), `guard.rs`/`elevation.rs`(워치독·예약 작업·서비스·UAC·ProgramData 상태), `windows.rs`(main/overlay 창·DPI·스텔스·캡처 보호), `tray.rs`, `meeting.rs`, `led.rs`, `brightness.rs`, `models.rs`, `secrets.rs`.
 - Frontend: `src/lib/tauri.ts`의 래퍼로만 invoke한다(컴포넌트 직접 invoke 금지). `src/App.tsx`가 main/overlay를 label로 분기. 설정 탭은 `src/views/settings/*`, 오버레이는 `src/overlay/*`.
+- 홍보 사이트: `site/` 별도 Vite + React 19 + Tailwind v4 + shadcn/ui 프로젝트. Cloudflare Worker `cue-site`의 static assets로 배포한다(`cd site; npm run deploy`). 사이트는 `https://cue.neikos.kr`이며 시험 규정 경고를 유지한다.
 - 저장소: 설정은 zustand persist `cue-settings`(`src/stores/settings.ts`, `version: 15`, `mergeSettings`). 자유 모드(`free`)와 교차 검증(`provider.consensus`/`verifyModel`) 설정을 포함한다. 답변 기록/오류 로그는 `cue-history`/`cue-errors`. 프로필은 `cue-profiles`(`src/lib/settingsBackup.ts`). 업데이트 UI 상태는 `src/stores/updates.ts`, 마지막 확인 시각은 localStorage `cue-update-check`.
 - 오류: Rust는 문자열 코드(`no_key`, `busy`, `http_401`, `config`, `defender` …)로 반환하고 `src/i18n.ts::ERRORS`에서 en/ko로 매핑한다. **새 오류 코드는 반드시 `ERRORS`에 쌍으로 추가** — 없으면 raw 코드가 UI에 노출된다.
 - NSIS 훅: `src-tauri/windows/hooks.nsh`. 설치/제거 시 Run 키·예약 작업·서비스·ProgramData 정리를 유지한다. 업데이트는 `/UPDATE`라 `PREUNINSTALL`/`POSTUNINSTALL`은 실행되지 않고 `PREINSTALL`/`POSTINSTALL`만 실행된다. `POSTINSTALL`의 `--admin-prepare` 실패는 업데이트 모드에서 `admin-prepare.failed` 마커로 남긴다.
-- 문서: 사용법 `README.md`, 변경 기록 `docs/CHANGELOG.md`.
+- 문서: 사용법 `README.md`, 변경 기록 `docs/CHANGELOG.md`, 사이트 개발/배포 `site/README.md`.
 
 ## 불변식
 

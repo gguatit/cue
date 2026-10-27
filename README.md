@@ -15,6 +15,8 @@
 
 18초짜리 사용 흐름입니다. 전체 영상은 [docs/promo/cue-promo.mp4](docs/promo/cue-promo.mp4)에서 볼 수 있습니다. ※ 영상 속 답 패널은 연출된 화면으로, 실제 앱과 다를 수 있습니다.
 
+홍보 사이트: [https://cue.neikos.kr](https://cue.neikos.kr) (Cloudflare Workers)
+
 ## 시험 규정 및 제재 (중요)
 
 - **허용되는 시험인지 먼저 확인하세요.** 주최 기관의 응시 규정, 학사 규정, 자격 시험 약관에 "보조 도구·AI·화면 캡처·외부 프로그램 금지" 조항이 있으면 Cue 사용은 위반입니다.
