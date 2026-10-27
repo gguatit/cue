@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { clearApiKey, hasApiKey, listModels, setApiKey, testConnection } from '../../lib/tauri'
 import { errorMessage, useT } from '../../i18n'
-import { filterChatModels, nextModel } from '../../lib/modelPick'
+import { filterChatModels, nextModel, nextVerifyModel } from '../../lib/modelPick'
 import {
   PRESETS,
   useSettings,
@@ -222,6 +222,23 @@ export default function AiTab() {
       }
     }, 1000)
   }
+  const toggleConsensus = (next: boolean) => {
+    if (!next) {
+      setProvider({ consensus: false })
+      return
+    }
+    const current = provider.verifyModel.trim()
+    if (current && current !== provider.model) {
+      setProvider({ consensus: true })
+      return
+    }
+    const picked = nextVerifyModel(models, provider.model)
+    setProvider({
+      consensus: true,
+      verifyModel: picked ?? provider.verifyModel,
+    })
+  }
+
   const applyExtra = () => {
     setExtraError('')
     if (extraDraft.trim()) {
@@ -333,56 +350,63 @@ export default function AiTab() {
             )}
           </p>
         )}
-        <Field label={t('Cross-check model (optional)', '교차 검증 모델 (선택)')}>
-          <div className="flex gap-2">
-            <Input
-              list="cue-verify-models"
-              className="flex-1"
-              placeholder={t('Select a second model', '두 번째 모델을 선택하세요')}
-              value={provider.verifyModel}
-              onChange={(e) => setProvider({ verifyModel: e.target.value })}
-            />
-            <Button
-              className="whitespace-nowrap"
-              disabled={busy}
-              onClick={() =>
-                void load(provider.preset, provider.baseUrl, provider.model, false)
-              }
-            >
-              {busy ? t('Loading…', '불러오는 중…') : t('Load models', '모델 불러오기')}
-            </Button>
-          </div>
-          <datalist id="cue-verify-models">
-            {models.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
-          <ModelChips
-            models={models}
-            selected={provider.verifyModel}
-            onSelect={(model) => setProvider({ verifyModel: model })}
-          />
-          <p className="mt-1 text-xs text-zinc-500">
-            {t(
-              'A second model from the same provider checks the answer. Matching answers show a match badge; different answers show both. Only multiple-choice mode uses this.',
-              '같은 프로바이더의 두 번째 모델이 답을 검증합니다. 일치하면 일치 배지, 다르면 두 답을 모두 표시합니다. 객관식 모드에서만 사용합니다.',
-            )}
-          </p>
-        </Field>
         <Toggle
           checked={provider.consensus}
-          disabled={
-            provider.answerType !== 'choice' ||
-            !provider.verifyModel.trim() ||
-            provider.verifyModel.trim() === provider.model
-          }
-          onChange={(v) => setProvider({ consensus: v })}
+          disabled={provider.answerType !== 'choice'}
+          onChange={toggleConsensus}
           label={t('Cross-check answers', '답 교차 검증')}
           hint={t(
             'Runs a second request on the same key, so cost and latency double. Leave it off for fast single-model answers.',
             '같은 키로 요청을 한 번 더 보내므로 비용과 지연이 두 배가 됩니다. 빠른 단일 모델 답변이 필요하면 끄세요.',
           )}
         />
+        {provider.consensus && (
+          <Field label={t('Cross-check model', '교차 검증 모델')}>
+            <div className="flex gap-2">
+              <Input
+                list="cue-verify-models"
+                className="flex-1"
+                placeholder={t('Select a second model', '두 번째 모델을 선택하세요')}
+                value={provider.verifyModel}
+                onChange={(e) => setProvider({ verifyModel: e.target.value })}
+              />
+              <Button
+                className="whitespace-nowrap"
+                disabled={busy}
+                onClick={() =>
+                  void load(provider.preset, provider.baseUrl, provider.model, false)
+                }
+              >
+                {busy ? t('Loading…', '불러오는 중…') : t('Load models', '모델 불러오기')}
+              </Button>
+            </div>
+            <datalist id="cue-verify-models">
+              {models.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
+            <ModelChips
+              models={models}
+              selected={provider.verifyModel}
+              onSelect={(model) => setProvider({ verifyModel: model })}
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              {t(
+                'A second model from the same provider checks the answer. Matching answers show a match badge; different answers show both.',
+                '같은 프로바이더의 두 번째 모델이 답을 검증합니다. 일치하면 일치 배지, 다르면 두 답을 모두 표시합니다.',
+              )}
+            </p>
+            {(!provider.verifyModel.trim() ||
+              provider.verifyModel.trim() === provider.model) && (
+              <p className="mt-1 text-xs text-amber-400">
+                {t(
+                  'Pick a different second model to make cross-check work.',
+                  '기본 모델과 다른 두 번째 모델을 선택해야 교차 검증이 작동합니다.',
+                )}
+              </p>
+            )}
+          </Field>
+        )}
         {provider.answerType !== 'choice' && (
           <p className="text-xs text-zinc-500">
             {t(

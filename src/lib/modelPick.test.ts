@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filterChatModels, nextModel, preferredModel } from './modelPick'
+import { filterChatModels, nextModel, nextVerifyModel, preferredModel } from './modelPick'
 
 describe('filterChatModels', () => {
   it('drops non-chat models', () => {
@@ -27,6 +27,17 @@ describe('preferredModel', () => {
   it('falls back to a prefixed match, then the first entry', () => {
     expect(preferredModel(['gemini-2.5-flash-001'], 'gemini-2.5-flash')).toBe('gemini-2.5-flash-001')
     expect(preferredModel(['zeta', 'alpha'], 'gpt-4o')).toBe('zeta')
+  })
+})
+
+describe('nextVerifyModel', () => {
+  it('picks a model different from the primary', () => {
+    expect(nextVerifyModel(['gpt-4o', 'gpt-4o-mini'], 'gpt-4o')).toBe('gpt-4o-mini')
+  })
+
+  it('returns null when no different model is available', () => {
+    expect(nextVerifyModel(['gpt-4o'], 'gpt-4o')).toBeNull()
+    expect(nextVerifyModel([], 'gpt-4o')).toBeNull()
   })
 })
 

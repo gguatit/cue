@@ -22,6 +22,10 @@ export function preferredModel(models: string[], presetModel: string): string | 
   return models[0]
 }
 
+export function nextVerifyModel(models: string[], primary: string): string | null {
+  return models.find((m) => m !== primary) ?? null
+}
+
 export function nextModel(
   models: string[],
   preset: string,
