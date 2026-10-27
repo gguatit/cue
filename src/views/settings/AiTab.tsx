@@ -11,6 +11,36 @@ import {
 import { useAnswer } from '../../stores/answer'
 import { Button, Card, Field, Input, SectionTitle, Select, Toggle } from '../../components/ui'
 
+function ModelChips({
+  models,
+  selected,
+  onSelect,
+}: {
+  models: string[]
+  selected: string
+  onSelect: (model: string) => void
+}) {
+  if (models.length === 0) return null
+  return (
+    <div className="mt-2 flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
+      {models.map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => onSelect(m)}
+          className={`rounded-md border px-2 py-1 text-xs transition-colors ${
+            m === selected
+              ? 'border-accent bg-accent/10 text-accent'
+              : 'border-zinc-700/80 bg-zinc-900 text-zinc-300 hover:border-zinc-500'
+          }`}
+        >
+          {m}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function AiTab() {
   const t = useT()
   const provider = useSettings((s) => s.provider)
@@ -61,7 +91,7 @@ export default function AiTab() {
     setBusy(false)
   }
 
-  const load = async (presetId: string, baseUrl: string, model: string) => {
+  const load = async (presetId: string, baseUrl: string, model: string, autoPick = true) => {
     const id = ++loadId.current
     setBusy(true)
     try {
@@ -71,6 +101,7 @@ export default function AiTab() {
       setModels(list)
       const next = nextModel(list, presetId, PRESETS[presetId]?.placeholder ?? '', model)
       if (
+        autoPick &&
         next &&
         next !== model &&
         useSettings.getState().provider.model === model
@@ -288,24 +319,11 @@ export default function AiTab() {
               <option key={m} value={m} />
             ))}
           </datalist>
-          {models.length > 0 && (
-            <div className="mt-2 flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
-              {models.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setProvider({ model: m })}
-                  className={`rounded-md border px-2 py-1 text-xs transition-colors ${
-                    m === provider.model
-                      ? 'border-accent bg-accent/10 text-accent'
-                      : 'border-zinc-700/80 bg-zinc-900 text-zinc-300 hover:border-zinc-500'
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-          )}
+          <ModelChips
+            models={models}
+            selected={provider.model}
+            onSelect={(model) => setProvider({ model })}
+          />
         </Field>
         {(provider.preset === 'opencode' || provider.preset === 'opencode-go') && (
           <p className="text-xs text-zinc-500">
@@ -316,17 +334,34 @@ export default function AiTab() {
           </p>
         )}
         <Field label={t('Cross-check model (optional)', '교차 검증 모델 (선택)')}>
-          <Input
-            list="cue-verify-models"
-            placeholder={provider.model}
-            value={provider.verifyModel}
-            onChange={(e) => setProvider({ verifyModel: e.target.value })}
-          />
+          <div className="flex gap-2">
+            <Input
+              list="cue-verify-models"
+              className="flex-1"
+              placeholder={t('Select a second model', '두 번째 모델을 선택하세요')}
+              value={provider.verifyModel}
+              onChange={(e) => setProvider({ verifyModel: e.target.value })}
+            />
+            <Button
+              className="whitespace-nowrap"
+              disabled={busy}
+              onClick={() =>
+                void load(provider.preset, provider.baseUrl, provider.model, false)
+              }
+            >
+              {busy ? t('Loading…', '불러오는 중…') : t('Load models', '모델 불러오기')}
+            </Button>
+          </div>
           <datalist id="cue-verify-models">
             {models.map((m) => (
               <option key={m} value={m} />
             ))}
           </datalist>
+          <ModelChips
+            models={models}
+            selected={provider.verifyModel}
+            onSelect={(model) => setProvider({ verifyModel: model })}
+          />
           <p className="mt-1 text-xs text-zinc-500">
             {t(
               'A second model from the same provider checks the answer. Matching answers show a match badge; different answers show both. Only multiple-choice mode uses this.',
