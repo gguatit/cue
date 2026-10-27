@@ -115,6 +115,8 @@ export interface UpdateProgress {
 
 export const checkUpdate = () => invoke<UpdateInfo | null>('check_update')
 export const installUpdate = () => invoke<void>('install_update')
+export const cleanupUpdateFiles = () =>
+  invoke<{ removed: number; bytes: number }>('cleanup_update_files')
 export const onUpdateProgress = (handler: (progress: UpdateProgress) => void) =>
   listenEvent<UpdateProgress>('update-progress', (event) => handler(event.payload))
 
@@ -129,6 +131,20 @@ export interface ProtectionStatus {
 }
 
 export const protectionStatus = () => invoke<ProtectionStatus>('protection_status')
-export const addDefenderExclusion = () => invoke<boolean>('add_defender_exclusion')
+export type DefenderAddResult = 'added' | 'alreadyAdded' | 'cancelled'
+
+export interface DefenderExclusionStatus {
+  available: boolean
+  complete: boolean
+  pathsPresent: number
+  pathsTotal: number
+  processesPresent: number
+  processesTotal: number
+}
+
+export const addDefenderExclusion = () =>
+  invoke<DefenderAddResult>('add_defender_exclusion')
+export const defenderExclusionStatus = () =>
+  invoke<DefenderExclusionStatus>('defender_exclusion_status')
 export const setAdminMode = (enabled: boolean) => invoke<void>('set_admin_mode', { enabled })
 export const repairProtection = () => invoke<void>('repair_protection')

@@ -545,31 +545,173 @@ pub fn relaunch_elevated_exe(exe: &Path, extra_arg: &str) -> Result<(), String> 
 
 const DEFENDER_PROCESSES: [&str; 2] = ["cue.exe", "cue-guard.exe"];
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DefenderAddResult {
+    Added,
+    AlreadyAdded,
+    Cancelled,
+}
+
+#[derive(Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DefenderStatus {
+    pub available: bool,
+    pub complete: bool,
+    pub paths_present: usize,
+    pub paths_total: usize,
+    pub processes_present: usize,
+    pub processes_total: usize,
+}
+
+fn normalize_path(value: &str) -> String {
+    value
+        .trim()
+        .trim_end_matches(|c| c == '\\' || c == '/')
+        .to_ascii_lowercase()
+}
+
+fn process_name(value: &str) -> String {
+    Path::new(value)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(value)
+        .to_ascii_lowercase()
+}
+
+fn defender_status_from(
+    expected_paths: &[PathBuf],
+    expected_processes: &[&str],
+    reported_paths: &[String],
+    reported_processes: &[String],
+) -> DefenderStatus {
+    let paths_present = expected_paths
+        .iter()
+        .filter(|expected| {
+            let expected = normalize_path(&expected.to_string_lossy());
+            reported_paths
+                .iter()
+                .any(|reported| normalize_path(reported) == expected)
+        })
+        .count();
+    let processes_present = expected_processes
+        .iter()
+        .filter(|expected| {
+            reported_processes
+                .iter()
+                .any(|reported| process_name(reported) == expected.to_ascii_lowercase())
+        })
+        .count();
+    DefenderStatus {
+        available: true,
+        complete: paths_present == expected_paths.len()
+            && processes_present == expected_processes.len(),
+        paths_present,
+        paths_total: expected_paths.len(),
+        processes_present,
+        processes_total: expected_processes.len(),
+    }
+}
+
+fn defender_paths() -> Result<Vec<PathBuf>, String> {
+    let app_dir = std::env::current_exe()
+        .map_err(|_| "defender".to_string())?
+        .parent()
+        .ok_or_else(|| "defender".to_string())?
+        .to_path_buf();
+    let mut paths = vec![app_dir];
+    if let Some(dir) = program_dir() {
+        if !paths.contains(&dir) {
+            paths.push(dir);
+        }
+    }
+    Ok(paths)
+}
+
+fn json_strings(value: Option<&serde_json::Value>) -> Vec<String> {
+    match value {
+        Some(serde_json::Value::String(value)) => vec![value.clone()],
+        Some(serde_json::Value::Array(values)) => values
+            .iter()
+            .filter_map(|value| value.as_str().map(str::to_string))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn has_admin_placeholder(values: &[String]) -> bool {
+    values
+        .iter()
+        .any(|value| value.to_ascii_lowercase().contains("must be an administrator"))
+}
+
+const DEFENDER_QUERY: &str = r#"[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);$ErrorActionPreference='Stop';$p=Get-MpPreference;$paths=@($p.ExclusionPath|Where-Object{$_});$processes=@($p.ExclusionProcess|Where-Object{$_});[pscustomobject]@{paths=$paths;processes=$processes}|ConvertTo-Json -Compress"#;
+
+pub fn defender_status() -> DefenderStatus {
+    let Ok(paths) = defender_paths() else {
+        return DefenderStatus::default();
+    };
+    let powershell = system32(r"WindowsPowerShell\v1.0\powershell.exe");
+    let output = match Command::new(powershell)
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+            DEFENDER_QUERY,
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+    {
+        Ok(output) if output.status.success() => output,
+        _ => return DefenderStatus::default(),
+    };
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&output.stdout) else {
+        return DefenderStatus::default();
+    };
+    let reported_paths = json_strings(value.get("paths"));
+    let reported_processes = json_strings(value.get("processes"));
+    if has_admin_placeholder(&reported_paths) || has_admin_placeholder(&reported_processes) {
+        return DefenderStatus::default();
+    }
+    defender_status_from(
+        &paths,
+        &DEFENDER_PROCESSES,
+        &reported_paths,
+        &reported_processes,
+    )
+}
+
 fn powershell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
 }
 
 fn defender_script(paths: &[PathBuf], processes: &[&str]) -> String {
-    let mut script = String::from("$ErrorActionPreference='Stop';try{");
+    let mut script = String::from(
+        "$ErrorActionPreference='Stop';try{$p=Get-MpPreference;$paths=@($p.ExclusionPath|Where-Object{$_}|ForEach-Object{$_.TrimEnd('\\','/').ToLowerInvariant()});$procs=@($p.ExclusionProcess|Where-Object{$_}|ForEach-Object{[IO.Path]::GetFileName($_).ToLowerInvariant()});$added=$false;",
+    );
     for path in paths {
+        let target = powershell_quote(&path.to_string_lossy());
         script.push_str(&format!(
-            "Add-MpPreference -ExclusionPath {} -ErrorAction Stop;",
-            powershell_quote(&path.to_string_lossy())
+            "$t={target}.TrimEnd('\\','/').ToLowerInvariant();if($paths -notcontains $t){{Add-MpPreference -ExclusionPath {target} -ErrorAction Stop;$added=$true;}}"
         ));
     }
     for process in processes {
+        let target = powershell_quote(process);
         script.push_str(&format!(
-            "Add-MpPreference -ExclusionProcess {} -ErrorAction Stop;",
-            powershell_quote(process)
+            "$t={target}.ToLowerInvariant();if($procs -notcontains $t){{Add-MpPreference -ExclusionProcess {target} -ErrorAction Stop;$added=$true;}}"
         ));
     }
-    script.push_str("exit 0}catch{exit 1}");
+    script.push_str("if($added){exit 0}else{exit 2}}catch{exit 1}");
     script
 }
 
-/// Ask Defender to exclude the app folder and guard copy. Returns false when
-/// the user cancels the UAC prompt.
-pub fn add_defender_exclusion() -> Result<bool, String> {
+/// Ask Defender to exclude the app folder and guard copy. The elevated script
+/// only adds missing entries, so pressing the button again is safe.
+pub fn add_defender_exclusion() -> Result<DefenderAddResult, String> {
     use ::windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0};
     use ::windows::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject};
     use ::windows::Win32::UI::Shell::{
@@ -579,15 +721,7 @@ pub fn add_defender_exclusion() -> Result<bool, String> {
     use ::windows::core::{HSTRING, PCWSTR};
     use base64::Engine;
 
-    let app_dir = std::env::current_exe()
-        .map_err(|_| "defender".to_string())?
-        .parent()
-        .ok_or_else(|| "defender".to_string())?
-        .to_path_buf();
-    let mut paths = vec![app_dir];
-    if let Some(dir) = program_dir() {
-        paths.push(dir);
-    }
+    let paths = defender_paths()?;
     let script = defender_script(&paths, &DEFENDER_PROCESSES);
     let encoded = base64::engine::general_purpose::STANDARD.encode(
         script
@@ -612,7 +746,7 @@ pub fn add_defender_exclusion() -> Result<bool, String> {
     };
     if let Err(error) = unsafe { ShellExecuteExW(&mut info) } {
         return if error.code().0 as u32 == 0x8007_04C7 {
-            Ok(false)
+            Ok(DefenderAddResult::Cancelled)
         } else {
             Err("defender".into())
         };
@@ -629,10 +763,10 @@ pub fn add_defender_exclusion() -> Result<bool, String> {
     if wait != WAIT_OBJECT_0 {
         return Err("defender".into());
     }
-    if code == 0 {
-        Ok(true)
-    } else {
-        Err("defender".into())
+    match code {
+        0 => Ok(DefenderAddResult::Added),
+        2 => Ok(DefenderAddResult::AlreadyAdded),
+        _ => Err("defender".into()),
     }
 }
 
@@ -986,6 +1120,45 @@ mod tests {
         assert!(script.contains(r"C:\O''Brien\Cue"));
         assert!(script.contains("Add-MpPreference -ExclusionProcess 'cue.exe'"));
         assert!(script.contains("Add-MpPreference -ExclusionProcess 'cue-guard.exe'"));
+        assert!(script.contains("$paths -notcontains $t"));
+        assert!(script.contains("exit 2"));
+    }
+
+    #[test]
+    fn defender_admin_placeholder_is_not_an_exclusion() {
+        assert!(has_admin_placeholder(&[
+            "N/A: Must be an administrator to view exclusions".into()
+        ]));
+        assert!(!has_admin_placeholder(&[r"C:\Cue".into()]));
+    }
+
+    #[test]
+    fn defender_status_matches_paths_and_processes_case_insensitively() {
+        let status = defender_status_from(
+            &[PathBuf::from(r"C:\Cue"), PathBuf::from(r"C:\ProgramData\Cue")],
+            &["cue.exe", "cue-guard.exe"],
+            &[r"c:\cue\".into(), r"c:\programdata\cue".into(), "CUE.EXE".into()],
+            &["CUE.EXE".into(), r"C:\Tools\cue-guard.exe".into()],
+        );
+
+        assert!(status.available);
+        assert!(status.complete);
+        assert_eq!(status.paths_present, 2);
+        assert_eq!(status.processes_present, 2);
+    }
+
+    #[test]
+    fn defender_status_is_incomplete_when_a_process_is_missing() {
+        let status = defender_status_from(
+            &[PathBuf::from(r"C:\Cue")],
+            &["cue.exe", "cue-guard.exe"],
+            &[r"c:\cue".into()],
+            &["cue.exe".into()],
+        );
+
+        assert!(!status.complete);
+        assert_eq!(status.paths_present, 1);
+        assert_eq!(status.processes_present, 1);
     }
 
     #[test]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { progressPercent, shouldAutoCheck, UPDATE_CHECK_INTERVAL_MS } from './updates'
+import { formatBytes, progressPercent, shouldAutoCheck, UPDATE_CHECK_INTERVAL_MS } from './updates'
 
 describe('shouldAutoCheck', () => {
   const now = 1_800_000_000_000
@@ -35,5 +35,13 @@ describe('progressPercent', () => {
   it('returns null without a usable total', () => {
     expect(progressPercent(50, null)).toBeNull()
     expect(progressPercent(50, 0)).toBeNull()
+  })
+})
+
+describe('formatBytes', () => {
+  it('formats kilobytes and megabytes', () => {
+    expect(formatBytes(0)).toBe('0 KB')
+    expect(formatBytes(1536)).toBe('2 KB')
+    expect(formatBytes(221 * 1024 * 1024)).toBe('221.0 MB')
   })
 })

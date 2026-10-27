@@ -10,6 +10,13 @@ static UPDATING: AtomicBool = AtomicBool::new(false);
 
 const UPDATE_TEMP_MIN_AGE: Duration = Duration::from_secs(10 * 60);
 
+#[derive(Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupResult {
+    pub removed: u32,
+    pub bytes: u64,
+}
+
 fn is_updater_temp_dir(name: &str) -> bool {
     let name = name.to_ascii_lowercase();
     name.starts_with("cue-") && name.contains("-updater-")
@@ -31,9 +38,29 @@ fn has_installer(path: &Path) -> bool {
     })
 }
 
-fn cleanup_temp_installers_in(root: &Path, min_age: Duration) {
+fn dir_size(path: &Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .map(|entry| {
+            let Ok(metadata) = entry.metadata() else {
+                return 0;
+            };
+            if metadata.is_dir() {
+                dir_size(&entry.path())
+            } else {
+                metadata.len()
+            }
+        })
+        .sum()
+}
+
+fn cleanup_temp_installers_in(root: &Path, min_age: Duration) -> CleanupResult {
+    let mut result = CleanupResult::default();
     let Ok(entries) = std::fs::read_dir(root) else {
-        return;
+        return result;
     };
     let now = SystemTime::now();
     for entry in entries.flatten() {
@@ -56,12 +83,21 @@ fn cleanup_temp_installers_in(root: &Path, min_age: Duration) {
         if now.duration_since(modified).unwrap_or_default() < min_age {
             continue;
         }
-        let _ = std::fs::remove_dir_all(path);
+        let bytes = dir_size(&path);
+        if std::fs::remove_dir_all(&path).is_ok() {
+            result.removed += 1;
+            result.bytes += bytes;
+        }
     }
+    result
 }
 
 pub fn cleanup_temp_installers() {
     cleanup_temp_installers_in(&std::env::temp_dir(), UPDATE_TEMP_MIN_AGE);
+}
+
+pub fn cleanup_temp_installers_now() -> CleanupResult {
+    cleanup_temp_installers_in(&std::env::temp_dir(), Duration::ZERO)
 }
 
 #[derive(Serialize)]
@@ -205,8 +241,10 @@ mod tests {
         std::fs::write(updater.join("Cue-0.1.3-installer.exe"), b"x").unwrap();
         std::fs::write(keep.join("data.txt"), b"x").unwrap();
 
-        cleanup_temp_installers_in(&root, Duration::ZERO);
+        let result = cleanup_temp_installers_in(&root, Duration::ZERO);
 
+        assert_eq!(result.removed, 1);
+        assert_eq!(result.bytes, 1);
         assert!(!updater.exists());
         assert!(keep.exists());
         let _ = std::fs::remove_dir_all(root);

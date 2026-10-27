@@ -185,9 +185,11 @@ fn main() {
             commands::repair_protection,
             commands::protection_status,
             commands::add_defender_exclusion,
+            commands::defender_exclusion_status,
             commands::set_admin_mode,
             commands::check_update,
             commands::install_update,
+            commands::cleanup_update_files,
             commands::quit_app,
         ])
         .setup(move |app| {

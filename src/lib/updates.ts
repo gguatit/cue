@@ -16,3 +16,9 @@ export function progressPercent(downloaded: number, total: number | null): numbe
   if (total === null || total <= 0) return null
   return Math.min(100, Math.max(0, Math.round((downloaded / total) * 100)))
 }
+
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB'
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}

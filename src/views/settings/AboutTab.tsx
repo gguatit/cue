@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { Button, Card, SectionTitle, Toggle } from '../../components/ui'
+import UpdateConfirmDialog from '../../components/UpdateConfirmDialog'
 import { useT, errorMessage } from '../../i18n'
-import { openExternal } from '../../lib/tauri'
+import { cleanupUpdateFiles, openExternal } from '../../lib/tauri'
+import { formatBytes } from '../../lib/updates'
 import { useAnswer } from '../../stores/answer'
 import { useSettings } from '../../stores/settings'
 import { useUpdates } from '../../stores/updates'
@@ -22,17 +25,30 @@ export default function AboutTab() {
   const checked = useUpdates((s) => s.checked)
   const check = useUpdates((s) => s.check)
   const install = useUpdates((s) => s.install)
+  const [confirming, setConfirming] = useState(false)
+  const [cleaning, setCleaning] = useState(false)
+  const [cleanupResult, setCleanupResult] = useState<{ removed: number; bytes: number } | null>(
+    null,
+  )
+  const [cleanupError, setCleanupError] = useState('')
 
-  const confirmInstall = () => {
-    if (
-      window.confirm(
+  const confirmInstall = () => setConfirming(true)
+
+  const cleanUpdateFiles = async () => {
+    setCleaning(true)
+    setCleanupError('')
+    try {
+      setCleanupResult(await cleanupUpdateFiles())
+    } catch {
+      setCleanupResult(null)
+      setCleanupError(
         t(
-          'Cue will close and Windows may ask for administrator permission. Settings and history are kept. Install the update?',
-          'Cue가 종료되고 Windows가 관리자 권한을 요청할 수 있습니다. 설정과 기록은 유지됩니다. 업데이트를 설치할까요?',
+          'Could not delete downloaded update files.',
+          '다운로드한 업데이트 파일을 삭제하지 못했습니다.',
         ),
       )
-    ) {
-      void install()
+    } finally {
+      setCleaning(false)
     }
   }
 
@@ -143,6 +159,33 @@ export default function AboutTab() {
             '하루에 한 번 GitHub Releases를 확인합니다. 계정·텔레메트리는 없습니다.',
           )}
         />
+        <div className="flex items-center justify-between gap-3 border-t border-zinc-800 pt-3">
+          <div>
+            <p className="text-xs text-zinc-400">
+              {t('Downloaded update files', '다운로드한 업데이트 파일')}
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              {t(
+                'Deletes old installers left in the Windows temp folder.',
+                'Windows 임시 폴더에 남은 이전 설치 파일을 삭제합니다.',
+              )}
+            </p>
+          </div>
+          <Button disabled={cleaning || installing} onClick={() => void cleanUpdateFiles()}>
+            {cleaning ? t('Deleting…', '삭제 중…') : t('Delete now', '즉시 삭제')}
+          </Button>
+        </div>
+        {cleanupResult && (
+          <p className="text-xs text-zinc-400">
+            {cleanupResult.removed > 0
+              ? t(
+                  `Deleted ${cleanupResult.removed} file(s) (${formatBytes(cleanupResult.bytes)}).`,
+                  `${cleanupResult.removed}개 파일(${formatBytes(cleanupResult.bytes)})을 삭제했습니다.`,
+                )
+              : t('No downloaded update files to delete.', '삭제할 업데이트 파일이 없습니다.')}
+          </p>
+        )}
+        {cleanupError && <p className="text-xs text-amber-400">{cleanupError}</p>}
         <p className="text-xs text-zinc-500">
           {t(
             'Updates are signed. Cue will not run an installer whose signature does not match.',
@@ -200,6 +243,17 @@ export default function AboutTab() {
           </ul>
         )}
       </Card>
+      {confirming && available && (
+        <UpdateConfirmDialog
+          version={available.version}
+          busy={installing}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false)
+            void install()
+          }}
+        />
+      )}
     </div>
   )
 }

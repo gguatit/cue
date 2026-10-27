@@ -4,6 +4,7 @@ import { useT } from '../../i18n'
 import {
   addDefenderExclusion,
   captureProtectionStatus,
+  defenderExclusionStatus,
   guardEnabled,
   meetingActive,
   openTaskbarSettings,
@@ -15,6 +16,7 @@ import {
   setGuard,
   setHideFromTaskbar,
   type CaptureProtectionStatus,
+  type DefenderExclusionStatus,
   type ProtectionStatus,
 } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
@@ -32,6 +34,7 @@ export default function SecurityTab() {
   const [capture, setCapture] = useState<CaptureProtectionStatus | null>(null)
   const [defenderBusy, setDefenderBusy] = useState(false)
   const [defenderMessage, setDefenderMessage] = useState('')
+  const [defenderStatus, setDefenderStatus] = useState<DefenderExclusionStatus | null>(null)
   const [adminMessage, setAdminMessage] = useState('')
   const [restartNeeded, setRestartNeeded] = useState(false)
 
@@ -63,9 +66,25 @@ export default function SecurityTab() {
     }
   }
 
+  const refreshDefender = async () => {
+    try {
+      setDefenderStatus(await defenderExclusionStatus())
+    } catch {
+      setDefenderStatus({
+        available: false,
+        complete: false,
+        pathsPresent: 0,
+        pathsTotal: 0,
+        processesPresent: 0,
+        processesTotal: 0,
+      })
+    }
+  }
+
   useEffect(() => {
     void refreshGuard()
     void refreshProtection()
+    void refreshDefender()
   }, [])
 
   useEffect(() => {
@@ -100,19 +119,70 @@ export default function SecurityTab() {
   }
 
   const addDefender = async () => {
+    if (defenderStatus?.complete) {
+      setDefenderMessage(
+        t(
+          'Already added to Windows Defender.',
+          '이미 Windows Defender 예외에 추가되어 있습니다.',
+        ),
+      )
+      return
+    }
     setDefenderBusy(true)
     try {
-      const added = await addDefenderExclusion()
-      setDefenderMessage(
-        added
-          ? t('Defender exclusion added.', 'Defender 예외를 추가했습니다.')
-          : t('The exclusion was cancelled.', '예외 추가가 취소되었습니다.'),
-      )
+      const result = await addDefenderExclusion()
+      if (result === 'cancelled') {
+        setDefenderMessage(
+          t(
+            'Defender exclusion was not added.',
+            'Defender 예외가 추가되지 않았습니다.',
+          ),
+        )
+      } else {
+        setDefenderStatus((current) => ({
+          available: true,
+          complete: true,
+          pathsPresent: current?.pathsTotal ?? 0,
+          pathsTotal: current?.pathsTotal ?? 0,
+          processesPresent: current?.processesTotal ?? 0,
+          processesTotal: current?.processesTotal ?? 0,
+        }))
+        setDefenderMessage(
+          result === 'alreadyAdded'
+            ? t(
+                'Already added to Windows Defender.',
+                '이미 Windows Defender 예외에 추가되어 있습니다.',
+              )
+            : t('Defender exclusion added.', 'Defender 예외를 추가했습니다.'),
+        )
+      }
     } catch {
       void useAnswer.getState().logError('defender')
-      setDefenderMessage(t('Could not add the Defender exclusion.', 'Defender 예외를 추가하지 못했습니다.'))
+      setDefenderMessage(
+        t(
+          'Could not add the Defender exclusion.',
+          'Defender 예외를 추가하지 못했습니다.',
+        ),
+      )
+      await refreshDefender()
     } finally {
       setDefenderBusy(false)
+    }
+  }
+
+  let defenderLabel = t('Checking…', '확인 중…')
+  let defenderTone = 'bg-zinc-800 text-zinc-500'
+  if (defenderStatus) {
+    if (!defenderStatus.available) {
+      defenderLabel = t('Admin permission required', '확인하려면 관리자 권한 필요')
+    } else if (defenderStatus.complete) {
+      defenderLabel = t('Added', '추가됨')
+      defenderTone = 'bg-emerald-500/10 text-emerald-400'
+    } else if (defenderStatus.pathsPresent > 0 || defenderStatus.processesPresent > 0) {
+      defenderLabel = t('Partially added', '일부 추가됨')
+      defenderTone = 'bg-amber-500/10 text-amber-400'
+    } else {
+      defenderLabel = t('Not added', '추가되지 않음')
     }
   }
 
@@ -325,9 +395,23 @@ export default function SecurityTab() {
             'Defender가 Cue를 오탐으로 격리할 때 앱 폴더와 프로세스를 예외 목록에 추가합니다. 해당 경로의 보호 수준이 낮아지며 관리자 승인이 필요합니다. 이미 격리되었다면 Windows 보안 > 보호 기록에서 먼저 복원하세요.',
           )}
         </p>
-        <Button className="mt-3" disabled={defenderBusy} onClick={() => void addDefender()}>
-          {defenderBusy ? t('Adding…', '추가 중…') : t('Add Defender exclusion', 'Defender 예외 추가')}
-        </Button>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${defenderTone}`}>
+            {defenderLabel}
+          </span>
+          <Button disabled={defenderBusy} onClick={() => void addDefender()}>
+            {defenderBusy ? t('Adding…', '추가 중…') : t('Add Defender exclusion', 'Defender 예외 추가')}
+          </Button>
+        </div>
+        {defenderStatus?.available &&
+          (defenderStatus.pathsTotal > 0 || defenderStatus.processesTotal > 0) && (
+            <p className="mt-2 text-xs text-zinc-500">
+              {t(
+                `Paths ${defenderStatus.pathsPresent}/${defenderStatus.pathsTotal} · Processes ${defenderStatus.processesPresent}/${defenderStatus.processesTotal}`,
+                `경로 ${defenderStatus.pathsPresent}/${defenderStatus.pathsTotal} · 프로세스 ${defenderStatus.processesPresent}/${defenderStatus.processesTotal}`,
+              )}
+            </p>
+          )}
         {defenderMessage && <p className="mt-2 text-xs text-zinc-400">{defenderMessage}</p>}
       </Card>
       <Card>

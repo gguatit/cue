@@ -686,10 +686,22 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn add_defender_exclusion() -> Result<bool, String> {
+pub fn cleanup_update_files() -> crate::updates::CleanupResult {
+    crate::updates::cleanup_temp_installers_now()
+}
+
+#[tauri::command]
+pub async fn add_defender_exclusion() -> Result<crate::elevation::DefenderAddResult, String> {
     tauri::async_runtime::spawn_blocking(crate::elevation::add_defender_exclusion)
         .await
         .map_err(|_| "defender".to_string())?
+}
+
+#[tauri::command]
+pub async fn defender_exclusion_status() -> Result<crate::elevation::DefenderStatus, String> {
+    tauri::async_runtime::spawn_blocking(crate::elevation::defender_status)
+        .await
+        .map_err(|_| "defender".to_string())
 }
 
 #[tauri::command]
