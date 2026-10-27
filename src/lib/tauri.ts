@@ -42,6 +42,8 @@ export const cancelAnswer = () => invoke<void>('cancel_answer')
 export const clearClipboard = () => invoke<void>('clear_clipboard')
 export const setShortcut = (accelerator: string, click: boolean, button: MouseButton) =>
   invoke<void>('set_shortcut', { accelerator, click, button })
+export const setFreeShortcut = (enabled: boolean, button: MouseButton) =>
+  invoke<void>('set_free_shortcut', { enabled, button })
 export const setPanicShortcut = (accelerator: string) =>
   invoke<void>('set_panic_shortcut', { accelerator })
 export const setShortcutRecording = (recording: boolean) => invoke<void>('set_shortcut_recording', { recording })
@@ -64,8 +66,14 @@ export const testConnection = (preset: string, baseUrl: string, model: string, e
   invoke<boolean>('test_connection', { preset, baseUrl, model, extraJson })
 export const listModels = (preset: string, baseUrl: string) =>
   invoke<string[]>('list_models', { preset, baseUrl })
+export interface Verification {
+  matched: boolean
+  secondary: string[]
+  error?: string
+}
+
 export type CaptureResult =
-  | { kind: 'choice'; answers: string[] }
+  | { kind: 'choice'; answers: string[]; verification?: Verification }
   | { kind: 'text'; text: string }
 
 export const captureAndAnswer = (
@@ -78,6 +86,10 @@ export const captureAndAnswer = (
   crop = false,
   language: AnswerLanguage = 'auto',
   level: AnswerLevel = 'normal',
+  mode: 'exam' | 'free' = 'exam',
+  freeInstruction = '',
+  consensus = false,
+  verifyModel = '',
 ) =>
   invoke<CaptureResult>('capture_and_answer', {
     preset,
@@ -89,9 +101,23 @@ export const captureAndAnswer = (
     crop,
     language,
     level,
+    mode,
+    freeInstruction,
+    consensus,
+    verifyModel,
   })
-export const showOverlay = (answer: string, style: 'badge' | 'flash' | 'text', durationMs: number) =>
-  invoke<void>('show_overlay', { answer, style, durationMs })
+export const showOverlay = (
+  answer: string,
+  style: 'badge' | 'flash' | 'text',
+  durationMs: number,
+  verification?: Verification,
+) =>
+  invoke<void>('show_overlay', {
+    answer,
+    style,
+    durationMs,
+    verification: verification ?? null,
+  })
 export const hideOverlay = () => invoke<void>('hide_overlay')
 export const hideMain = () => invoke<void>('hide_main')
 export const meetingActive = () => invoke<boolean>('meeting_active')

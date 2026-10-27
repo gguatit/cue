@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   isTauri: vi.fn(() => true),
   listenEvent: vi.fn(async (_event: string, _cb?: (...args: unknown[]) => void) => () => {}),
   setShortcut: vi.fn(async () => {}),
+  setFreeShortcut: vi.fn(async () => {}),
   setPanicShortcut: vi.fn(async () => {}),
   hideMain: vi.fn(async () => {}),
   shortcutInstalled: vi.fn(async () => true),
@@ -19,6 +20,7 @@ vi.mock('./tauri', () => ({
   isTauri: mocks.isTauri,
   listenEvent: mocks.listenEvent,
   setShortcut: mocks.setShortcut,
+  setFreeShortcut: mocks.setFreeShortcut,
   setPanicShortcut: mocks.setPanicShortcut,
   hideMain: mocks.hideMain,
   shortcutInstalled: mocks.shortcutInstalled,
@@ -70,6 +72,7 @@ describe('runStartup shortcut check', () => {
     expect(useAnswer.getState().log).toEqual([])
     expect(mocks.setTrayError).not.toHaveBeenCalled()
     expect(mocks.setShortcut).toHaveBeenCalledWith('Control+Alt+Super', true, 'left')
+    expect(mocks.setFreeShortcut).toHaveBeenCalledWith(false, 'right')
   })
 
   it('treats a rejected check as unknown', async () => {

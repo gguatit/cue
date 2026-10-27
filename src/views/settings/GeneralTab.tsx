@@ -12,7 +12,7 @@ import {
 } from '../../lib/settingsBackup'
 import { isModifierOnly, shortcutConflicts, type MouseButton } from '../../lib/shortcutKeys'
 import { applyTrayMenuLabels } from '../../lib/startup'
-import { getAutostart, setAutostart, setContentProtection, setGuard, setHideFromTaskbar, setPanicShortcut, setShortcut } from '../../lib/tauri'
+import { getAutostart, setAutostart, setContentProtection, setFreeShortcut, setGuard, setHideFromTaskbar, setPanicShortcut, setShortcut } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
 import { mergeSettings, useSettings } from '../../stores/settings'
 
@@ -21,6 +21,8 @@ export default function GeneralTab() {
   const language = useSettings((s) => s.language)
   const setLanguage = useSettings((s) => s.setLanguage)
   const shortcut = useSettings((s) => s.shortcut)
+  const free = useSettings((s) => s.free)
+  const setFree = useSettings((s) => s.setFree)
   const panic = useSettings((s) => s.panic)
   const setShortcutClick = useSettings((s) => s.setShortcutClick)
   const setShortcutButton = useSettings((s) => s.setShortcutButton)
@@ -34,10 +36,11 @@ export default function GeneralTab() {
 
   const applySettings = async (next: ReturnType<typeof mergeSettings>) => {
     const log = (code: string) => void useAnswer.getState().logError(code)
+    await setShortcut(next.shortcut.accelerator, next.shortcut.click, next.shortcut.button).catch(
+      () => log('shortcut'),
+    )
+    await setFreeShortcut(next.free.enabled, next.free.button).catch(() => log('shortcut'))
     await Promise.all([
-      setShortcut(next.shortcut.accelerator, next.shortcut.click, next.shortcut.button).catch(() =>
-        log('shortcut'),
-      ),
       setPanicShortcut(next.panic.accelerator).catch(() => log('shortcut')),
       setContentProtection(next.stealth.contentProtection).catch(() => log('stealth')),
       setHideFromTaskbar(next.stealth.skipTaskbar).catch(() => log('stealth')),
@@ -125,6 +128,10 @@ export default function GeneralTab() {
   const toggleClick = async (next: boolean) => {
     try {
       await setShortcut(shortcut.accelerator, next, shortcut.button)
+      if (!next && free.enabled) {
+        await setFreeShortcut(false, free.button)
+        setFree({ enabled: false })
+      }
       setShortcutClick(next)
     } catch {
       void useAnswer.getState().logError('shortcut')
@@ -132,9 +139,45 @@ export default function GeneralTab() {
   }
 
   const changeButton = async (next: MouseButton) => {
+    const nextFree =
+      free.enabled && free.button === next
+        ? next === 'right'
+          ? 'left'
+          : 'right'
+        : free.button
     try {
       await setShortcut(shortcut.accelerator, shortcut.click, next)
+      if (free.enabled && nextFree !== free.button) {
+        await setFreeShortcut(true, nextFree)
+      }
       setShortcutButton(next)
+      if (nextFree !== free.button) setFree({ button: nextFree })
+    } catch {
+      setFree({ enabled: false })
+      void useAnswer.getState().logError('shortcut')
+    }
+  }
+
+  const toggleFree = async (next: boolean) => {
+    const nextButton =
+      free.button === shortcut.button
+        ? shortcut.button === 'right'
+          ? 'left'
+          : 'right'
+        : free.button
+    try {
+      await setFreeShortcut(next, nextButton)
+      setFree({ enabled: next, button: nextButton })
+    } catch {
+      void useAnswer.getState().logError('shortcut')
+    }
+  }
+
+  const changeFreeButton = async (next: MouseButton) => {
+    if (next === shortcut.button) return
+    try {
+      await setFreeShortcut(free.enabled, next)
+      setFree({ button: next })
     } catch {
       void useAnswer.getState().logError('shortcut')
     }
@@ -208,6 +251,75 @@ export default function GeneralTab() {
             </p>
           )}
         </div>
+      </Card>
+      <Card className="space-y-4">
+        <div>
+          <SectionTitle>{t('Free mode', '자유 모드')}</SectionTitle>
+          <p className="mb-3 text-xs text-zinc-500">
+            {t(
+              'Hold the answer shortcut and click this button to explain or help with whatever is under the cursor. It uses the same provider, model, and key.',
+              '답변 단축키를 누른 채 이 버튼을 클릭하면 커서 아래의 내용을 설명하거나 도와줍니다. 같은 프로바이더·모델·키를 사용합니다.',
+            )}
+          </p>
+          <Toggle
+            checked={free.enabled}
+            onChange={(v) => void toggleFree(v)}
+            disabled={!shortcut.click || !isModifierOnly(shortcut.accelerator)}
+            label={t('Enable free mode', '자유 모드 사용')}
+            hint={
+              !shortcut.click || !isModifierOnly(shortcut.accelerator)
+                ? t(
+                    'Free mode needs a modifier-only answer shortcut with mouse click enabled.',
+                    '자유 모드는 보조키 전용 단축키와 마우스 클릭 필요 설정에서만 사용할 수 있습니다.',
+                  )
+                : t(
+                    'Exam mode uses the answer button; free mode uses a different button.',
+                    '시험 모드는 답변 버튼을, 자유 모드는 다른 버튼을 사용합니다.',
+                  )
+            }
+          />
+        </div>
+        {free.enabled && (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-zinc-300">{t('Free mode button', '자유 모드 버튼')}</span>
+              <Select
+                className="w-36"
+                aria-label={t('Free mode button', '자유 모드 버튼')}
+                value={free.button}
+                onChange={(e) => void changeFreeButton(e.target.value as MouseButton)}
+              >
+                {(['left', 'right', 'middle'] as MouseButton[])
+                  .filter((button) => button !== shortcut.button)
+                  .map((button) => (
+                    <option key={button} value={button}>
+                      {button === 'left'
+                        ? t('Left', '왼쪽')
+                        : button === 'right'
+                          ? t('Right', '오른쪽')
+                          : t('Middle', '가운데')}
+                    </option>
+                  ))}
+              </Select>
+            </div>
+            <label className="block text-sm text-zinc-300">
+              {t('Instruction (optional)', '지시문 (선택)')}
+              <textarea
+                className="mt-2 w-full rounded-lg border border-zinc-700/80 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 transition-colors placeholder:text-zinc-600 focus:border-accent focus:outline-none"
+                rows={3}
+                value={free.instruction}
+                onChange={(e) => setFree({ instruction: e.target.value })}
+                placeholder={t(
+                  'Explain the content near the cursor. If it is code, explain what it does.',
+                  '커서 근처의 내용을 설명하세요. 코드라면 하는 일을 설명하세요.',
+                )}
+              />
+            </label>
+            <Button onClick={() => void useAnswer.getState().run(true, 'free')}>
+              {t('Test free mode', '자유 모드 테스트')}
+            </Button>
+          </>
+        )}
       </Card>
       <Card>
         <SectionTitle>{t('Language', '언어')}</SectionTitle>

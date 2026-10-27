@@ -10,6 +10,22 @@ pub fn build_prompt(cx: i32, cy: i32, w: u32, h: u32) -> String {
     )
 }
 
+fn language_rule(language: &str) -> &'static str {
+    match language {
+        "ko" => "Answer in Korean.",
+        "en" => "Answer in English.",
+        _ => "Answer in the same language as the question.",
+    }
+}
+
+fn level_rule(level: &str) -> &'static str {
+    match level {
+        "concise" => "Keep the answer short: one to three sentences.",
+        "detailed" => "Answer in detail, explaining the reasoning and key steps.",
+        _ => "Give a clear, balanced answer with a brief explanation.",
+    }
+}
+
 pub fn build_text_prompt(
     cx: i32,
     cy: i32,
@@ -18,18 +34,32 @@ pub fn build_text_prompt(
     language: &str,
     level: &str,
 ) -> String {
-    let language_rule = match language {
-        "ko" => "Answer in Korean.",
-        "en" => "Answer in English.",
-        _ => "Answer in the same language as the question.",
-    };
-    let level_rule = match level {
-        "concise" => "Keep the answer short: one to three sentences.",
-        "detailed" => "Answer in detail, explaining the reasoning and key steps.",
-        _ => "Give a clear, balanced answer with a brief explanation.",
+    format!(
+        "You are an assistant that answers exam questions from a screenshot.\n\nThe attached image is a screenshot of one display. The user's mouse cursor is at pixel ({cx}, {cy}) in this image (image size: {w}x{h} pixels).\n\nTask:\n1. Find the question closest to the cursor position.\n2. Read the question and any context needed to answer it.\n3. Answer the question.\n\nLanguage: {}\nLevel: {}\n\nRules:\n- Reply with only the answer text, not the question.\n- Use plain text: no markdown, no HTML, no bullet lists, and no extra commentary.\n- If no readable question is visible near the cursor, reply with an empty string.",
+        language_rule(language),
+        level_rule(level),
+    )
+}
+
+pub fn build_free_prompt(
+    cx: i32,
+    cy: i32,
+    w: u32,
+    h: u32,
+    instruction: &str,
+    language: &str,
+    level: &str,
+) -> String {
+    let instruction = instruction.trim();
+    let instruction = if instruction.is_empty() {
+        "Explain the content near the cursor clearly and concisely."
+    } else {
+        instruction
     };
     format!(
-        "You are an assistant that answers exam questions from a screenshot.\n\nThe attached image is a screenshot of one display. The user's mouse cursor is at pixel ({cx}, {cy}) in this image (image size: {w}x{h} pixels).\n\nTask:\n1. Find the question closest to the cursor position.\n2. Read the question and any context needed to answer it.\n3. Answer the question.\n\nLanguage: {language_rule}\nLevel: {level_rule}\n\nRules:\n- Reply with only the answer text, not the question.\n- Use plain text: no markdown, no HTML, no bullet lists, and no extra commentary.\n- If no readable question is visible near the cursor, reply with an empty string."
+        "You are a helpful assistant that explains what is visible in a screenshot.\n\nThe attached image is a screenshot of the user's display. The mouse cursor is at pixel ({cx}, {cy}) (image size: {w}x{h} pixels). Focus on the content near the cursor.\n\nTask:\n- Explain or help with the content near the cursor.\n- If it is a question, answer it.\n- If it is code, explain what it does.\n- If it is text, summarize, explain, or translate it as requested.\n\nUser instruction: {instruction}\nLanguage: {}\nLevel: {}\n\nRules:\n- Reply with plain text only: no markdown, no HTML, no bullet lists, and no extra commentary.\n- Do not mention that you are an AI.\n- If nothing readable is visible, reply with an empty string.",
+        language_rule(language),
+        level_rule(level),
     )
 }
 
@@ -118,6 +148,41 @@ pub fn parse_answers(content: &str) -> Result<Vec<String>, ParseError> {
         Err(ParseError::Empty)
     } else {
         Ok(out)
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Consensus {
+    pub answers: Vec<String>,
+    pub matched: bool,
+    pub secondary: Vec<String>,
+    pub error: Option<String>,
+}
+
+pub fn merge_consensus(
+    primary: Result<Vec<String>, String>,
+    secondary: Result<Vec<String>, String>,
+) -> Result<Consensus, String> {
+    match (primary, secondary) {
+        (Ok(primary), Ok(secondary)) => Ok(Consensus {
+            matched: primary.first() == secondary.first(),
+            answers: primary,
+            secondary,
+            error: None,
+        }),
+        (Ok(primary), Err(error)) => Ok(Consensus {
+            answers: primary,
+            matched: false,
+            secondary: Vec::new(),
+            error: Some(error),
+        }),
+        (Err(error), Ok(secondary)) => Ok(Consensus {
+            answers: secondary,
+            matched: false,
+            secondary: Vec::new(),
+            error: Some(error),
+        }),
+        (Err(error), Err(_)) => Err(error),
     }
 }
 
@@ -764,26 +829,17 @@ pub async fn request_answers(
     Err(last)
 }
 
-pub async fn request_text(
+async fn request_text_with_prompt(
     client: &reqwest::Client,
     p: &Provider<'_>,
     capture: &crate::capture::Capture,
     paraphrase: bool,
-    language: &str,
-    level: &str,
+    prompt: &str,
 ) -> Result<String, String> {
-    let prompt = build_text_prompt(
-        capture.cursor_x,
-        capture.cursor_y,
-        capture.img_w,
-        capture.img_h,
-        language,
-        level,
-    );
     let started = Instant::now();
     let mut last = "model_protocol".to_string();
     for api in protocol_candidates(p.preset, api_for(p.preset, p.model)) {
-        let body = build_body(api, p.model, &prompt, &capture.b64, p.extra)?;
+        let body = build_body(api, p.model, prompt, &capture.b64, p.extra)?;
         let text = match post_api(client, p, api, &body, started).await {
             Ok(content) => sanitize_text(&content),
             Err(code) if code == "model_protocol" => {
@@ -806,6 +862,46 @@ pub async fn request_text(
         return Ok(text);
     }
     Err(last)
+}
+
+pub async fn request_text(
+    client: &reqwest::Client,
+    p: &Provider<'_>,
+    capture: &crate::capture::Capture,
+    paraphrase: bool,
+    language: &str,
+    level: &str,
+) -> Result<String, String> {
+    let prompt = build_text_prompt(
+        capture.cursor_x,
+        capture.cursor_y,
+        capture.img_w,
+        capture.img_h,
+        language,
+        level,
+    );
+    request_text_with_prompt(client, p, capture, paraphrase, &prompt).await
+}
+
+pub async fn request_free(
+    client: &reqwest::Client,
+    p: &Provider<'_>,
+    capture: &crate::capture::Capture,
+    paraphrase: bool,
+    instruction: &str,
+    language: &str,
+    level: &str,
+) -> Result<String, String> {
+    let prompt = build_free_prompt(
+        capture.cursor_x,
+        capture.cursor_y,
+        capture.img_w,
+        capture.img_h,
+        instruction,
+        language,
+        level,
+    );
+    request_text_with_prompt(client, p, capture, paraphrase, &prompt).await
 }
 
 const VISION_TEST_IMAGE: &str = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAACAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD50ooor8MP9Uz/2Q==";
@@ -887,6 +983,49 @@ mod tests {
         assert!(p.contains("(1234, 567)"));
         assert!(p.contains("1920x1080"));
         assert!(p.contains("{\"answers\":[\"X\"]}"));
+    }
+
+    #[test]
+    fn free_prompt_contains_the_instruction_and_plain_text_rules() {
+        let p = build_free_prompt(34, 56, 1280, 720, "Explain this code", "ko", "concise");
+        assert!(p.contains("(34, 56)"));
+        assert!(p.contains("1280x720"));
+        assert!(p.contains("Explain this code"));
+        assert!(p.contains("Korean"));
+        assert!(p.contains("one to three sentences"));
+        assert!(p.contains("no markdown"));
+        assert!(p.contains("empty string"));
+        assert_eq!(p.matches("Explain this code").count(), 1);
+    }
+
+    #[test]
+    fn free_prompt_uses_a_default_instruction() {
+        let p = build_free_prompt(0, 0, 100, 100, "  ", "auto", "normal");
+        assert!(p.contains("Explain the content near the cursor"));
+    }
+
+    #[test]
+    fn consensus_reports_match_mismatch_and_fallback() {
+        let matched = merge_consensus(Ok(vec!["B".into()]), Ok(vec!["B".into()])).unwrap();
+        assert!(matched.matched);
+        assert_eq!(matched.answers, vec!["B"]);
+        assert_eq!(matched.secondary, vec!["B"]);
+        assert!(matched.error.is_none());
+
+        let mismatch = merge_consensus(Ok(vec!["B".into()]), Ok(vec!["C".into()])).unwrap();
+        assert!(!mismatch.matched);
+        assert_eq!(mismatch.answers, vec!["B"]);
+        assert_eq!(mismatch.secondary, vec!["C"]);
+
+        let fallback = merge_consensus(Ok(vec!["B".into()]), Err("network".into())).unwrap();
+        assert!(!fallback.matched);
+        assert_eq!(fallback.answers, vec!["B"]);
+        assert_eq!(fallback.error.as_deref(), Some("network"));
+
+        assert_eq!(
+            merge_consensus(Err("a".into()), Err("b".into())).unwrap_err(),
+            "a"
+        );
     }
 
     #[test]

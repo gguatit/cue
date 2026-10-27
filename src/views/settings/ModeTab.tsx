@@ -47,6 +47,7 @@ export default function ModeTab() {
   const t = useT()
   const display = useSettings((s) => s.display)
   const answerType = useSettings((s) => s.provider.answerType)
+  const freeEnabled = useSettings((s) => s.free.enabled)
   const setDisplayMode = useSettings((s) => s.setDisplayMode)
   const setFlashMs = useSettings((s) => s.setFlashMs)
   const setBadgeMs = useSettings((s) => s.setBadgeMs)
@@ -139,7 +140,7 @@ export default function ModeTab() {
             />
           </div>
         )}
-        {answerType === 'text' && (
+        {(answerType === 'text' || freeEnabled) && (
           <div className="mt-3 border-t border-zinc-800 pt-3 text-sm">
             <label htmlFor="text-ms" className="mb-2 block text-zinc-400">
               {t('Text duration', '텍스트 지속 시간')}: {display.textMs}ms

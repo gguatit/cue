@@ -127,6 +127,8 @@ pub struct HookCtx {
     pub hook_installed: AtomicBool,
     pub answer_click: AtomicBool,
     pub answer_button: AtomicU8,
+    pub free_enabled: AtomicBool,
+    pub free_button: AtomicU8,
     pub mouse_hook_installed: AtomicBool,
 }
 
@@ -151,6 +153,8 @@ pub fn install(app: &AppHandle, spec: ShortcutSpec) {
         hook_installed: AtomicBool::new(false),
         answer_click: AtomicBool::new(false),
         answer_button: AtomicU8::new(MouseButton::Left.code()),
+        free_enabled: AtomicBool::new(false),
+        free_button: AtomicU8::new(MouseButton::Right.code()),
         mouse_hook_installed: AtomicBool::new(false),
     });
     if let Ok(mut g) = ctx.spec.lock() {
@@ -200,6 +204,44 @@ pub fn set_spec(accel: &str, click: bool, button: &str) -> Result<(), String> {
     *g = Some(spec);
     ctx.answer_click.store(click, Ordering::Relaxed);
     ctx.answer_button.store(button.code(), Ordering::Relaxed);
+    let free_button = MouseButton::from_code(ctx.free_button.load(Ordering::Relaxed))
+        .unwrap_or(MouseButton::Right);
+    if ctx.free_enabled.load(Ordering::Relaxed)
+        && !can_enable_free(spec, click, button, free_button)
+    {
+        ctx.free_enabled.store(false, Ordering::Relaxed);
+    }
+    Ok(())
+}
+
+pub fn set_free(enabled: bool, button: &str) -> Result<(), String> {
+    let button = MouseButton::parse(button)?;
+    let ctx = CTX.get().ok_or("shortcut")?;
+    let _settings = ctx.settings.lock().map_err(|_| "shortcut")?;
+    if enabled {
+        let spec = ctx
+            .spec
+            .lock()
+            .map_err(|_| "shortcut")?
+            .as_ref()
+            .copied()
+            .ok_or("shortcut")?;
+        let answer_button = MouseButton::from_code(ctx.answer_button.load(Ordering::Relaxed))
+            .unwrap_or(MouseButton::Left);
+        if !can_enable_free(
+            spec,
+            ctx.answer_click.load(Ordering::Relaxed),
+            answer_button,
+            button,
+        ) {
+            return Err("shortcut".into());
+        }
+        if !ensure_mouse_hook(ctx) {
+            return Err("shortcut".into());
+        }
+    }
+    ctx.free_enabled.store(enabled, Ordering::Relaxed);
+    ctx.free_button.store(button.code(), Ordering::Relaxed);
     Ok(())
 }
 
@@ -238,9 +280,10 @@ pub fn set_recording(recording: bool) {
 
 pub fn installed() -> bool {
     CTX.get().map_or(false, |c| {
+        let needs_mouse = c.answer_click.load(Ordering::Relaxed)
+            || c.free_enabled.load(Ordering::Relaxed);
         c.hook_installed.load(Ordering::Relaxed)
-            && (!c.answer_click.load(Ordering::Relaxed)
-                || c.mouse_hook_installed.load(Ordering::Relaxed))
+            && (!needs_mouse || c.mouse_hook_installed.load(Ordering::Relaxed))
     })
 }
 
@@ -315,7 +358,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                         if let Ok(guard) = ctx.spec.try_lock() {
                             if let Some(spec) = *guard {
                                 if check_spec(spec, kb, group, down, up, &MODS_LATCH, &KEY_LATCH) {
-                                    fire(ctx);
+                                    fire(ctx, false);
                                 }
                             }
                         }
@@ -346,6 +389,15 @@ fn mouse_button(message: u32) -> Option<(MouseButton, bool)> {
     }
 }
 
+fn can_enable_free(
+    spec: ShortcutSpec,
+    click: bool,
+    answer_button: MouseButton,
+    free_button: MouseButton,
+) -> bool {
+    click && spec.key.is_none() && answer_button != free_button
+}
+
 fn should_fire_on_mouse(
     click: bool,
     spec: ShortcutSpec,
@@ -374,20 +426,34 @@ unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPA
                             if mods != spec.mods {
                                 MOUSE_LATCH.store(false, Ordering::Relaxed);
                             }
-                            let selected = MouseButton::from_code(
+                            let answer_button = MouseButton::from_code(
                                 ctx.answer_button.load(Ordering::Relaxed),
                             )
                             .unwrap_or(MouseButton::Left);
-                            if should_fire_on_mouse(
+                            let free_button = MouseButton::from_code(
+                                ctx.free_button.load(Ordering::Relaxed),
+                            )
+                            .unwrap_or(MouseButton::Right);
+                            let answer = should_fire_on_mouse(
                                 ctx.answer_click.load(Ordering::Relaxed),
                                 spec,
-                                selected,
+                                answer_button,
                                 button,
                                 true,
                                 mods,
-                            ) && !MOUSE_LATCH.swap(true, Ordering::Relaxed)
+                            );
+                            let free = should_fire_on_mouse(
+                                ctx.free_enabled.load(Ordering::Relaxed),
+                                spec,
+                                free_button,
+                                button,
+                                true,
+                                mods,
+                            );
+                            if (answer || free)
+                                && !MOUSE_LATCH.swap(true, Ordering::Relaxed)
                             {
-                                fire(ctx);
+                                fire(ctx, free);
                                 MOUSE_SUPPRESS.store(button.code(), Ordering::Relaxed);
                                 return LRESULT(1);
                             }
@@ -437,9 +503,12 @@ fn check_spec(
     }
 }
 
-fn fire(ctx: &HookCtx) {
+fn fire(ctx: &HookCtx, free: bool) {
     let sample = crate::windows::pointer_over_main(&ctx.app);
-    let _ = ctx.app.emit("trigger-answer", serde_json::json!({ "sample": sample }));
+    let mode = if free { "free" } else { "exam" };
+    let _ = ctx
+        .app
+        .emit("trigger-answer", serde_json::json!({ "sample": sample, "mode": mode }));
 }
 
 fn fire_panic(ctx: &HookCtx) {
@@ -586,6 +655,36 @@ mod tests {
             button,
             true,
             MOD_CTRL | MOD_ALT
+        ));
+    }
+
+    #[test]
+    fn free_mode_needs_a_click_and_a_different_button() {
+        let spec = ShortcutSpec::parse("Control+Alt").unwrap();
+        assert!(can_enable_free(
+            spec,
+            true,
+            MouseButton::Left,
+            MouseButton::Right
+        ));
+        assert!(!can_enable_free(
+            spec,
+            false,
+            MouseButton::Left,
+            MouseButton::Right
+        ));
+        assert!(!can_enable_free(
+            spec,
+            true,
+            MouseButton::Left,
+            MouseButton::Left
+        ));
+        let keyed = ShortcutSpec::parse("Control+Alt+Q").unwrap();
+        assert!(!can_enable_free(
+            keyed,
+            true,
+            MouseButton::Left,
+            MouseButton::Right
         ));
     }
 }

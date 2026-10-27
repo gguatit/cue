@@ -1,13 +1,23 @@
 import { useEffect, useState } from 'react'
-import { listenEvent } from '../lib/tauri'
+import { listenEvent, type Verification } from '../lib/tauri'
+import { useT } from '../i18n'
 
 interface Payload {
   answer: string
   style: string
   text?: string
+  verification?: Verification
+}
+
+function verificationLabel(verification: Verification | undefined, t: (en: string, ko: string) => string): string {
+  if (!verification) return ''
+  if (verification.error) return t('Check failed', '검증 실패')
+  if (verification.matched) return t('Models agree', '모델 일치')
+  return `${t('Models disagree', '모델 불일치')}: ${verification.secondary.join(', ')}`
 }
 
 export default function OverlayView() {
+  const t = useT()
   const [p, setP] = useState<Payload | null>(null)
   useEffect(() => {
     const un = listenEvent<Payload>('overlay-show', (e) => setP(e.payload))
@@ -16,12 +26,18 @@ export default function OverlayView() {
     }
   }, [])
   if (!p) return null
+  const badge = verificationLabel(p.verification, t)
   if (p.style === 'flash') {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/55">
         <span className="font-black leading-none text-white" style={{ fontSize: '22vw' }}>
           {p.answer}
         </span>
+        {badge && (
+          <span className="absolute right-4 top-4 rounded-lg bg-black/70 px-3 py-1.5 text-sm font-semibold text-amber-300">
+            {badge}
+          </span>
+        )}
       </div>
     )
   }
@@ -45,6 +61,11 @@ export default function OverlayView() {
       <span className="flex h-full w-full items-center justify-center rounded-xl border border-white/15 bg-[#17171b]/95 text-4xl font-bold text-white">
         {p.answer}
       </span>
+      {badge && (
+        <span className="absolute right-4 top-4 rounded-lg bg-black/70 px-2.5 py-1 text-xs font-semibold text-amber-300">
+          {badge}
+        </span>
+      )}
     </div>
   )
 }

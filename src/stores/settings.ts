@@ -28,6 +28,7 @@ export type AnswerLevel = 'concise' | 'normal' | 'detailed'
 
 export interface Settings {
   shortcut: { accelerator: string; display: string; click: boolean; button: MouseButton }
+  free: { enabled: boolean; button: MouseButton; instruction: string }
   panic: { accelerator: string; display: string }
   language: 'ko' | 'en'
   display: {
@@ -49,6 +50,8 @@ export interface Settings {
     extraJson: string
     answerType: 'choice' | 'text'
     paraphrase: boolean
+    consensus: boolean
+    verifyModel: string
   }
   answer: { language: AnswerLanguage; level: AnswerLevel }
   privacy: { crop: boolean }
@@ -68,6 +71,7 @@ interface Actions {
   setShortcut: (accelerator: string, display: string) => void
   setShortcutClick: (click: boolean) => void
   setShortcutButton: (button: MouseButton) => void
+  setFree: (patch: Partial<Settings['free']>) => void
   setPanicShortcut: (accelerator: string, display: string) => void
   setLanguage: (language: 'ko' | 'en') => void
   setDisplayMode: (mode: DisplayMode, on: boolean) => boolean
@@ -93,6 +97,7 @@ export const defaults: Settings = {
     click: true,
     button: 'left',
   },
+  free: { enabled: false, button: 'right', instruction: '' },
   panic: { accelerator: 'Control+Alt+Shift+X', display: 'Ctrl + Alt + Shift + X' },
   language: 'ko',
   display: {
@@ -114,6 +119,8 @@ export const defaults: Settings = {
     extraJson: '',
     answerType: 'choice',
     paraphrase: false,
+    consensus: false,
+    verifyModel: '',
   },
   answer: { language: 'auto', level: 'normal' },
   privacy: { crop: false },
@@ -141,16 +148,25 @@ export function mergeSettings(persisted: unknown): Settings {
     extraJson: str(providerRaw.extraJson, ''),
     answerType: oneOf(providerRaw.answerType, ['choice', 'text'] as const, 'choice'),
     paraphrase: bool(providerRaw.paraphrase, false),
+    consensus: bool(providerRaw.consensus, false),
+    verifyModel: str(providerRaw.verifyModel, ''),
   }
   const shortcutAccel = str(p.shortcut?.accelerator, defaults.shortcut.accelerator)
+  const shortcut = {
+    accelerator: shortcutAccel,
+    display: str(p.shortcut?.display, defaults.shortcut.display),
+    click:
+      bool(p.shortcut?.click, defaults.shortcut.click) && isModifierOnly(shortcutAccel),
+    button: oneOf(p.shortcut?.button, ['left', 'right', 'middle'] as const, 'left'),
+  }
+  const free = {
+    enabled: bool(p.free?.enabled, defaults.free.enabled),
+    button: oneOf(p.free?.button, ['left', 'right', 'middle'] as const, defaults.free.button),
+    instruction: str(p.free?.instruction, defaults.free.instruction),
+  }
   const merged: Settings = {
-    shortcut: {
-      accelerator: shortcutAccel,
-      display: str(p.shortcut?.display, defaults.shortcut.display),
-      click:
-        bool(p.shortcut?.click, defaults.shortcut.click) && isModifierOnly(shortcutAccel),
-      button: oneOf(p.shortcut?.button, ['left', 'right', 'middle'] as const, 'left'),
-    },
+    shortcut,
+    free,
     panic: {
       accelerator: str(p.panic?.accelerator, defaults.panic.accelerator),
       display: str(p.panic?.display, defaults.panic.display),
@@ -199,6 +215,20 @@ export function mergeSettings(persisted: unknown): Settings {
     (mode) => merged.display[mode],
   )
   if (!anyDisplay) merged.display = { ...merged.display, tray: true }
+  if (
+    !merged.free.enabled ||
+    !merged.shortcut.click ||
+    !isModifierOnly(merged.shortcut.accelerator) ||
+    merged.free.button === merged.shortcut.button
+  ) {
+    merged.free = { ...merged.free, enabled: false }
+  }
+  if (
+    !merged.provider.verifyModel.trim() ||
+    merged.provider.verifyModel.trim() === merged.provider.model
+  ) {
+    merged.provider = { ...merged.provider, consensus: false }
+  }
   if (shortcutConflicts(merged.shortcut, merged.panic)) {
     if (isModifierOnly(merged.shortcut.accelerator) && !merged.shortcut.click) {
       merged.shortcut = { ...merged.shortcut, click: true }
@@ -238,6 +268,7 @@ export const useSettings = create<Settings & Actions>()(
           shortcut: { ...s.shortcut, click: click && isModifierOnly(s.shortcut.accelerator) },
         })),
       setShortcutButton: (button) => set((s) => ({ shortcut: { ...s.shortcut, button } })),
+      setFree: (patch) => set((s) => ({ free: { ...s.free, ...patch } })),
       setPanicShortcut: (accelerator, display) => set({ panic: { accelerator, display } }),
       setLanguage: (language) => set({ language }),
       setDisplayMode: (mode, on) => {
@@ -278,7 +309,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 14,
+      version: 15,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

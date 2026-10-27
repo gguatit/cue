@@ -10,6 +10,7 @@ import {
   meetingActive,
   showOverlay,
   type CaptureResult,
+  type Verification,
 } from '../lib/tauri'
 import {
   setTrayAnswer,
@@ -24,7 +25,7 @@ import { useSettings } from './settings'
 export type AnswerMode =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'answer'; answers: string[] }
+  | { kind: 'answer'; answers: string[]; verification?: Verification }
   | { kind: 'text'; text: string }
   | { kind: 'error'; code: string }
 
@@ -37,6 +38,7 @@ export interface AnswerHistoryEntry {
   ts: number
   answers: string[]
   text?: string
+  verification?: Verification
 }
 
 export const HISTORY_KEY = 'cue-history'
@@ -51,7 +53,7 @@ interface AnswerState {
   panicHidden: boolean
   log: LogEntry[]
   history: AnswerHistoryEntry[]
-  run: (sample: boolean) => Promise<void>
+  run: (sample: boolean, mode?: 'exam' | 'free') => Promise<void>
   showLast: () => Promise<void>
   copyLast: () => Promise<void>
   panicClear: () => void
@@ -66,6 +68,18 @@ function isLogEntry(v: unknown): v is LogEntry {
   return !!e && typeof e === 'object' && typeof e.ts === 'number' && typeof e.code === 'string'
 }
 
+function isVerification(v: unknown): v is Verification {
+  const e = v as Verification
+  return (
+    !!e &&
+    typeof e === 'object' &&
+    typeof e.matched === 'boolean' &&
+    Array.isArray(e.secondary) &&
+    e.secondary.every((a) => typeof a === 'string') &&
+    (e.error === undefined || typeof e.error === 'string')
+  )
+}
+
 function isHistoryEntry(v: unknown): v is AnswerHistoryEntry {
   const e = v as AnswerHistoryEntry
   return (
@@ -74,7 +88,8 @@ function isHistoryEntry(v: unknown): v is AnswerHistoryEntry {
     typeof e.ts === 'number' &&
     Array.isArray(e.answers) &&
     e.answers.every((a) => typeof a === 'string') &&
-    (e.text === undefined || typeof e.text === 'string')
+    (e.text === undefined || typeof e.text === 'string') &&
+    (e.verification === undefined || isVerification(e.verification))
   )
 }
 
@@ -211,12 +226,17 @@ if (!initialStorage.history) removeStored(HISTORY_KEY)
 if (!initialStorage.errors) removeStored(ERRORS_KEY)
 
 export const useAnswer = create<AnswerState>()((set, get) => {
-  const display = async (answers: string[], my: number, hidden: boolean): Promise<void> => {
+  const display = async (
+    answers: string[],
+    my: number,
+    hidden: boolean,
+    verification?: Verification,
+  ): Promise<void> => {
     const first = answers[0] ?? ''
     const joined = answers.join(', ')
     const d = useSettings.getState().display
     traySeq++
-    set({ mode: { kind: 'answer', answers } })
+    set({ mode: { kind: 'answer', answers, verification } })
     if (d.led) void blinkAnswer(first, useSettings.getState().led.key).catch(() => {})
     if (d.brightness) void blinkBrightness(first).catch(() => {})
     if (hidden || meetingBlocked()) {
@@ -236,7 +256,8 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       }
     }
     const showGuarded = async (style: 'badge' | 'flash', ms: number): Promise<boolean> => {
-      await showOverlay(joined, style, ms)
+      if (verification) await showOverlay(joined, style, ms, verification)
+      else await showOverlay(joined, style, ms)
       if (seq !== my) return false
       if (meetingBlocked()) {
         void hideOverlay().catch(() => {})
@@ -248,7 +269,10 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       if (!(await showGuarded('flash', d.flashMs))) return
       setTimeout(() => {
         if (seq === my && !meetingBlocked()) {
-          void showOverlay(joined, 'badge', d.badgeMs).catch(() => {})
+          void (verification
+            ? showOverlay(joined, 'badge', d.badgeMs, verification)
+            : showOverlay(joined, 'badge', d.badgeMs)
+          ).catch(() => {})
         }
       }, d.flashMs)
       setTimeout(() => {
@@ -357,7 +381,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       if (entry.text !== undefined) {
         await displayText(entry.text, my, hidden)
       } else {
-        await display(entry.answers, my, hidden)
+        await display(entry.answers, my, hidden, entry.verification)
       }
     },
     copyLast: async () => {
@@ -369,13 +393,14 @@ export const useAnswer = create<AnswerState>()((set, get) => {
         void get().logError('clipboard')
       }
     },
-    run: async (sample) => {
+    run: async (sample, mode = 'exam') => {
       if (get().running) return
       const myRun = ++runSeq
       const my = ++seq
       set({ running: true, mode: { kind: 'loading' } })
       const { provider, answer, privacy } = useSettings.getState()
-      const textMode = provider.answerType === 'text'
+      const freeMode = mode === 'free'
+      const textMode = freeMode || provider.answerType === 'text'
       try {
         const hiddenAtStart = await hiddenByMeeting()
         if (seq !== my) return
@@ -405,10 +430,15 @@ export const useAnswer = create<AnswerState>()((set, get) => {
           result = textMode
             ? {
                 kind: 'text',
-                text: t(
-                  'This is a sample descriptive answer. The real answer appears here.',
-                  '설명형 답변 예시입니다. 실제 답변이 이곳에 표시됩니다.',
-                ),
+                text: freeMode
+                  ? t(
+                      'This is a sample free-mode explanation. The real explanation appears here.',
+                      '자유 모드 설명 예시입니다. 실제 설명이 이곳에 표시됩니다.',
+                    )
+                  : t(
+                      'This is a sample descriptive answer. The real answer appears here.',
+                      '설명형 답변 예시입니다. 실제 답변이 이곳에 표시됩니다.',
+                    ),
               }
             : { kind: 'choice', answers: ['B'] }
         } else {
@@ -422,6 +452,10 @@ export const useAnswer = create<AnswerState>()((set, get) => {
             privacy.crop,
             answer.language,
             answer.level,
+            mode,
+            useSettings.getState().free.instruction,
+            provider.consensus,
+            provider.verifyModel,
           )
         }
         if (seq !== my) return
@@ -437,12 +471,16 @@ export const useAnswer = create<AnswerState>()((set, get) => {
           await displayText(text, my, hidden)
         } else {
           const answers = result.answers
+          const verification = result.verification
           if (useSettings.getState().storage.history) {
             set((s) => ({
-              history: [{ ts: Date.now(), answers }, ...s.history].slice(0, MAX_HISTORY),
+              history: [{ ts: Date.now(), answers, verification }, ...s.history].slice(
+                0,
+                MAX_HISTORY,
+              ),
             }))
           }
-          await display(answers, my, hidden)
+          await display(answers, my, hidden, verification)
         }
       } catch (e) {
         if (seq !== my) return

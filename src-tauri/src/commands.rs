@@ -72,11 +72,25 @@ impl Drop for FlagGuard<'_> {
     }
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct Verification {
+    pub matched: bool,
+    pub secondary: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
 #[derive(Debug, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum AnswerPayload {
-    Choice { answers: Vec<String> },
-    Text { text: String },
+    Choice {
+        answers: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        verification: Option<Verification>,
+    },
+    Text {
+        text: String,
+    },
 }
 
 #[tauri::command]
@@ -91,6 +105,10 @@ pub async fn capture_and_answer(
     crop: bool,
     language: String,
     level: String,
+    mode: String,
+    free_instruction: String,
+    consensus: bool,
+    verify_model: String,
 ) -> Result<AnswerPayload, String> {
     if state.capture_in_flight.swap(true, Ordering::SeqCst) {
         return Err("busy".into());
@@ -127,8 +145,60 @@ pub async fn capture_and_answer(
         extra: &extra_json,
         key: &key,
     };
+    if mode == "free" {
+        let text = crate::ai::request_free(
+            &state.http,
+            &provider,
+            &cap,
+            paraphrase,
+            &free_instruction,
+            &language,
+            &level,
+        )
+        .await?;
+        return Ok(AnswerPayload::Text { text });
+    }
     match answer_type.as_str() {
         "choice" => {
+            let verify = verify_model.trim();
+            if consensus && !verify.is_empty() && verify != model {
+                let verify_provider = crate::ai::Provider {
+                    preset: &preset,
+                    base_url: &base_url,
+                    model: verify,
+                    extra: &extra_json,
+                    key: &key,
+                };
+                let (primary, secondary) = tokio::join!(
+                    crate::ai::request_answers(
+                        &state.http,
+                        &provider,
+                        &cap.b64,
+                        cap.cursor_x,
+                        cap.cursor_y,
+                        cap.img_w,
+                        cap.img_h,
+                    ),
+                    crate::ai::request_answers(
+                        &state.http,
+                        &verify_provider,
+                        &cap.b64,
+                        cap.cursor_x,
+                        cap.cursor_y,
+                        cap.img_w,
+                        cap.img_h,
+                    ),
+                );
+                let consensus = crate::ai::merge_consensus(primary, secondary)?;
+                return Ok(AnswerPayload::Choice {
+                    answers: consensus.answers,
+                    verification: Some(Verification {
+                        matched: consensus.matched,
+                        secondary: consensus.secondary,
+                        error: consensus.error,
+                    }),
+                });
+            }
             let answers = crate::ai::request_answers(
                 &state.http,
                 &provider,
@@ -139,7 +209,10 @@ pub async fn capture_and_answer(
                 cap.img_h,
             )
             .await?;
-            Ok(AnswerPayload::Choice { answers })
+            Ok(AnswerPayload::Choice {
+                answers,
+                verification: None,
+            })
         }
         "text" => {
             let text = crate::ai::request_text(
@@ -171,6 +244,7 @@ pub fn show_overlay(
     answer: String,
     style: String,
     duration_ms: u64,
+    verification: Option<Verification>,
 ) -> Result<(), String> {
     use tauri::{Emitter, Manager};
     let overlay = app.get_webview_window("overlay").ok_or("capture")?;
@@ -210,9 +284,18 @@ pub fn show_overlay(
     overlay.show().map_err(|_| "capture")?;
     let _ = crate::windows::set_tool_window(&overlay, true);
     let payload = if style == "text" {
-        serde_json::json!({ "answer": answer.clone(), "style": style, "text": answer })
+        serde_json::json!({
+            "answer": answer.clone(),
+            "style": style,
+            "text": answer,
+            "verification": verification,
+        })
     } else {
-        serde_json::json!({ "answer": answer, "style": style })
+        serde_json::json!({
+            "answer": answer,
+            "style": style,
+            "verification": verification,
+        })
     };
     let _ = app.emit_to("overlay", "overlay-show", payload);
     let app2 = app.clone();
@@ -417,6 +500,11 @@ pub fn set_tray_menu_labels(
 #[tauri::command]
 pub fn set_shortcut(accelerator: String, click: bool, button: String) -> Result<(), String> {
     crate::shortcut::set_spec(&accelerator, click, &button)
+}
+
+#[tauri::command]
+pub fn set_free_shortcut(enabled: bool, button: String) -> Result<(), String> {
+    crate::shortcut::set_free(enabled, &button)
 }
 
 #[tauri::command]
@@ -1010,10 +1098,27 @@ mod tests {
     fn answer_payload_serializes_choice_and_text() {
         let choice = AnswerPayload::Choice {
             answers: vec!["B".to_string()],
+            verification: None,
         };
         assert_eq!(
             serde_json::to_value(&choice).unwrap(),
             serde_json::json!({ "kind": "choice", "answers": ["B"] })
+        );
+        let verified = AnswerPayload::Choice {
+            answers: vec!["B".to_string()],
+            verification: Some(Verification {
+                matched: false,
+                secondary: vec!["C".to_string()],
+                error: None,
+            }),
+        };
+        assert_eq!(
+            serde_json::to_value(&verified).unwrap(),
+            serde_json::json!({
+                "kind": "choice",
+                "answers": ["B"],
+                "verification": { "matched": false, "secondary": ["C"] }
+            })
         );
         let text = AnswerPayload::Text {
             text: "설명형 답변".to_string(),

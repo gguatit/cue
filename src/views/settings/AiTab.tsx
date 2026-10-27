@@ -9,7 +9,7 @@ import {
   type AnswerLevel,
 } from '../../stores/settings'
 import { useAnswer } from '../../stores/answer'
-import { Button, Card, Field, Input, SectionTitle, Select } from '../../components/ui'
+import { Button, Card, Field, Input, SectionTitle, Select, Toggle } from '../../components/ui'
 
 export default function AiTab() {
   const t = useT()
@@ -312,6 +312,47 @@ export default function AiTab() {
             {t(
               'The list shows only models available to your OpenCode plan. Zen free models are hidden because OpenCode only allows them inside its own app.',
               '목록은 현재 OpenCode 플랜에서 사용 가능한 모델만 표시합니다. Zen 무료 모델은 OpenCode 앱에서만 사용할 수 있어 숨깁니다.',
+            )}
+          </p>
+        )}
+        <Field label={t('Cross-check model (optional)', '교차 검증 모델 (선택)')}>
+          <Input
+            list="cue-verify-models"
+            placeholder={provider.model}
+            value={provider.verifyModel}
+            onChange={(e) => setProvider({ verifyModel: e.target.value })}
+          />
+          <datalist id="cue-verify-models">
+            {models.map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
+          <p className="mt-1 text-xs text-zinc-500">
+            {t(
+              'A second model from the same provider checks the answer. Matching answers show a match badge; different answers show both. Only multiple-choice mode uses this.',
+              '같은 프로바이더의 두 번째 모델이 답을 검증합니다. 일치하면 일치 배지, 다르면 두 답을 모두 표시합니다. 객관식 모드에서만 사용합니다.',
+            )}
+          </p>
+        </Field>
+        <Toggle
+          checked={provider.consensus}
+          disabled={
+            provider.answerType !== 'choice' ||
+            !provider.verifyModel.trim() ||
+            provider.verifyModel.trim() === provider.model
+          }
+          onChange={(v) => setProvider({ consensus: v })}
+          label={t('Cross-check answers', '답 교차 검증')}
+          hint={t(
+            'Runs a second request on the same key, so cost and latency double. Leave it off for fast single-model answers.',
+            '같은 키로 요청을 한 번 더 보내므로 비용과 지연이 두 배가 됩니다. 빠른 단일 모델 답변이 필요하면 끄세요.',
+          )}
+        />
+        {provider.answerType !== 'choice' && (
+          <p className="text-xs text-zinc-500">
+            {t(
+              'Cross-check is available for multiple-choice answers only.',
+              '교차 검증은 객관식 답변에서만 사용할 수 있습니다.',
             )}
           </p>
         )}

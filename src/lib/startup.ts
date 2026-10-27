@@ -3,6 +3,7 @@ import {
   isTauri,
   listenEvent,
   setContentProtection,
+  setFreeShortcut,
   setGuard,
   setHideFromTaskbar,
   setPanicShortcut,
@@ -28,8 +29,8 @@ export async function runStartup(): Promise<void> {
     useAnswer.getState().panicClear()
     void hideMain().catch(() => {})
   }).catch(() => {})
-  await listenEvent<{ sample: boolean }>('trigger-answer', (e) => {
-    void useAnswer.getState().run(e.payload.sample)
+  await listenEvent<{ sample: boolean; mode?: 'exam' | 'free' }>('trigger-answer', (e) => {
+    void useAnswer.getState().run(e.payload.sample, e.payload.mode)
   }).catch(() => {})
   await listenEvent('show-last', () => {
     void useAnswer.getState().showLast()
@@ -60,6 +61,9 @@ export async function runStartup(): Promise<void> {
     await setGuard(true).catch(() => useAnswer.getState().logError('guard'))
   }
   await setShortcut(s.shortcut.accelerator, s.shortcut.click, s.shortcut.button).catch(() =>
+    useAnswer.getState().logError('shortcut'),
+  )
+  await setFreeShortcut(s.free.enabled, s.free.button).catch(() =>
     useAnswer.getState().logError('shortcut'),
   )
   await setPanicShortcut(s.panic.accelerator).catch(() =>

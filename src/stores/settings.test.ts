@@ -298,3 +298,42 @@ describe('setDisplayMode', () => {
     expect(useSettings.getState().display.led).toBe(true)
   })
 })
+
+describe('consensus and free mode settings', () => {
+  it('defaults consensus off and free mode off', () => {
+    const merged = mergeSettings({})
+    expect(merged.provider.consensus).toBe(false)
+    expect(merged.provider.verifyModel).toBe('')
+    expect(merged.free).toEqual({ enabled: false, button: 'right', instruction: '' })
+  })
+
+  it('merges consensus and free mode settings', () => {
+    const merged = mergeSettings({
+      provider: { consensus: true, verifyModel: 'verify-model' },
+      free: { enabled: true, button: 'middle', instruction: 'Explain this code' },
+    })
+    expect(merged.provider.consensus).toBe(true)
+    expect(merged.provider.verifyModel).toBe('verify-model')
+    expect(merged.free).toEqual({
+      enabled: true,
+      button: 'middle',
+      instruction: 'Explain this code',
+    })
+  })
+
+  it('disables free mode when its button matches the answer button', () => {
+    const merged = mergeSettings({
+      shortcut: { accelerator: 'Control+Alt', display: 'Ctrl + Alt', click: true, button: 'right' },
+      free: { enabled: true, button: 'right' },
+    })
+    expect(merged.free.enabled).toBe(false)
+  })
+
+  it('disables free mode for keyed shortcuts', () => {
+    const merged = mergeSettings({
+      shortcut: { accelerator: 'Control+Alt+Q', display: 'Ctrl + Alt + Q', click: true, button: 'left' },
+      free: { enabled: true, button: 'right' },
+    })
+    expect(merged.free.enabled).toBe(false)
+  })
+})

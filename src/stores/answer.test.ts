@@ -84,6 +84,8 @@ describe('answer store', () => {
         extraJson: '',
         answerType: 'choice',
         paraphrase: false,
+        consensus: false,
+        verifyModel: '',
       },
     })
     await useAnswer.getState().run(false)
@@ -97,6 +99,10 @@ describe('answer store', () => {
       false,
       'auto',
       'normal',
+      'exam',
+      '',
+      false,
+      '',
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'answer', answers: ['C'] })
   })
@@ -119,6 +125,10 @@ describe('answer store', () => {
       true,
       'en',
       'detailed',
+      'exam',
+      '',
+      false,
+      '',
     )
   })
 
@@ -301,6 +311,8 @@ describe('answer store', () => {
         extraJson: '',
         answerType: 'text',
         paraphrase: true,
+        consensus: false,
+        verifyModel: '',
       },
     })
     await useAnswer.getState().run(false)
@@ -314,6 +326,10 @@ describe('answer store', () => {
       false,
       'auto',
       'normal',
+      'exam',
+      '',
+      false,
+      '',
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'text', text: '광합성입니다.' })
     expect(setTrayLoading).not.toHaveBeenCalled()
@@ -768,5 +784,52 @@ describe('answer store', () => {
     expect(log).toHaveLength(20)
     expect(log[0].code).toBe('e20')
     expect(log[19].code).toBe('e1')
+  })
+
+  it('free mode sends the free instruction and shows a text panel', async () => {
+    vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'text', text: 'Explanation' })
+    useSettings.setState({
+      display: { ...defaults.display, overlay: true },
+      provider: { ...defaults.provider, consensus: true, verifyModel: 'verify' },
+      free: { enabled: true, button: 'right', instruction: 'Explain this code' },
+    })
+
+    await useAnswer.getState().run(false, 'free')
+
+    expect(captureAndAnswer).toHaveBeenCalledWith(
+      defaults.provider.preset,
+      defaults.provider.baseUrl,
+      defaults.provider.model,
+      '',
+      'choice',
+      false,
+      false,
+      'auto',
+      'normal',
+      'free',
+      'Explain this code',
+      true,
+      'verify',
+    )
+    expect(showOverlay).toHaveBeenCalledWith('Explanation', 'text', 12000)
+    expect(useAnswer.getState().history[0]).toMatchObject({ answers: [], text: 'Explanation' })
+  })
+
+  it('shows and records a cross-check mismatch', async () => {
+    const verification = { matched: false, secondary: ['C'] }
+    vi.mocked(captureAndAnswer).mockResolvedValue({
+      kind: 'choice',
+      answers: ['B'],
+      verification,
+    })
+    useSettings.setState({
+      display: { ...defaults.display, overlay: true },
+      provider: { ...defaults.provider, consensus: true, verifyModel: 'verify' },
+    })
+
+    await useAnswer.getState().run(false)
+
+    expect(showOverlay).toHaveBeenCalledWith('B', 'badge', 8000, verification)
+    expect(useAnswer.getState().history[0].verification).toEqual(verification)
   })
 })

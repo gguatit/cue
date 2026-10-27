@@ -8,7 +8,7 @@ import {
   modifierName,
   shortcutConflicts,
 } from '../lib/shortcutKeys'
-import { setPanicShortcut, setShortcut, setShortcutRecording } from '../lib/tauri'
+import { setFreeShortcut, setPanicShortcut, setShortcut, setShortcutRecording } from '../lib/tauri'
 import { useSettings } from '../stores/settings'
 import { Button } from './ui'
 
@@ -59,7 +59,14 @@ export default function ShortcutRecorder({ panic = false }: { panic?: boolean })
       }
       try {
         if (panic) await setPanicShortcut(built.accelerator)
-        else await setShortcut(built.accelerator, nextClick, button)
+        else {
+          await setShortcut(built.accelerator, nextClick, button)
+          const free = useSettings.getState().free
+          if (free.enabled && (!isModifierOnly(built.accelerator) || !nextClick)) {
+            await setFreeShortcut(false, free.button).catch(() => {})
+            useSettings.getState().setFree({ enabled: false })
+          }
+        }
         saveShortcut(built.accelerator, built.display)
         return true
       } catch {
