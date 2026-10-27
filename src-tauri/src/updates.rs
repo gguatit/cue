@@ -85,9 +85,24 @@ fn error_code(error: &Error) -> &'static str {
         | Error::SignatureUtf8(_)
         | Error::SignedVersionMismatch { .. }
         | Error::MissingSignedVersion => "update_signature",
-        Error::Reqwest(_) | Error::Network(_) => "network",
+        Error::Reqwest(error) if error.is_decode() => "update_check",
+        Error::Reqwest(error) if error.is_connect() || error.is_timeout() => "network",
+        Error::Reqwest(_) => "update_check",
+        Error::Network(_) => "network",
         _ => "update_check",
     }
+}
+
+fn build_updater(app: &AppHandle) -> Result<tauri_plugin_updater::Updater, String> {
+    // Some proxies ignore the endpoint's no-cache response and keep a stale
+    // release redirect; force revalidation on every request.
+    app.updater_builder()
+        .header("Cache-Control", "no-cache")
+        .map_err(|error| error_code(&error).to_string())?
+        .header("Pragma", "no-cache")
+        .map_err(|error| error_code(&error).to_string())?
+        .build()
+        .map_err(|error| error_code(&error).to_string())
 }
 
 fn install_error_code(error: &Error) -> &'static str {
@@ -102,7 +117,7 @@ fn install_error_code(error: &Error) -> &'static str {
 }
 
 pub async fn check(app: &AppHandle) -> Result<Option<UpdateInfo>, String> {
-    let updater = app.updater().map_err(|e| error_code(&e).to_string())?;
+    let updater = build_updater(app)?;
     let update = updater
         .check()
         .await
@@ -126,7 +141,7 @@ pub async fn install(app: &AppHandle) -> Result<(), String> {
 
 async fn install_inner(app: &AppHandle) -> Result<(), String> {
     cleanup_temp_installers();
-    let updater = app.updater().map_err(|e| error_code(&e).to_string())?;
+    let updater = build_updater(app)?;
     let update = updater
         .check()
         .await

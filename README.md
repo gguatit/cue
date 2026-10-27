@@ -77,7 +77,7 @@ npm run tauri build
 
 NSIS 설치 파일은 `src-tauri/target/release/bundle/nsis/`에 생성됩니다.
 
-업데이트용 `.sig`까지 만들려면 서명 키를 환경 변수로 지정해야 합니다. `latest.json`은 릴리스 시 `.sig` 내용으로 직접 생성해 업로드합니다. 개인 키와 비밀번호는 저장소에 커밋하지 마세요.
+업데이트용 `.sig`까지 만들려면 서명 키를 환경 변수로 지정해야 합니다. `latest.json`은 `scripts/latest-json.ps1`로 UTF-8 BOM 없이 생성해 업로드합니다. 개인 키와 비밀번호는 저장소에 커밋하지 마세요.
 
 ```
 $env:TAURI_SIGNING_PRIVATE_KEY = "$env:USERPROFILE\.tauri\cue\cue.key"
