@@ -56,6 +56,12 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 테스트는 대상 파일 옆 `*.test.ts(x)`. **DOM/jsdom 없음** — vitest environment는 `node`이고 `src/test/setup.ts`는 localStorage 스텁만 넣는다. 컴포넌트 테스트는 `renderToStaticMarkup`으로 HTML 문자열을 검증한다. @testing-library/jsdom을 추가하지 말 것.
 - Rust 테스트는 파일 하단 `#[cfg(test)] mod tests`, Windows API 없이 계산 가능한 순수 함수(좌표·크기·파서·URL 검증) 위주.
 
+## 커밋·푸시
+
+- 작업이 끝나면(코드·문서·설정 변경) 사용자의 별도 요청을 기다리지 않고 관련 변경을 커밋하고 `origin main`에 푸시한다. 비밀키·빌드 산출물·임시 파일은 커밋하지 않는다.
+- 릴리스에 포함되는 변경이면 버전·CHANGELOG·서명 빌드·릴리스 게시와 커밋·푸시를 같은 작업 단위로 끝낸다. 릴리스와 `main`이 서로 다른 상태를 가리키지 않게 한다.
+- 푸시가 토큰 scope 등으로 실패하면 작업을 끝난 것으로 보고하지 말고 즉시 원인과 남은 파일을 알린다.
+
 ## 변경 체크리스트
 
 - 새 invoke 커맨드: `commands.rs` 구현 → `main.rs` `invoke_handler` 등록 → `src/lib/tauri.ts` 래퍼.
