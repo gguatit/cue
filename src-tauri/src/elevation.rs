@@ -264,6 +264,20 @@ pub fn program_marker() -> Option<PathBuf> {
     program_dir().map(|d| d.join("guard.enabled"))
 }
 
+pub fn admin_prepare_marker() -> Option<PathBuf> {
+    program_dir().map(|d| d.join("admin-prepare.failed"))
+}
+
+pub fn admin_prepare_failed() -> bool {
+    admin_prepare_marker().is_some_and(|path| path.exists())
+}
+
+pub fn clear_admin_prepare_failed() {
+    if let Some(path) = admin_prepare_marker() {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
 pub fn program_marker_exists() -> bool {
     program_marker().map(|p| p.exists()).unwrap_or(false)
 }
@@ -423,6 +437,7 @@ pub fn prepare_admin_copy() -> Result<(), String> {
     let source = std::env::current_exe().map_err(|_| "guard".to_string())?;
     if is_admin_path(&source) {
         restore_admin_runtime(&source)?;
+        clear_admin_prepare_failed();
         return Ok(());
     }
     harden_program_dir()?;
@@ -432,6 +447,7 @@ pub fn prepare_admin_copy() -> Result<(), String> {
     }
     copy_guard(&source, &target, false)?;
     restore_admin_runtime(&target)?;
+    clear_admin_prepare_failed();
     Ok(())
 }
 
@@ -916,6 +932,7 @@ pub struct ProtectionStatus {
     pub admin_tasks: bool,
     pub guard_tasks: bool,
     pub program_marker: bool,
+    pub admin_prepare_failed: bool,
     pub service_installed: bool,
     pub service_running: bool,
 }
@@ -926,6 +943,7 @@ pub fn status() -> ProtectionStatus {
         admin_tasks: task_exists(ELEVATED_TASK),
         guard_tasks: task_exists(GUARD_TASK) || task_exists(SYSTEM_TASK),
         program_marker: program_marker_exists(),
+        admin_prepare_failed: admin_prepare_failed(),
         service_installed: service_installed(),
         service_running: service_running(),
     }

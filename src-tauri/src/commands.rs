@@ -386,6 +386,14 @@ pub fn set_tray_icons(state: State<'_, AppState>, icons: Vec<TrayIconSpec>) -> R
 }
 
 #[tauri::command]
+pub fn set_tray_visible(state: State<'_, AppState>, visible: bool) -> Result<(), String> {
+    let guard = state.tray.lock().map_err(|_| "tray")?;
+    let tray = guard.as_ref().ok_or("tray")?;
+    tray.set_visible(visible).map_err(|_| "tray")?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn set_tray_menu_labels(
     state: State<'_, AppState>,
     open_text: String,
@@ -463,8 +471,29 @@ pub fn set_hide_from_taskbar(app: tauri::AppHandle, hidden: bool) -> Result<(), 
     if let Some(w) = app.get_webview_window("main") {
         w.set_skip_taskbar(hidden)
             .map_err(|_| "stealth".to_string())?;
+        // DeleteTab only hides the taskbar button; Alt+Tab still lists a normal window.
+        crate::windows::set_tool_window(&w, hidden)?;
     }
     Ok(())
+}
+
+#[derive(serde::Serialize)]
+pub struct CaptureProtectionStatus {
+    pub main: u32,
+    pub overlay: u32,
+}
+
+#[tauri::command]
+pub fn capture_protection_status(
+    app: tauri::AppHandle,
+) -> Result<CaptureProtectionStatus, String> {
+    use tauri::Manager;
+    let main = app.get_webview_window("main").ok_or("stealth")?;
+    let overlay = app.get_webview_window("overlay").ok_or("stealth")?;
+    Ok(CaptureProtectionStatus {
+        main: crate::windows::capture_affinity(&main)?,
+        overlay: crate::windows::capture_affinity(&overlay)?,
+    })
 }
 
 #[tauri::command]
@@ -615,6 +644,7 @@ pub async fn repair_protection() -> Result<(), String> {
             let _ = crate::elevation::create_program_marker();
             crate::elevation::install_elevated_task(&exe)?;
             crate::elevation::install_service()?;
+            crate::elevation::clear_admin_prepare_failed();
         } else {
             if admin_mode {
                 return Err("admin".into());
@@ -646,6 +676,18 @@ pub async fn protection_status() -> Result<crate::elevation::ProtectionStatus, S
 }
 
 #[tauri::command]
+pub async fn check_update(
+    app: tauri::AppHandle,
+) -> Result<Option<crate::updates::UpdateInfo>, String> {
+    crate::updates::check(&app).await
+}
+
+#[tauri::command]
+pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    crate::updates::install(&app).await
+}
+
+#[tauri::command]
 pub async fn add_defender_exclusion() -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(crate::elevation::add_defender_exclusion)
         .await
@@ -663,6 +705,7 @@ pub fn set_admin_mode(app: tauri::AppHandle, enabled: bool) -> Result<(), String
         if !crate::elevation::service_installed() {
             crate::elevation::delete_tasks()?;
             crate::elevation::remove_program_marker()?;
+            crate::elevation::clear_admin_prepare_failed();
             return Ok(());
         }
         // Removing the service needs elevation: re-run the protected copy once,

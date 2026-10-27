@@ -1,8 +1,9 @@
-import { Button, Card } from '../../components/ui'
+import { Button, Card, SectionTitle, Toggle } from '../../components/ui'
 import { useT, errorMessage } from '../../i18n'
 import { openExternal } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
 import { useSettings } from '../../stores/settings'
+import { useUpdates } from '../../stores/updates'
 
 export default function AboutTab() {
   const t = useT()
@@ -11,6 +12,29 @@ export default function AboutTab() {
   const clearHistory = useAnswer((s) => s.clearHistory)
   const clearErrors = useAnswer((s) => s.clearErrors)
   const storage = useSettings((s) => s.storage)
+  const updatePrefs = useSettings((s) => s.updates)
+  const setUpdates = useSettings((s) => s.setUpdates)
+  const checking = useUpdates((s) => s.checking)
+  const installing = useUpdates((s) => s.installing)
+  const available = useUpdates((s) => s.available)
+  const progress = useUpdates((s) => s.progress)
+  const updateError = useUpdates((s) => s.error)
+  const checked = useUpdates((s) => s.checked)
+  const check = useUpdates((s) => s.check)
+  const install = useUpdates((s) => s.install)
+
+  const confirmInstall = () => {
+    if (
+      window.confirm(
+        t(
+          'Cue will close and Windows may ask for administrator permission. Settings and history are kept. Install the update?',
+          'Cue가 종료되고 Windows가 관리자 권한을 요청할 수 있습니다. 설정과 기록은 유지됩니다. 업데이트를 설치할까요?',
+        ),
+      )
+    ) {
+      void install()
+    }
+  }
 
   return (
     <div className="space-y-4 text-sm">
@@ -48,6 +72,81 @@ export default function AboutTab() {
           {t(
             'The overlay and flash tests need one real capture first. Press the shortcut once, then test.',
             '오버레이와 플래시 테스트는 실제 캡처가 한 번 필요합니다. 단축키를 한 번 누른 뒤 테스트하세요.',
+          )}
+        </p>
+      </Card>
+      <Card className="space-y-3">
+        <SectionTitle>{t('Updates', '업데이트')}</SectionTitle>
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-medium text-zinc-200">Cue v{__APP_VERSION__}</p>
+          <Button disabled={checking || installing} onClick={() => void check(false)}>
+            {checking
+              ? t('Checking…', '확인 중…')
+              : t('Check for updates', '업데이트 확인')}
+          </Button>
+        </div>
+        {available && (
+          <div className="rounded-lg border border-accent/30 bg-accent/5 p-3">
+            <p className="font-medium text-zinc-100">
+              {t(`v${available.version} is available`, `v${available.version} 사용 가능`)}
+            </p>
+            {available.notes && (
+              <p className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-zinc-400">
+                {available.notes}
+              </p>
+            )}
+            <p className="mt-2 text-xs text-zinc-500">
+              {t(
+                'The app closes while the signed installer runs. Windows may ask for administrator permission.',
+                '서명된 설치 프로그램이 실행되는 동안 앱이 종료됩니다. Windows가 관리자 권한을 요청할 수 있습니다.',
+              )}
+            </p>
+            <Button
+              className="mt-2"
+              variant="primary"
+              disabled={installing}
+              onClick={confirmInstall}
+            >
+              {installing ? t('Installing…', '설치 중…') : t('Install update', '업데이트 설치')}
+            </Button>
+            {installing && (
+              <div className="mt-3">
+                <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-accent transition-[width]"
+                    style={{ width: `${progress ?? 0}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {progress === null
+                    ? t('Downloading…', '다운로드 중…')
+                    : t(`${progress}% downloaded`, `${progress}% 다운로드됨`)}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+        {checked && !available && !checking && !updateError && (
+          <p className="text-xs text-zinc-500">
+            {t('You are on the latest version.', '최신 버전입니다.')}
+          </p>
+        )}
+        {updateError && (
+          <p className="text-xs text-amber-400">{errorMessage(updateError)}</p>
+        )}
+        <Toggle
+          checked={updatePrefs.autoCheck}
+          onChange={(autoCheck) => setUpdates({ autoCheck })}
+          label={t('Check for updates automatically', '자동으로 업데이트 확인')}
+          hint={t(
+            'Checks GitHub Releases at most once a day. No account or telemetry.',
+            '하루에 한 번 GitHub Releases를 확인합니다. 계정·텔레메트리는 없습니다.',
+          )}
+        />
+        <p className="text-xs text-zinc-500">
+          {t(
+            'Updates are signed. Cue will not run an installer whose signature does not match.',
+            '업데이트는 서명으로 검증됩니다. 서명이 맞지 않는 설치 프로그램은 실행하지 않습니다.',
           )}
         </p>
       </Card>

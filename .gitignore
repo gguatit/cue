@@ -11,6 +11,10 @@ public/test-exam.html
 .env
 .env.*
 
+# signing keys
+*.key
+*.key.password
+
 # logs
 *.log
 

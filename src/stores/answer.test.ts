@@ -16,6 +16,7 @@ vi.mock('../lib/trayDisplay', () => ({
   setTrayLoading: vi.fn().mockResolvedValue(undefined),
   setTrayAnswer: vi.fn().mockResolvedValue(undefined),
   setTrayError: vi.fn().mockResolvedValue(undefined),
+  setTrayVisible: vi.fn().mockResolvedValue(undefined),
 }))
 
 import {
@@ -29,11 +30,15 @@ import {
   meetingActive,
   showOverlay,
 } from '../lib/tauri'
-import { setTrayAnswer, setTrayIdle, setTrayLoading } from '../lib/trayDisplay'
-import { useAnswer } from './answer'
+import { setTrayAnswer, setTrayIdle, setTrayLoading, setTrayVisible } from '../lib/trayDisplay'
+import { startMeetingWatch, useAnswer } from './answer'
 import { defaults, useSettings } from './settings'
 
+let stopMeeting: (() => void) | undefined
+
 beforeEach(() => {
+  stopMeeting?.()
+  stopMeeting = undefined
   vi.useFakeTimers()
   vi.clearAllTimers()
   vi.clearAllMocks()
@@ -47,7 +52,14 @@ beforeEach(() => {
     storage: structuredClone(defaults.storage),
     stealth: structuredClone(defaults.stealth),
   })
-  useAnswer.setState({ mode: { kind: 'idle' }, running: false, log: [], history: [] })
+  useAnswer.setState({
+    mode: { kind: 'idle' },
+    running: false,
+    log: [],
+    history: [],
+    meetingHidden: false,
+    panicHidden: false,
+  })
 })
 
 describe('answer store', () => {
@@ -57,7 +69,7 @@ describe('answer store', () => {
     await vi.advanceTimersByTimeAsync(4000)
     await p
     expect(useAnswer.getState().mode).toEqual({ kind: 'answer', answers: ['B'] })
-    expect(setTrayAnswer).toHaveBeenCalledWith('B', 'B')
+    expect(setTrayAnswer).toHaveBeenCalledWith('B')
     await vi.advanceTimersByTimeAsync(8000)
     expect(useAnswer.getState().mode.kind).toBe('idle')
   })
@@ -273,7 +285,7 @@ describe('answer store', () => {
     })
     await useAnswer.getState().run(false)
     expect(showOverlay).toHaveBeenCalledWith('A, C', 'badge', 8000)
-    expect(setTrayAnswer).toHaveBeenCalledWith('A', 'A, C')
+    expect(setTrayAnswer).toHaveBeenCalledWith('A')
     expect(blinkAnswer).toHaveBeenCalledWith('A', 'scroll')
     expect(blinkBrightness).toHaveBeenCalledWith('A')
   })
@@ -360,7 +372,7 @@ describe('answer store', () => {
     expect(setTrayLoading).not.toHaveBeenCalled()
     expect(useAnswer.getState().mode).toEqual({ kind: 'answer', answers: ['A', 'C'] })
     expect(showOverlay).toHaveBeenCalledWith('A, C', 'badge', 8000)
-    expect(setTrayAnswer).toHaveBeenCalledWith('A', 'A, C')
+    expect(setTrayAnswer).toHaveBeenCalledWith('A')
   })
 
   it('showLast does nothing without history', async () => {
@@ -426,7 +438,7 @@ describe('answer store', () => {
     })
     await useAnswer.getState().run(false)
     expect(setTrayLoading).toHaveBeenCalled()
-    expect(setTrayAnswer).toHaveBeenCalledWith('D', 'D')
+    expect(setTrayAnswer).toHaveBeenCalledWith('D')
     expect(showOverlay).toHaveBeenCalledWith('D', 'badge', 8000)
   })
 
@@ -438,7 +450,7 @@ describe('answer store', () => {
       stealth: { ...defaults.stealth, meetingSafe: true },
     })
     await useAnswer.getState().run(false)
-    expect(setTrayAnswer).toHaveBeenCalledWith('A', 'A')
+    expect(setTrayAnswer).toHaveBeenCalledWith('A')
     expect(showOverlay).toHaveBeenCalledWith('A', 'badge', 8000)
   })
 
@@ -454,6 +466,98 @@ describe('answer store', () => {
     expect(showOverlay).not.toHaveBeenCalled()
     expect(blinkAnswer).toHaveBeenCalledWith('A', 'scroll')
     expect(useAnswer.getState().mode).toEqual({ kind: 'answer', answers: ['A', 'C'] })
+  })
+
+  it('descriptive run clears a previous choice answer from the tray', async () => {
+    vi.mocked(captureAndAnswer).mockResolvedValueOnce({ kind: 'choice', answers: ['B'] })
+    await useAnswer.getState().run(false)
+    vi.mocked(setTrayIdle).mockClear()
+    vi.mocked(setTrayAnswer).mockClear()
+    vi.mocked(captureAndAnswer).mockResolvedValueOnce({ kind: 'text', text: '설명' })
+    useSettings.setState({ provider: { ...defaults.provider, answerType: 'text' } })
+    await useAnswer.getState().run(false)
+    expect(setTrayIdle).toHaveBeenCalled()
+    expect(setTrayAnswer).not.toHaveBeenCalled()
+  })
+
+  it('clears a previous choice answer when a descriptive request fails', async () => {
+    vi.mocked(captureAndAnswer).mockResolvedValueOnce({ kind: 'choice', answers: ['B'] })
+    await useAnswer.getState().run(false)
+    vi.mocked(setTrayIdle).mockClear()
+    vi.mocked(setTrayAnswer).mockClear()
+    vi.mocked(captureAndAnswer).mockRejectedValueOnce('http_401')
+    useSettings.setState({ provider: { ...defaults.provider, answerType: 'text' } })
+    await useAnswer.getState().run(false)
+    expect(setTrayIdle).toHaveBeenCalled()
+    expect(useAnswer.getState().mode).toEqual({ kind: 'error', code: 'http_401' })
+  })
+
+  it('hides a visible answer when a meeting starts later', async () => {
+    vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
+    useSettings.setState({
+      display: { ...defaults.display, tray: true, overlay: true, flash: true, flashMs: 3000, badgeMs: 8000 },
+    })
+    await useAnswer.getState().run(false)
+    expect(showOverlay).toHaveBeenCalledTimes(1)
+
+    vi.mocked(meetingActive).mockResolvedValue(true)
+    stopMeeting = startMeetingWatch()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(useAnswer.getState().meetingHidden).toBe(true)
+    expect(setTrayVisible).toHaveBeenCalledWith(false)
+    expect(hideOverlay).toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(showOverlay).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps hiding the tray while a meeting is active', async () => {
+    vi.mocked(meetingActive).mockResolvedValue(true)
+    stopMeeting = startMeetingWatch()
+    await vi.advanceTimersByTimeAsync(0)
+
+    await setTrayVisible(true)
+    await vi.advanceTimersByTimeAsync(1500)
+
+    expect(setTrayVisible).toHaveBeenLastCalledWith(false)
+  })
+
+  it('restores the tray when the meeting ends', async () => {
+    vi.mocked(meetingActive).mockResolvedValueOnce(true).mockResolvedValue(false)
+    stopMeeting = startMeetingWatch()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(useAnswer.getState().meetingHidden).toBe(true)
+    expect(setTrayVisible).toHaveBeenCalledWith(false)
+
+    await vi.advanceTimersByTimeAsync(1500)
+
+    expect(useAnswer.getState().meetingHidden).toBe(false)
+    expect(setTrayVisible).toHaveBeenLastCalledWith(true)
+    expect(setTrayIdle).toHaveBeenCalled()
+  })
+
+  it('does not hide the tray when meeting safe mode is off', async () => {
+    useSettings.setState({ stealth: { ...defaults.stealth, meetingSafe: false } })
+    vi.mocked(meetingActive).mockResolvedValue(true)
+    stopMeeting = startMeetingWatch()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(useAnswer.getState().meetingHidden).toBe(false)
+    expect(setTrayVisible).not.toHaveBeenCalledWith(false)
+  })
+
+  it('restores the tray when meeting safe mode is turned off', async () => {
+    useAnswer.setState({ meetingHidden: true })
+    useSettings.setState({
+      stealth: { ...useSettings.getState().stealth, meetingSafe: false },
+    })
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(setTrayIdle).toHaveBeenCalled()
+    expect(setTrayVisible).toHaveBeenCalledWith(true)
+    expect(useAnswer.getState().meetingHidden).toBe(false)
   })
 
   it('panic during tray render does not show the stale overlay', async () => {
@@ -526,7 +630,8 @@ describe('answer store', () => {
     expect(setTrayLoading).toHaveBeenCalled()
     expect(setTrayAnswer).not.toHaveBeenCalled()
     expect(showOverlay).not.toHaveBeenCalled()
-    expect(setTrayIdle).toHaveBeenCalled()
+    expect(setTrayVisible).toHaveBeenCalledWith(false)
+    expect(useAnswer.getState().meetingHidden).toBe(true)
     expect(useAnswer.getState().history[0].answers).toEqual(['C'])
   })
 
@@ -602,7 +707,23 @@ describe('answer store', () => {
       expect(clearClipboard).toHaveBeenCalled()
     })
 
-    it('persists history and errors while storage is enabled', async () => {
+    it('panicClear hides the tray icon', () => {
+    useAnswer.setState({ mode: { kind: 'answer', answers: ['B'] } })
+    useAnswer.getState().panicClear()
+    expect(setTrayVisible).toHaveBeenCalledWith(false)
+    expect(useAnswer.getState().panicHidden).toBe(true)
+  })
+
+  it('shows the tray again on the next run after panic', async () => {
+    useAnswer.getState().panicClear()
+    vi.mocked(setTrayVisible).mockClear()
+    vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
+    await useAnswer.getState().run(false)
+    expect(useAnswer.getState().panicHidden).toBe(false)
+    expect(setTrayVisible).toHaveBeenCalledWith(true)
+  })
+
+  it('persists history and errors while storage is enabled', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
     await useAnswer.getState().run(false)
     await useAnswer.getState().logError('parse')

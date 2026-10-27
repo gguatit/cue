@@ -6,6 +6,8 @@ import ErrorBoundary from './components/ErrorBoundary'
 import './index.css'
 import { runStartup } from './lib/startup'
 import { isTauri, showOverlay } from './lib/tauri'
+import { startMeetingWatch } from './stores/answer'
+import { maybeCheckForUpdates } from './stores/updates'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -15,7 +17,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 )
 
-if (!isTauri() || getCurrentWebviewWindow().label !== 'overlay') void runStartup()
+if (!isTauri() || getCurrentWebviewWindow().label !== 'overlay') {
+  void runStartup()
+  if (isTauri()) {
+    startMeetingWatch()
+    setTimeout(() => void maybeCheckForUpdates(), 5000)
+  }
+}
 
 if (import.meta.env.DEV) {
   void import('./lib/trayDisplay').then((m) => {

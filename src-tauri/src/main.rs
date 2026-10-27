@@ -12,6 +12,7 @@ mod models;
 mod secrets;
 mod shortcut;
 mod tray;
+mod updates;
 mod windows;
 
 use std::path::PathBuf;
@@ -101,13 +102,14 @@ fn main() {
         std::process::exit(code);
     }
     let background = std::env::args().any(|a| a == "--background");
-    let elevated = std::env::args().any(|a| a == "--elevated");
+    let elevated = std::env::args().any(|a| a == "--elevated") && elevation::is_elevated();
     let admin_setup = std::env::args().any(|a| a == "--admin-setup");
     // Administrator mode is on but this instance is not elevated (for example a
     // stale Run entry or a manual start): relaunch once through UAC so the
     // setting survives reboots even if the logon task was missed.
     if !elevated
         && !admin_setup
+        && !elevation::admin_prepare_failed()
         && (elevation::program_marker_exists() || elevation::service_installed())
     {
         // A normal install can be user-writable. Hand off to the protected
@@ -144,9 +146,11 @@ fn main() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--background"]),
         ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             commands::set_tray_icons,
+            commands::set_tray_visible,
             commands::set_tray_menu_labels,
             commands::set_shortcut,
             commands::set_panic_shortcut,
@@ -169,6 +173,7 @@ fn main() {
             commands::clear_api_key,
             commands::set_hide_from_taskbar,
             commands::set_content_protection,
+            commands::capture_protection_status,
             commands::open_taskbar_settings,
             commands::tray_icon_shown,
             commands::open_external,
@@ -181,6 +186,8 @@ fn main() {
             commands::protection_status,
             commands::add_defender_exclusion,
             commands::set_admin_mode,
+            commands::check_update,
+            commands::install_update,
             commands::quit_app,
         ])
         .setup(move |app| {
@@ -207,6 +214,7 @@ fn main() {
                 elevation::install_service().map_err(|_| "admin")?;
                 let _ = app.autolaunch().disable();
                 elevation::remove_run_key();
+                elevation::clear_admin_prepare_failed();
             }
             if !admin_setup
                 && elevation::is_elevated()
@@ -228,6 +236,7 @@ fn main() {
                     let _ = elevation::install_elevated_task(&exe);
                     let _ = elevation::install_service();
                     elevation::remove_run_key();
+                    elevation::clear_admin_prepare_failed();
                 }
             }
             tray::create(&handle)?;

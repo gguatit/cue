@@ -8,37 +8,72 @@ const mocks = vi.hoisted(() => ({
     tooltip,
   })),
   setTrayIcons: vi.fn(async () => {}),
+  setTrayVisible: vi.fn(async () => {}),
 }))
 
 vi.mock('../components/trayIcon', () => ({
   renderTrayIcon: mocks.renderTrayIcon,
   answerGlyph: () => ({ choice: 'B', glyph: null }),
 }))
-vi.mock('./tauri', () => ({ setTrayIcons: mocks.setTrayIcons, isTauri: () => true }))
+vi.mock('./tauri', () => ({
+  setTrayIcons: mocks.setTrayIcons,
+  setTrayVisible: mocks.setTrayVisible,
+  isTauri: () => true,
+}))
 
 import { useSettings } from '../stores/settings'
-import { setTrayError, setTrayForMode, setTrayLoading } from './trayDisplay'
+import {
+  setTrayAnswer,
+  setTrayError,
+  setTrayForMode,
+  setTrayIdle,
+  setTrayLoading,
+  setTrayVisible,
+} from './trayDisplay'
 
 describe('trayDisplay tooltips', () => {
   beforeEach(() => {
     mocks.renderTrayIcon.mockClear()
+    mocks.setTrayVisible.mockClear()
     useSettings.setState({ language: 'ko' })
   })
 
-  it('localizes the loading tooltip', async () => {
+  it('uses a neutral Korean tooltip while loading', async () => {
     await setTrayLoading()
-    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('Cue — 생각 중…')
+    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('시스템')
   })
 
-  it('localizes the error tooltip', async () => {
+  it('uses a neutral Korean tooltip for errors', async () => {
     await setTrayError()
-    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('Cue — 활동 내역을 확인하세요')
+    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('시스템')
   })
 
   it('uses English when the language is en', async () => {
     useSettings.setState({ language: 'en' })
     await setTrayLoading()
-    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('Cue — Thinking…')
+    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('System')
+  })
+
+  it('never puts the answer in the tooltip', async () => {
+    await setTrayAnswer('B')
+    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('시스템')
+  })
+
+  it('shows the tray when an answer is drawn', async () => {
+    await setTrayAnswer('B')
+    expect(mocks.setTrayVisible).toHaveBeenCalledWith(true)
+  })
+
+  it('does not force the tray visible for an idle redraw', async () => {
+    await setTrayIdle()
+    expect(mocks.setTrayVisible).not.toHaveBeenCalled()
+  })
+
+  it('hides and shows the tray on request', async () => {
+    await setTrayVisible(false)
+    expect(mocks.setTrayVisible).toHaveBeenCalledWith(false)
+    await setTrayVisible(true)
+    expect(mocks.setTrayVisible).toHaveBeenCalledWith(true)
   })
 
   it('propagates tray failures in Tauri', async () => {
@@ -50,6 +85,7 @@ describe('trayDisplay tooltips', () => {
 describe('setTrayForMode', () => {
   beforeEach(() => {
     mocks.renderTrayIcon.mockClear()
+    mocks.setTrayVisible.mockClear()
     useSettings.setState({
       language: 'ko',
       trayIcons: { idle: 'battery-medium', byAnswer: { '2': 'wifi' } },
@@ -60,18 +96,18 @@ describe('setTrayForMode', () => {
   it('redraws the current answer with the new mapping', async () => {
     await setTrayForMode({ kind: 'answer', answers: ['B'] })
     expect(mocks.renderTrayIcon).toHaveBeenCalledTimes(1)
-    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('Cue — B')
+    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('시스템')
   })
 
-  it('shows every answer in the tooltip', async () => {
+  it('does not put every answer in the tooltip', async () => {
     await setTrayForMode({ kind: 'answer', answers: ['A', 'C'] })
-    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('Cue — A, C')
+    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('시스템')
   })
 
   it('redraws the idle icon', async () => {
     await setTrayForMode({ kind: 'idle' })
     expect(mocks.renderTrayIcon).toHaveBeenCalledTimes(1)
-    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('Cue')
+    expect(mocks.renderTrayIcon.mock.calls[0][2]).toBe('시스템')
   })
 
   it('does not show an answer when the tray mode is off', async () => {

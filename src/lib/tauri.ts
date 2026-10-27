@@ -20,6 +20,7 @@ export interface TrayIconPayload {
 }
 
 export const setTrayIcons = (icons: TrayIconPayload[]) => invoke<void>('set_tray_icons', { icons })
+export const setTrayVisible = (visible: boolean) => invoke<void>('set_tray_visible', { visible })
 export const setTrayMenuLabels = (
   openText: string,
   helpText: string,
@@ -48,6 +49,12 @@ export const shortcutInstalled = () => invoke<boolean>('shortcut_installed')
 export const trayIconShown = () => invoke<boolean>('tray_icon_shown')
 export const setHideFromTaskbar = (hidden: boolean) => invoke<void>('set_hide_from_taskbar', { hidden })
 export const setContentProtection = (enabled: boolean) => invoke<void>('set_content_protection', { enabled })
+export interface CaptureProtectionStatus {
+  main: number
+  overlay: number
+}
+export const captureProtectionStatus = () =>
+  invoke<CaptureProtectionStatus>('capture_protection_status')
 export const openTaskbarSettings = () => invoke<void>('open_taskbar_settings')
 export const openExternal = (url: string) => invoke<void>('open_external', { url })
 export const setApiKey = (preset: string, key: string) => invoke<void>('set_api_key', { preset, key })
@@ -96,11 +103,27 @@ export const setGuard = (enabled: boolean) => invoke<void>('set_guard', { enable
 export const repairGuard = () => invoke<void>('repair_guard')
 export const guardEnabled = () => invoke<boolean>('guard_enabled')
 
+export interface UpdateInfo {
+  version: string
+  notes: string | null
+}
+
+export interface UpdateProgress {
+  downloaded: number
+  total: number | null
+}
+
+export const checkUpdate = () => invoke<UpdateInfo | null>('check_update')
+export const installUpdate = () => invoke<void>('install_update')
+export const onUpdateProgress = (handler: (progress: UpdateProgress) => void) =>
+  listenEvent<UpdateProgress>('update-progress', (event) => handler(event.payload))
+
 export interface ProtectionStatus {
   elevated: boolean
   adminTasks: boolean
   guardTasks: boolean
   programMarker: boolean
+  adminPrepareFailed: boolean
   serviceInstalled: boolean
   serviceRunning: boolean
 }

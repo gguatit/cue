@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::capture::MonitorRect;
 
@@ -55,6 +55,22 @@ pub fn set_capture_protection(win: &WebviewWindow, enabled: bool) -> Result<(), 
         )
         .map_err(|_| "stealth".to_string())
     }
+}
+
+pub fn capture_affinity(win: &WebviewWindow) -> Result<u32, String> {
+    use ::windows::Win32::Foundation::HWND;
+    use ::windows::Win32::UI::WindowsAndMessaging::GetWindowDisplayAffinity;
+    let hwnd = HWND(
+        win.hwnd()
+            .map_err(|_| "stealth".to_string())?
+            .0,
+    );
+    let mut affinity = 0u32;
+    unsafe {
+        GetWindowDisplayAffinity(hwnd, &mut affinity)
+            .map_err(|_| "stealth".to_string())?;
+    }
+    Ok(affinity)
 }
 
 pub const BADGE_SIZE: (i32, i32) = (120, 72);
@@ -126,7 +142,7 @@ pub fn monitor_scale(mon: MonitorRect) -> f64 {
 
 pub fn create_main(app: &AppHandle, visible: bool) -> tauri::Result<WebviewWindow> {
     let win = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-        .title("Cue")
+        .title("Settings")
         .inner_size(880.0, 640.0)
         .min_inner_size(640.0, 480.0)
         .visible(visible)
@@ -138,7 +154,7 @@ pub fn create_main(app: &AppHandle, visible: bool) -> tauri::Result<WebviewWindo
 
 pub fn create_overlay(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     let win = WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("index.html".into()))
-        .title("Cue Overlay")
+        .title("")
         .transparent(true)
         .decorations(false)
         .always_on_top(true)
@@ -161,6 +177,15 @@ pub fn show_main(app: &AppHandle) {
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();
+    }
+    let _ = app.emit("main-shown", ());
+    // Panic clearing hides the tray; opening the window must bring it back.
+    if let Some(state) = app.try_state::<crate::commands::AppState>() {
+        if let Ok(guard) = state.tray.lock() {
+            if let Some(tray) = guard.as_ref() {
+                let _ = tray.set_visible(true);
+            }
+        }
     }
 }
 

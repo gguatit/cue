@@ -22,6 +22,7 @@ describe('mergeSettings', () => {
     expect(merged.answer.level).toBe('normal')
     expect(merged.privacy.crop).toBe(false)
     expect(merged.storage).toEqual({ history: true, errors: true })
+    expect(merged.updates.autoCheck).toBe(true)
   })
 
   it('repairs an all-off display and duplicate shortcuts', () => {
@@ -152,6 +153,12 @@ describe('mergeSettings', () => {
     expect(merged.panic.display).toBe('Ctrl + Alt + P')
   })
 
+  it('merges the update auto-check setting', () => {
+    expect(defaults.updates.autoCheck).toBe(true)
+    expect(mergeSettings({ updates: { autoCheck: false } }).updates.autoCheck).toBe(false)
+    expect(mergeSettings({ updates: { autoCheck: 'x' } }).updates.autoCheck).toBe(true)
+  })
+
   it('drops unknown keys instead of persisting them', () => {
     const merged = mergeSettings({ apiKey: 'secret', setProvider: 'boom', extra: 1 })
     expect('apiKey' in merged).toBe(false)
@@ -224,6 +231,14 @@ describe('answer and privacy setters', () => {
     useSettings.getState().setPrivacy({ crop: true })
     expect(useSettings.getState().answer).toEqual({ language: 'ko', level: 'concise' })
     expect(useSettings.getState().privacy).toEqual({ crop: true })
+  })
+})
+
+describe('setUpdates', () => {
+  it('stores the auto-check preference', () => {
+    useSettings.setState({ updates: { autoCheck: true } })
+    useSettings.getState().setUpdates({ autoCheck: false })
+    expect(useSettings.getState().updates).toEqual({ autoCheck: false })
   })
 })
 

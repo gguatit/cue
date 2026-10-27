@@ -46,6 +46,11 @@ export const ERRORS: Record<string, [string, string]> = {
   admin: ['Could not change administrator mode', '관리자 모드를 변경할 수 없습니다'],
   admin_copy: ['Administrator mode needs the protected copy created by Cue setup. Run the installer again', '관리자 모드에는 Cue 설치 프로그램이 만든 보호 복사본이 필요합니다. 설치 프로그램을 다시 실행하세요'],
   defender: ['Could not add the Windows Defender exclusion', 'Windows Defender 예외를 추가할 수 없습니다'],
+  update_check: ['Could not check for updates', '업데이트를 확인할 수 없습니다'],
+  update_install: ['Could not install the update', '업데이트를 설치할 수 없습니다'],
+  update_signature: ['The update signature is not valid', '업데이트 서명이 올바르지 않습니다'],
+  update_unavailable: ['No update is available', '설치할 업데이트가 없습니다'],
+  update_busy: ['An update is already in progress', '이미 업데이트가 진행 중입니다'],
 }
 
 export function errorPair(code: string): [string, string] {
@@ -59,10 +64,10 @@ export function errorMessage(code: string): string {
 
 export function trayMenuLabels() {
   return {
-    open: t('Open Cue…', 'Cue 열기…'),
-    help: t('Help', '사용법'),
-    last: t('Last answer', '마지막 답'),
-    copy: t('Copy last answer', '마지막 답 복사'),
+    open: t('Open…', '열기…'),
+    help: t('Help', '도움말'),
+    last: t('Show', '표시'),
+    copy: t('Copy', '복사'),
     clear: t('Clear', '지우기'),
     quit: t('Quit', '종료'),
   }

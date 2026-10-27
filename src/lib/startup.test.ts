@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   setHideFromTaskbar: vi.fn(async () => {}),
   setTrayIdle: vi.fn(async () => {}),
   setTrayError: vi.fn(async () => {}),
+  setTrayVisible: vi.fn(async () => {}),
 }))
 
 vi.mock('./tauri', () => ({
@@ -30,10 +31,12 @@ vi.mock('./tauri', () => ({
   copyText: vi.fn(async () => {}),
   cancelAnswer: vi.fn(async () => {}),
   clearClipboard: vi.fn(async () => {}),
+  meetingActive: vi.fn(async () => false),
 }))
 vi.mock('./trayDisplay', () => ({
   setTrayIdle: mocks.setTrayIdle,
   setTrayError: mocks.setTrayError,
+  setTrayVisible: mocks.setTrayVisible,
   setTrayLoading: vi.fn(),
   setTrayAnswer: vi.fn(),
 }))
@@ -112,13 +115,25 @@ describe('runStartup tray menu', () => {
     useSettings.setState({ language: 'en' })
     await runStartup()
     expect(mocks.setTrayMenuLabels).toHaveBeenCalledWith(
-      'Open Cue…',
+      'Open…',
       'Help',
-      'Last answer',
-      'Copy last answer',
+      'Show',
+      'Copy',
       'Clear',
       'Quit',
     )
+  })
+
+  it('clears the panic-hidden flag when the main window is shown', async () => {
+    let handler: ((...args: unknown[]) => void) | undefined
+    mocks.listenEvent.mockImplementation(async (event: string, cb?: (...args: unknown[]) => void) => {
+      if (event === 'main-shown') handler = cb
+      return () => {}
+    })
+    await runStartup()
+    useAnswer.setState({ panicHidden: true })
+    handler!()
+    expect(useAnswer.getState().panicHidden).toBe(false)
   })
 
   it('copies the last answer on copy-last', async () => {

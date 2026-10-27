@@ -3,6 +3,7 @@ import { Button, Card, SectionTitle, Toggle } from '../../components/ui'
 import { useT } from '../../i18n'
 import {
   addDefenderExclusion,
+  captureProtectionStatus,
   guardEnabled,
   meetingActive,
   openTaskbarSettings,
@@ -13,6 +14,7 @@ import {
   setContentProtection,
   setGuard,
   setHideFromTaskbar,
+  type CaptureProtectionStatus,
   type ProtectionStatus,
 } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
@@ -27,6 +29,7 @@ export default function SecurityTab() {
   const [guardStatus, setGuardStatus] = useState<boolean | null>(null)
   const [meetingStatus, setMeetingStatus] = useState<boolean | null>(null)
   const [protection, setProtection] = useState<ProtectionStatus | null>(null)
+  const [capture, setCapture] = useState<CaptureProtectionStatus | null>(null)
   const [defenderBusy, setDefenderBusy] = useState(false)
   const [defenderMessage, setDefenderMessage] = useState('')
   const [adminMessage, setAdminMessage] = useState('')
@@ -52,10 +55,22 @@ export default function SecurityTab() {
     }
   }
 
+  const refreshCapture = async () => {
+    try {
+      setCapture(await captureProtectionStatus())
+    } catch {
+      setCapture(null)
+    }
+  }
+
   useEffect(() => {
     void refreshGuard()
     void refreshProtection()
   }, [])
+
+  useEffect(() => {
+    void refreshCapture()
+  }, [stealth.contentProtection])
 
   const toggleAdmin = async (on: boolean) => {
     if (on) {
@@ -102,6 +117,10 @@ export default function SecurityTab() {
   }
 
   const repairAll = async () => {
+    if (protection?.adminPrepareFailed) {
+      await toggleAdmin(true)
+      return
+    }
     try {
       await repairProtection()
     } catch {
@@ -182,6 +201,38 @@ export default function SecurityTab() {
           onChange={(v) => void apply({ contentProtection: v }, () => setContentProtection(v))}
           label={t('Exclude Cue windows from screen capture', 'Cue 창을 화면 캡처에서 제외')}
         />
+        <p
+          className={`mt-2 text-xs ${
+            capture && capture.main === 0 && stealth.contentProtection
+              ? 'text-amber-400'
+              : 'text-zinc-500'
+          }`}
+        >
+          {capture
+            ? capture.main === 0x11 && capture.overlay === 0x11
+              ? t(
+                  'Both Cue windows are excluded from screen capture.',
+                  'Cue 창 두 개가 화면 캡처에서 제외됩니다.',
+                )
+              : capture.main === 0x01 && capture.overlay === 0x01
+                ? t(
+                    'Windows 10 before 2004: Cue windows appear blank in captures.',
+                    'Windows 10 2004 이전: 캡처에서 Cue 창이 빈 창으로 보입니다.',
+                  )
+                : capture.main === 0 && capture.overlay === 0
+                  ? t('Screen capture protection is off.', '화면 캡처 보호가 꺼져 있습니다.')
+                  : t(
+                      'Screen capture protection is only partially applied.',
+                      '화면 캡처 보호가 일부만 적용되었습니다.',
+                    )
+            : t('Status unavailable', '상태를 확인할 수 없습니다')}
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          {t(
+            'Windows 10 2004 and later remove the windows from captures. Older versions show them as blank, and a photograph of the screen is never blocked.',
+            'Windows 10 2004 이상은 창이 캡처에서 완전히 사라집니다. 이전 버전은 빈 창으로 보이며, 화면을 카메라로 촬영하는 것은 막지 못합니다.',
+          )}
+        </p>
       </Card>
       <Card>
         <div className="flex items-center justify-between gap-3">
@@ -199,8 +250,8 @@ export default function SecurityTab() {
         />
         <p className="mt-2 text-xs text-zinc-500">
           {t(
-            'When a meeting or screen share is detected, Cue hides the tray icon, overlay and flash and uses only the keyboard LED and screen brightness. Detection looks at running meeting apps and window titles, so it is a heuristic and may miss some meetings. Answer history is still recorded.',
-            '회의나 화면 공유가 감지되면 Cue는 트레이 아이콘, 오버레이, 플래시를 숨기고 키보드 LED와 화면 밝기만 사용합니다. 실행 중인 회의 앱과 창 제목을 확인하는 휴리스틱이므로 일부 회의를 놓칠 수 있습니다. 답변 기록은 그대로 저장됩니다.',
+            'When a meeting or screen-share app is detected, Cue hides the tray icon, overlay and flash, and uses only the keyboard LED and screen brightness. Detection checks running meeting/screen-share processes and window titles, so it is a heuristic and may miss some meetings or hide answers during unrelated activity. If LED and brightness are off, no answer is shown. Answer history is still recorded.',
+            '회의나 화면 공유 앱이 감지되면 Cue는 트레이 아이콘, 오버레이, 플래시를 숨기고 키보드 LED와 화면 밝기만 사용합니다. 실행 중인 회의·화면 공유 프로세스와 창 제목을 확인하는 휴리스틱이므로 일부 회의를 놓치거나 무관한 작업 중 답변을 숨길 수 있습니다. LED와 밝기가 모두 꺼져 있으면 답변이 표시되지 않습니다. 답변 기록은 그대로 저장됩니다.',
           )}
         </p>
       </Card>
@@ -234,6 +285,14 @@ export default function SecurityTab() {
           </p>
         )}
         {adminMessage && <p className="mt-2 text-xs text-amber-400">{adminMessage}</p>}
+        {protection?.adminPrepareFailed && (
+          <div className="mt-2 rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-xs text-amber-200/90">
+            {t(
+              'The installer could not refresh administrator protection. Press Repair protection. If it still fails, reinstall Cue.',
+              '설치 프로그램이 관리자 보호를 갱신하지 못했습니다. 보호 복구를 누르세요. 계속 실패하면 Cue를 다시 설치하세요.',
+            )}
+          </div>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           {chip(protection?.elevated ?? null, t('Elevated', '관리자'))}
           {chip(protection?.adminTasks ?? null, t('Autostart task', '자동 시작 작업'))}

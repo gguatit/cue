@@ -42,6 +42,7 @@
 - **내 키 사용**: OpenCode Go(구독), OpenCode Zen(크레딧), OpenAI, Google, Anthropic 또는 사용자 지정 OpenAI 호환 base URL별 키. Go는 전용 모델 목록을 사용합니다. OpenCode Zen 모델은 계열별 네이티브 API(Anthropic Messages / Google generateContent / Responses)로 자동 라우팅됩니다. 키는 Windows 자격증명 관리자에 저장되며 웹 UI에 노출되지 않습니다.
 - **모델 도우미**: 공급자 모델 목록 불러오기, 비전 검사를 포함한 연결 테스트, 5초 카운트다운 실전 테스트, 일시적 AI 오류 재시도, 포인터 주변 자르기 옵션.
 - **설정 도구**: 서술형 답변 언어·상세 수준, 표시 시간, JSON 백업/가져오기, 로컬 프로필, GitHub에서 내려받는 워터마크 토글 포함 시험지.
+- **자동 업데이트**: GitHub Releases의 서명된 새 버전을 확인합니다. 설정 → 정보에서 자동 확인을 끌 수 있고, 설치는 사용자가 확인한 뒤 진행합니다. perMachine 설치라 UAC가 한 번 필요합니다.
 - 한국어/영어 UI.
 
 > [!WARNING]
@@ -58,8 +59,9 @@
 
 - Windows 10/11 x64 전용입니다.
 - 설치 파일은 WebView2 오프라인 런타임을 포함하므로 크지만 인터넷 없이 설치할 수 있습니다.
-- 설치 파일은 서명되지 않아 Windows SmartScreen 경고가 나올 수 있습니다.
-- 자동 업데이터가 없으므로 새 버전은 GitHub Releases에서 직접 설치합니다.
+- 설치 파일은 Authenticode 서명이 없어 Windows SmartScreen 경고가 나올 수 있습니다. 업데이트 서명은 설치 파일의 무결성만 검증하며 SmartScreen 경고를 없애지는 않습니다.
+- 0.1.2부터 설정 → 정보에서 GitHub Releases의 서명된 새 버전을 확인하고 설치할 수 있습니다. 업데이트는 perMachine 설치라 UAC가 한 번 필요하고, WebView2 오프라인 런타임을 포함한 설치 파일(약 221MB)을 내려받습니다.
+- 0.1.0/0.1.1 사용자는 0.1.2를 한 번 직접 설치해야 이후 자동 업데이트가 동작합니다.
 - 서술형 답변은 오버레이 전용이며 클릭 통과라 매우 긴 글은 잘릴 수 있습니다.
 - 회의 감지는 휴리스틱이므로 회의 앱이 실행만 되어 있어도 동작할 수 있습니다.
 
@@ -75,6 +77,14 @@ npm run tauri build
 
 NSIS 설치 파일은 `src-tauri/target/release/bundle/nsis/`에 생성됩니다.
 
+업데이트용 `.sig`까지 만들려면 서명 키를 환경 변수로 지정해야 합니다. `latest.json`은 GitHub Actions 릴리스 워크플로가 생성합니다. 개인 키와 비밀번호는 저장소에 커밋하지 마세요.
+
+```
+$env:TAURI_SIGNING_PRIVATE_KEY = "$env:USERPROFILE\.tauri\cue\cue.key"
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<password>"
+npm run tauri build
+```
+
 ## 테스트
 
 ```
@@ -86,7 +96,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 **Warning:** Cue is commonly prohibited in exams, licensing tests, and graded assessments. Using it can result in the exam being voided, grades or qualifications being revoked, academic discipline (including suspension or expulsion), or loss of future eligibility, and may create civil or criminal liability under the institution's terms. Proctoring tools can detect the process, service, tray icon, or webcam activity; Cue does not guarantee undetectability. You are solely responsible for your use of Cue.
 
-Cue is a Windows exam helper. Press a global hotkey while pointing at a question; Cue captures the display under the pointer, asks your own OpenAI-compatible vision model, and shows the answer through a disguised tray icon, a cursor overlay, a full-screen flash, keyboard LED blinks, or screen-brightness blinks. It includes descriptive answers, answer history, panic clear, meeting safe mode, a survival guard, and a SYSTEM watchdog service (CueWatchdog) for maximum protection. Keys live in Windows Credential Manager; there is no account, subscription, or telemetry. Windows 10/11 x64 only. MIT licensed. Created by kalpha (Choi Jaeyoung).
+Cue is a Windows exam helper. Press a global hotkey while pointing at a question; Cue captures the display under the pointer, asks your own OpenAI-compatible vision model, and shows the answer through a disguised tray icon, a cursor overlay, a full-screen flash, keyboard LED blinks, or screen-brightness blinks. It includes descriptive answers, answer history, panic clear, meeting safe mode, a survival guard, and a SYSTEM watchdog service (CueWatchdog) for maximum protection. Keys live in Windows Credential Manager; there is no account, subscription, or telemetry. Automatic updates check signed GitHub Releases. Windows 10/11 x64 only. MIT licensed. Created by kalpha (Choi Jaeyoung).
 
 ## License
 

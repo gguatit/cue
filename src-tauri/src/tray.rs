@@ -9,8 +9,8 @@ use crate::windows;
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
     let open = MenuItemBuilder::with_id("open", "Open").build(app)?;
     let help = MenuItemBuilder::with_id("help", "Help").build(app)?;
-    let last = MenuItemBuilder::with_id("last", "Last answer").build(app)?;
-    let copy = MenuItemBuilder::with_id("copy", "Copy last answer").build(app)?;
+    let last = MenuItemBuilder::with_id("last", "Show").build(app)?;
+    let copy = MenuItemBuilder::with_id("copy", "Copy").build(app)?;
     let clear = MenuItemBuilder::with_id("clear", "Clear").build(app)?;
     let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
     let menu = Menu::with_items(app, &[&open, &help, &last, &copy, &clear, &quit])?;

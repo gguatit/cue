@@ -60,6 +60,7 @@ export interface Settings {
     admin: boolean
   }
   storage: { history: boolean; errors: boolean }
+  updates: { autoCheck: boolean }
   onboarded: boolean
 }
 
@@ -81,6 +82,7 @@ interface Actions {
   setPrivacy: (patch: Partial<Settings['privacy']>) => void
   setStealth: (patch: Partial<Settings['stealth']>) => void
   setStorage: (patch: Partial<Settings['storage']>) => void
+  setUpdates: (patch: Partial<Settings['updates']>) => void
   setOnboarded: (v: boolean) => void
 }
 
@@ -117,6 +119,7 @@ export const defaults: Settings = {
   privacy: { crop: false },
   stealth: { contentProtection: true, skipTaskbar: true, guard: false, meetingSafe: true, admin: false },
   storage: { history: true, errors: true },
+  updates: { autoCheck: true },
   onboarded: false,
 }
 
@@ -189,6 +192,7 @@ export function mergeSettings(persisted: unknown): Settings {
       history: bool(p.storage?.history, defaults.storage.history),
       errors: bool(p.storage?.errors, defaults.storage.errors),
     },
+    updates: { autoCheck: bool(p.updates?.autoCheck, defaults.updates.autoCheck) },
     onboarded: bool(p.onboarded, defaults.onboarded),
   }
   const anyDisplay = (['tray', 'overlay', 'flash', 'led', 'brightness'] as const).some(
@@ -269,11 +273,12 @@ export const useSettings = create<Settings & Actions>()(
       setPrivacy: (patch) => set((s) => ({ privacy: { ...s.privacy, ...patch } })),
       setStealth: (patch) => set((s) => ({ stealth: { ...s.stealth, ...patch } })),
       setStorage: (patch) => set((s) => ({ storage: { ...s.storage, ...patch } })),
+      setUpdates: (patch) => set((s) => ({ updates: { ...s.updates, ...patch } })),
       setOnboarded: (v) => set({ onboarded: v }),
     }),
     {
       name: 'cue-settings',
-      version: 13,
+      version: 14,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

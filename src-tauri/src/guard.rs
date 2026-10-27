@@ -286,6 +286,7 @@ pub fn teardown() -> Result<(), String> {
     clear_quit_flag();
     remove_marker()?;
     elevation::remove_program_marker()?;
+    elevation::clear_admin_prepare_failed();
     elevation::clear_service_config();
     elevation::clear_legacy_config();
     Ok(())

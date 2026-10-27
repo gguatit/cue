@@ -63,10 +63,12 @@ export default function ModeTab() {
     setRejected(!ok)
   }
 
-  const refreshTray = () =>
+  const refreshTray = () => {
+    if (useAnswer.getState().meetingHidden) return
     void setTrayForMode(useAnswer.getState().mode).catch(() => {
       void useAnswer.getState().logError('tray')
     })
+  }
   const testOverlay = (style: 'badge' | 'flash', ms: number) =>
     void showOverlay('B', style, ms).catch(
       (e) => void useAnswer.getState().logError(typeof e === 'string' && e ? e : 'parse'),

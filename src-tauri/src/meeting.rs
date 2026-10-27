@@ -7,17 +7,36 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetWindowTextLengthW, GetWindowTextW, IsWindowVisible,
 };
 
-const MEETING_PROCESSES: [&str; 6] = [
+const MEETING_PROCESSES: [&str; 14] = [
     "zoom.exe",
     "teams.exe",
     "ms-teams.exe",
+    "webex.exe",
     "webexmex.exe",
     "webexmta.exe",
     "CiscoCollabHost.exe",
+    "gotomeeting.exe",
+    "bluejeans.exe",
+    "obs64.exe",
+    "obs32.exe",
+    "mstsc.exe",
+    "rustdesk.exe",
+    "parsec.exe",
 ];
 
-const MEETING_TITLE_MARKERS: [&str; 4] =
-    ["zoom meeting", "google meet", "webex", "microsoft teams"];
+const MEETING_TITLE_MARKERS: [&str; 9] = [
+    "zoom meeting",
+    "google meet",
+    "meet - ",
+    "webex",
+    "microsoft teams",
+    "anydesk",
+    "teamviewer",
+    "parsec",
+    "rustdesk",
+];
+
+const SHARE_TITLE_PREFIXES: [&str; 1] = ["obs "];
 
 pub fn is_meeting_process(name: &str) -> bool {
     MEETING_PROCESSES
@@ -26,10 +45,13 @@ pub fn is_meeting_process(name: &str) -> bool {
 }
 
 pub fn is_meeting_title(title: &str) -> bool {
-    let lower = title.to_lowercase();
+    let lower = title.trim_start().to_lowercase();
     MEETING_TITLE_MARKERS
         .iter()
         .any(|marker| lower.contains(marker))
+        || SHARE_TITLE_PREFIXES
+            .iter()
+            .any(|prefix| lower.starts_with(prefix))
 }
 
 pub fn meeting_active() -> bool {
@@ -107,8 +129,14 @@ mod tests {
             "ZOOM.EXE",
             "Teams.exe",
             "ms-teams.exe",
+            "webex.exe",
             "webexmex.exe",
             "CiscoCollabHost.exe",
+            "GoToMeeting.exe",
+            "BlueJeans.exe",
+            "obs64.exe",
+            "mstsc.exe",
+            "rustdesk.exe",
         ] {
             assert!(is_meeting_process(name), "{name}");
         }
@@ -127,8 +155,13 @@ mod tests {
             "Zoom Meeting",
             "zoom meeting - 123 456 789",
             "Google Meet - Weekly sync",
+            "Meet - abc-defg-hij - Google Chrome",
             "Webex",
             "Microsoft Teams - Standup",
+            "OBS 30.0.0 - Profile: Untitled",
+            "AnyDesk",
+            "TeamViewer",
+            "Parsec",
         ] {
             assert!(is_meeting_title(title), "{title}");
         }
@@ -141,6 +174,7 @@ mod tests {
             "Meeting notes - Notepad",
             "Slack | general",
             "Microsoft Word",
+            "Jobs report",
             "",
         ] {
             assert!(!is_meeting_title(title), "{title}");

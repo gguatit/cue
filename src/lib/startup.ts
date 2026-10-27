@@ -43,6 +43,9 @@ export async function runStartup(): Promise<void> {
   await listenEvent('open-help', () => {
     useUi.getState().setTab('help')
   }).catch(() => {})
+  await listenEvent('main-shown', () => {
+    useAnswer.setState({ panicHidden: false })
+  }).catch(() => {})
 
   const s = useSettings.getState()
   await applyTrayMenuLabels()

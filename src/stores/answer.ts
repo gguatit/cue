@@ -11,7 +11,13 @@ import {
   showOverlay,
   type CaptureResult,
 } from '../lib/tauri'
-import { setTrayAnswer, setTrayError, setTrayIdle, setTrayLoading } from '../lib/trayDisplay'
+import {
+  setTrayAnswer,
+  setTrayError,
+  setTrayIdle,
+  setTrayLoading,
+  setTrayVisible,
+} from '../lib/trayDisplay'
 import { t } from '../i18n'
 import { useSettings } from './settings'
 
@@ -41,6 +47,8 @@ export const MAX_ERRORS = 20
 interface AnswerState {
   mode: AnswerMode
   running: boolean
+  meetingHidden: boolean
+  panicHidden: boolean
   log: LogEntry[]
   history: AnswerHistoryEntry[]
   run: (sample: boolean) => Promise<void>
@@ -110,11 +118,88 @@ let traySeq = 0
 
 async function hiddenByMeeting(): Promise<boolean> {
   if (!useSettings.getState().stealth.meetingSafe) return false
+  if (useAnswer.getState().meetingHidden) return true
   try {
-    return await meetingActive()
+    if (await meetingActive()) {
+      useAnswer.setState({ meetingHidden: true })
+      return true
+    }
   } catch {
-    return false
+    // Detection is best effort.
   }
+  return false
+}
+
+const MEETING_POLL_MS = 1500
+let meetingTimer: ReturnType<typeof setInterval> | null = null
+let meetingPolling = false
+
+function hideForMeeting(): void {
+  useAnswer.setState({ meetingHidden: true })
+  void hideOverlay().catch(() => {})
+  void setTrayVisible(false).catch(() => {})
+}
+
+function meetingBlocked(): boolean {
+  return useSettings.getState().stealth.meetingSafe && useAnswer.getState().meetingHidden
+}
+
+async function restoreMeetingDisplay(): Promise<void> {
+  if (useAnswer.getState().panicHidden) {
+    useAnswer.setState({ meetingHidden: false })
+    return
+  }
+  await setTrayIdle().catch(() => {})
+  try {
+    await setTrayVisible(true)
+  } catch {
+    return
+  }
+  useAnswer.setState({ meetingHidden: false })
+}
+
+async function pollMeeting(): Promise<void> {
+  if (meetingPolling) return
+  if (!useSettings.getState().stealth.meetingSafe) {
+    if (useAnswer.getState().meetingHidden) await restoreMeetingDisplay()
+    return
+  }
+  meetingPolling = true
+  try {
+    const active = await meetingActive()
+    if (!useSettings.getState().stealth.meetingSafe) {
+      if (useAnswer.getState().meetingHidden) await restoreMeetingDisplay()
+      return
+    }
+    if (active) {
+      if (useAnswer.getState().meetingHidden) {
+        void hideOverlay().catch(() => {})
+        void setTrayVisible(false).catch(() => {})
+      } else {
+        hideForMeeting()
+      }
+    } else if (useAnswer.getState().meetingHidden) {
+      await restoreMeetingDisplay()
+    }
+  } catch {
+    // Detection is best effort; keep the current display state.
+  } finally {
+    meetingPolling = false
+  }
+}
+
+export function startMeetingWatch(): () => void {
+  const stop = () => {
+    if (meetingTimer) {
+      clearInterval(meetingTimer)
+      meetingTimer = null
+    }
+    meetingPolling = false
+  }
+  if (meetingTimer) return stop
+  meetingTimer = setInterval(() => { void pollMeeting() }, MEETING_POLL_MS)
+  void pollMeeting()
+  return stop
 }
 
 const initialStorage = useSettings.getState().storage
@@ -134,33 +219,48 @@ export const useAnswer = create<AnswerState>()((set, get) => {
     set({ mode: { kind: 'answer', answers } })
     if (d.led) void blinkAnswer(first, useSettings.getState().led.key).catch(() => {})
     if (d.brightness) void blinkBrightness(first).catch(() => {})
-    if (!hidden && d.tray) {
+    if (hidden || meetingBlocked()) {
+      hideForMeeting()
+      return
+    }
+    if (d.tray) {
       try {
-        await setTrayAnswer(first, joined)
+        await setTrayAnswer(first)
       } catch {
         void get().logError('tray')
       }
       if (seq !== my) return
+      if (meetingBlocked()) {
+        hideForMeeting()
+        return
+      }
     }
-    if (hidden) return
+    const showGuarded = async (style: 'badge' | 'flash', ms: number): Promise<boolean> => {
+      await showOverlay(joined, style, ms)
+      if (seq !== my) return false
+      if (meetingBlocked()) {
+        void hideOverlay().catch(() => {})
+        return false
+      }
+      return true
+    }
     if (d.overlay && d.flash) {
-      await showOverlay(joined, 'flash', d.flashMs)
-      if (seq !== my) return
+      if (!(await showGuarded('flash', d.flashMs))) return
       setTimeout(() => {
-        if (seq === my) void showOverlay(joined, 'badge', d.badgeMs).catch(() => {})
+        if (seq === my && !meetingBlocked()) {
+          void showOverlay(joined, 'badge', d.badgeMs).catch(() => {})
+        }
       }, d.flashMs)
       setTimeout(() => {
         if (seq === my) get().clearTray()
       }, d.flashMs + d.badgeMs)
     } else if (d.overlay) {
-      await showOverlay(joined, 'badge', d.badgeMs)
-      if (seq !== my) return
+      if (!(await showGuarded('badge', d.badgeMs))) return
       setTimeout(() => {
         if (seq === my) get().clearTray()
       }, d.badgeMs)
     } else if (d.flash) {
-      await showOverlay(joined, 'flash', d.flashMs)
-      if (seq !== my) return
+      if (!(await showGuarded('flash', d.flashMs))) return
       setTimeout(() => {
         if (seq === my) get().clearTray()
       }, d.flashMs)
@@ -174,10 +274,18 @@ export const useAnswer = create<AnswerState>()((set, get) => {
   const displayText = async (text: string, my: number, hidden: boolean): Promise<void> => {
     traySeq++
     set({ mode: { kind: 'text', text } })
-    if (hidden) return
+    await setTrayIdle().catch(() => {})
+    if (hidden || meetingBlocked()) {
+      hideForMeeting()
+      return
+    }
     const ms = useSettings.getState().display.textMs
     await showOverlay(text, 'text', ms)
     if (seq !== my) return
+    if (meetingBlocked()) {
+      void hideOverlay().catch(() => {})
+      return
+    }
     setTimeout(() => {
       const m = get().mode
       if (seq === my && m.kind === 'text' && m.text === text) {
@@ -189,18 +297,21 @@ export const useAnswer = create<AnswerState>()((set, get) => {
   return {
     mode: { kind: 'idle' },
     running: false,
+    meetingHidden: false,
+    panicHidden: false,
     log: initialLog,
     history: initialHistory,
     panicClear: () => {
       seq++
       runSeq++
       traySeq++
-      set({ mode: { kind: 'idle' }, running: false, history: [], log: [] })
+      set({ mode: { kind: 'idle' }, running: false, history: [], log: [], panicHidden: true })
       removeStored(HISTORY_KEY)
       removeStored(ERRORS_KEY)
       void cancelAnswer().catch(() => {})
       void clearClipboard().catch(() => {})
       void setTrayIdle().catch(() => {})
+      void setTrayVisible(false).catch(() => {})
       void hideOverlay().catch(() => {})
     },
     clearHistory: () => {
@@ -268,6 +379,14 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       try {
         const hiddenAtStart = await hiddenByMeeting()
         if (seq !== my) return
+        if (hiddenAtStart) {
+          hideForMeeting()
+        } else {
+          set({ panicHidden: false })
+          await setTrayIdle().catch(() => {})
+          await setTrayVisible(true).catch(() => {})
+          if (seq !== my) return
+        }
         if (!textMode && useSettings.getState().display.tray && !hiddenAtStart) {
           try {
             await setTrayLoading()
@@ -275,6 +394,10 @@ export const useAnswer = create<AnswerState>()((set, get) => {
             void get().logError('tray')
           }
           if (seq !== my) return
+          if (meetingBlocked()) {
+            hideForMeeting()
+            return
+          }
         }
         let result: CaptureResult
         if (sample) {
@@ -304,9 +427,6 @@ export const useAnswer = create<AnswerState>()((set, get) => {
         if (seq !== my) return
         const hidden = await hiddenByMeeting()
         if (seq !== my) return
-        if (hidden && !textMode && useSettings.getState().display.tray) {
-          void setTrayIdle().catch(() => {})
-        }
         if (result.kind === 'text') {
           const text = result.text
           if (useSettings.getState().storage.history) {
@@ -357,6 +477,12 @@ useAnswer.subscribe((state, prev) => {
   const storage = useSettings.getState().storage
   if (state.history !== prev.history) saveStored(HISTORY_KEY, state.history, storage.history)
   if (state.log !== prev.log) saveStored(ERRORS_KEY, state.log, storage.errors)
+})
+
+useSettings.subscribe((state, prev) => {
+  if (prev.stealth.meetingSafe && !state.stealth.meetingSafe && useAnswer.getState().meetingHidden) {
+    void restoreMeetingDisplay()
+  }
 })
 
 useSettings.subscribe((state, prev) => {

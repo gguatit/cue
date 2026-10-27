@@ -13,8 +13,49 @@
 !macro NSIS_HOOK_POSTINSTALL
   SetRegView 64
   ExecWait '"$INSTDIR\cue.exe" --admin-prepare' $0
-  IntCmp $0 0 +2 0 0
+
+  ; A modal warning would block the passive update installer, so updates only
+  ; record the failure. A normal install shows the warning and records it too.
+  StrCmp $UpdateMode "1" cue_postinstall_update
+  IntCmp $0 0 cue_postinstall_ok cue_postinstall_fail cue_postinstall_fail
+
+cue_postinstall_fail:
+  IfFileExists "$COMMONAPPDATA\Cue\guard.enabled" cue_postinstall_fail_mark
+  Goto cue_postinstall_fail_msg
+
+cue_postinstall_fail_mark:
+  CreateDirectory "$COMMONAPPDATA\Cue"
+  FileOpen $1 "$COMMONAPPDATA\Cue\admin-prepare.failed" w
+  FileWrite $1 "1"
+  FileClose $1
+
+cue_postinstall_fail_msg:
   MessageBox MB_ICONEXCLAMATION|MB_OK "Cue could not finish administrator mode setup. The protected copy may be missing, or the administrator startup task/service could not be restored. Open Cue, then Security > Repair protection, or reinstall.$\r$\nCue가 관리자 모드 설정을 마치지 못했습니다. 보호 복사본이 없거나 관리자 시작 작업/서비스를 복원하지 못했습니다. Cue를 실행한 뒤 보안 탭의 보호 복구를 누르거나 다시 설치하세요."
+  Goto cue_postinstall_done
+
+cue_postinstall_update:
+  IntCmp $0 0 cue_postinstall_ok cue_postinstall_retry cue_postinstall_retry
+
+cue_postinstall_retry:
+  Sleep 2000
+  ExecWait '"$INSTDIR\cue.exe" --admin-prepare' $0
+  IntCmp $0 0 cue_postinstall_ok cue_postinstall_mark cue_postinstall_mark
+
+cue_postinstall_mark:
+  IfFileExists "$COMMONAPPDATA\Cue\guard.enabled" cue_postinstall_mark_write
+  Goto cue_postinstall_done
+
+cue_postinstall_mark_write:
+  CreateDirectory "$COMMONAPPDATA\Cue"
+  FileOpen $1 "$COMMONAPPDATA\Cue\admin-prepare.failed" w
+  FileWrite $1 "1"
+  FileClose $1
+  Goto cue_postinstall_done
+
+cue_postinstall_ok:
+  Delete "$COMMONAPPDATA\Cue\admin-prepare.failed"
+
+cue_postinstall_done:
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Cue",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "studio.gguatit.cue",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -18,6 +18,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "publisher": "kalpha (최재영)",
     "copyright": "© 2026 kalpha (최재영)",
     "windows": {
@@ -36,5 +37,17 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU0NERFODU5MzVBRDdBNjYKUldSbWVxMDFXZWhONUJBN210aXNaNGhVQ01KTkN5UlU3RXdua01QanZFMVVzVDlzbEwzNXk3cW8K",
+      "endpoints": [
+        "https://github.com/gguatit/cue/releases/latest/download/latest.json"
+      ],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
