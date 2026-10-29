@@ -12,6 +12,12 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = language
   }, [language])
+  useEffect(() => {
+    // The WebView context menu exposes browser actions and breaks the native feel.
+    const blockContextMenu = (event: MouseEvent) => event.preventDefault()
+    window.addEventListener('contextmenu', blockContextMenu)
+    return () => window.removeEventListener('contextmenu', blockContextMenu)
+  }, [])
   if (isTauri() && getCurrentWebviewWindow().label === 'overlay') return <OverlayView />
   return onboarded ? <SettingsHome /> : <Onboarding />
 }

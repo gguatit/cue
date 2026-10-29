@@ -14,7 +14,7 @@ export const ERRORS: Record<string, [string, string]> = {
   no_key: ['Enter your API key in Settings', '설정에서 API 키를 입력하세요'],
   http_401: ['API key is not valid', 'API 키가 유효하지 않습니다'],
   http_404: ['Check the model name or Base URL', '모델 또는 Base URL을 확인하세요'],
-  http_400: ['The provider rejected the request. Check the model and extra parameters', '공급자가 요청을 거부했습니다. 모델과 추가 파라미터를 확인하세요'],
+  http_400: ['The provider rejected the request. Clear the extra parameters and check the model', '공급자가 요청을 거부했습니다. 추가 파라미터를 비우고 모델을 확인하세요'],
   http_429: ['Too many requests. Wait a moment and try again', '요청이 너무 많습니다. 잠시 후 다시 시도하세요'],
   http_5xx: ['Server error. Try again later', '서버 오류입니다. 잠시 후 다시 시도하세요'],
   free_model: ['OpenCode free models only work inside the OpenCode app. Choose another model', 'OpenCode 무료 모델은 OpenCode 앱에서만 사용할 수 있습니다. 다른 모델을 선택하세요'],

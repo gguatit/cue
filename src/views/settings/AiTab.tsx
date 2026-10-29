@@ -265,6 +265,13 @@ export default function AiTab() {
     }
     setProvider({ extraJson: extraDraft.trim() })
   }
+  const clearExtra = () => {
+    setExtraDraft('')
+    setExtraError('')
+    setProvider({ extraJson: '' })
+    setStatus(t('Extra parameters cleared', '추가 파라미터를 비웠습니다'))
+    setStatusKind('ok')
+  }
 
   return (
     <div className="space-y-4">
@@ -536,12 +543,19 @@ export default function AiTab() {
         />
         <div className="mt-2 flex items-center gap-2">
           <Button onClick={applyExtra}>{t('Apply', '적용')}</Button>
+          <Button onClick={clearExtra}>{t('Clear', '비우기')}</Button>
           {extraError && <span className="text-xs text-red-400">{extraError}</span>}
         </div>
         <p className="mt-2 text-xs text-zinc-500">
           {t(
             'temperature, model, messages, input, contents and stream are managed by Cue and cannot be overridden.',
             'temperature, model, messages, input, contents, stream은 Cue가 관리하며 덮어쓸 수 없습니다.',
+          )}
+        </p>
+        <p className="mt-2 text-xs text-amber-400">
+          {t(
+            'If a model fails, clear the extra parameters and test again. Token fields differ by model: max_tokens, max_output_tokens, or generationConfig.maxOutputTokens.',
+            '모델이 실패하면 추가 파라미터를 비우고 다시 테스트하세요. 모델마다 토큰 필드가 다릅니다: max_tokens, max_output_tokens, generationConfig.maxOutputTokens.',
           )}
         </p>
       </Card>

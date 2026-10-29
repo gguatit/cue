@@ -381,7 +381,7 @@ pub fn build_body(api: Api, model: &str, prompt: &str, b64: &str, extra: &str) -
         }),
         Api::Anthropic => json!({
             "model": model,
-            "max_tokens": 1024,
+            "max_tokens": 4096,
             "messages": [{
                 "role": "user",
                 "content": [
@@ -426,7 +426,7 @@ pub fn paraphrase_body(api: Api, model: &str, text: &str, extra: &str) -> Result
         }),
         Api::Anthropic => json!({
             "model": model,
-            "max_tokens": 1024,
+            "max_tokens": 4096,
             "messages": [{ "role": "user", "content": [{ "type": "text", "text": prompt }] }]
         }),
         Api::Google => json!({
@@ -465,7 +465,7 @@ pub fn correction_body(
         }),
         Api::Anthropic => json!({
             "model": model,
-            "max_tokens": 1024,
+            "max_tokens": 4096,
             "messages": [
                 { "role": "user", "content": [
                     { "type": "text", "text": prompt },
@@ -1585,5 +1585,5 @@ mod tests {
             assert!(body.get("temperature").is_none(), "{api:?}");
         }
         let body = build_body(Api::Anthropic, "m", "p", "B64", "").unwrap();
-        assert_eq!(body["max_tokens"], 1024);
+        assert_eq!(body["max_tokens"], 4096);
     }}

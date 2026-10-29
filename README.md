@@ -77,15 +77,16 @@
 
 설정 → AI → **추가 파라미터 (JSON)**에 입력합니다.
 
-- OpenAI 호환 Chat / Anthropic — 객관식: `{"max_tokens": 1024}`
-- OpenAI 호환 Chat / Anthropic — 서술형·자유 모드: `{"max_tokens": 4096}` — 긴 설명이 잘리지 않게
+- Anthropic: 앱이 기본 **4096**을 넣습니다. 직접 지정하려면 `{"max_tokens": 4096}`
+- OpenAI 호환 Chat — 객관식: `{"max_tokens": 1024}`
+- OpenAI 호환 Chat — 서술형·자유 모드: `{"max_tokens": 4096}` — 긴 설명이 잘리지 않게
 - OpenCode의 Responses 모델(`gpt-`, `grok-`, `muse-`): `{"max_output_tokens": 4096}`
 - Google 네이티브: `{"generationConfig":{"maxOutputTokens":4096}}`
 - OpenAI Responses: `{"max_output_tokens":4096}`
 
 `max_tokens`는 **출력 토큰** 상한입니다. 화면 이미지와 프롬프트 입력 토큰은 별도로 계산되며, 너무 낮으면 JSON 답변이 잘리고 너무 높으면 모델의 전체 컨텍스트를 넘을 수 있습니다. 교차 검증을 켜면 요청이 2배이므로 비용과 지연도 2배입니다.
 
-OpenCode에서 `muse-spark-1.3-contributor`처럼 Responses API로 라우팅되는 모델에 `{"max_tokens": 4096}`을 넣으면 **400 Failed inference failed**가 날 수 있습니다. 이때는 `{"max_output_tokens": 4096}`을 사용하세요.
+**모델이 400 또는 실패하면 추가 파라미터를 먼저 비우고 다시 테스트하세요.** 앱의 AI 탭에 있는 **비우기** 버튼을 쓰면 됩니다. 모델마다 토큰 필드가 다릅니다. OpenCode에서 `muse-spark-1.3-contributor`처럼 Responses API로 라우팅되는 모델에 `{"max_tokens": 4096}`을 넣으면 **400 Failed inference failed**가 날 수 있습니다. 이때는 `{"max_output_tokens": 4096}`을 사용하세요.
 
 ## 참고
 
