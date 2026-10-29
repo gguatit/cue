@@ -74,6 +74,8 @@ pub fn capture_affinity(win: &WebviewWindow) -> Result<u32, String> {
 }
 
 pub const BADGE_SIZE: (i32, i32) = (120, 72);
+pub const VERIFICATION_HEIGHT: i32 = 30;
+pub const VERIFICATION_MIN_WIDTH: i32 = 160;
 pub const TEXT_MIN_SIZE: (i32, i32) = (320, 160);
 pub const TEXT_MAX_RATIO: f64 = 0.7;
 
@@ -106,6 +108,18 @@ pub fn badge_size(scale: f64, len: usize) -> (i32, i32) {
     (
         ((BADGE_SIZE.0 as f64 + extra) * s).round() as i32,
         (BADGE_SIZE.1 as f64 * s).round() as i32,
+    )
+}
+
+pub fn badge_size_with_verification(scale: f64, len: usize, verified: bool) -> (i32, i32) {
+    let (width, height) = badge_size(scale, len);
+    if !verified {
+        return (width, height);
+    }
+    let s = if scale > 0.0 { scale } else { 1.0 };
+    (
+        width.max((VERIFICATION_MIN_WIDTH as f64 * s).round() as i32),
+        height + (VERIFICATION_HEIGHT as f64 * s).round() as i32,
     )
 }
 
@@ -239,6 +253,25 @@ mod tests {
     fn badge_size_grows_with_text_length() {
         assert_eq!(badge_size(1.0, 3), (176, 72));
         assert_eq!(badge_size(2.0, 4), (408, 144));
+    }
+
+    #[test]
+    fn verification_badge_adds_a_label_row() {
+        assert_eq!(
+            badge_size_with_verification(1.0, 1, false),
+            badge_size(1.0, 1)
+        );
+        assert_eq!(
+            badge_size_with_verification(1.0, 1, true),
+            (VERIFICATION_MIN_WIDTH, badge_size(1.0, 1).1 + VERIFICATION_HEIGHT)
+        );
+        assert_eq!(
+            badge_size_with_verification(2.0, 1, true),
+            (
+                VERIFICATION_MIN_WIDTH * 2,
+                badge_size(2.0, 1).1 + VERIFICATION_HEIGHT * 2
+            )
+        );
     }
 
     #[test]

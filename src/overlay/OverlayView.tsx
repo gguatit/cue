@@ -34,7 +34,7 @@ export default function OverlayView() {
           {p.answer}
         </span>
         {badge && (
-          <span className="absolute right-4 top-4 rounded-lg bg-black/70 px-3 py-1.5 text-sm font-semibold text-amber-300">
+          <span className="absolute inset-x-0 bottom-5 mx-auto w-fit rounded-lg bg-black/70 px-3 py-1.5 text-sm font-semibold text-amber-300">
             {badge}
           </span>
         )}
@@ -57,12 +57,12 @@ export default function OverlayView() {
     )
   }
   return (
-    <div className="fixed inset-0 flex items-center justify-start p-2">
-      <span className="flex h-full w-full items-center justify-center rounded-xl border border-white/15 bg-[#17171b]/95 text-4xl font-bold text-white">
+    <div className="fixed inset-0 flex flex-col p-2">
+      <span className="flex w-full flex-1 items-center justify-center rounded-xl border border-white/15 bg-[#17171b]/95 text-4xl font-bold text-white">
         {p.answer}
       </span>
       {badge && (
-        <span className="absolute right-4 top-4 rounded-lg bg-black/70 px-2.5 py-1 text-xs font-semibold text-amber-300">
+        <span className="mt-1 shrink-0 px-1 text-center text-[11px] font-semibold leading-tight text-amber-300">
           {badge}
         </span>
       )}

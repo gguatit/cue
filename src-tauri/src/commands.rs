@@ -265,9 +265,10 @@ pub fn show_overlay(
         let (tx, ty) = crate::windows::text_position(mon, size);
         (size.0 as u32, size.1 as u32, tx, ty)
     } else {
-        let size = crate::windows::badge_size(
+        let size = crate::windows::badge_size_with_verification(
             crate::windows::monitor_scale(mon),
             answer.chars().count(),
+            verification.is_some(),
         );
         let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
         let (bx, by) = crate::windows::badge_position((cx, cy), mon, size);
