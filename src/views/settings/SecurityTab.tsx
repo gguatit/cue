@@ -82,8 +82,7 @@ export default function SecurityTab() {
 
   useEffect(() => {
     void refreshGuard()
-    void refreshProtection()
-    void refreshDefender()
+    void refreshCapture()
   }, [])
 
   useEffect(() => {
@@ -169,7 +168,7 @@ export default function SecurityTab() {
     }
   }
 
-  let adminLabel = t('Checking…', '확인 중…')
+  let adminLabel = t('Not checked', '확인 안 됨')
   let adminTone = 'bg-zinc-800 text-zinc-500'
   if (protection) {
     if (protection.elevated) {
@@ -184,7 +183,7 @@ export default function SecurityTab() {
     }
   }
 
-  let defenderLabel = t('Checking…', '확인 중…')
+  let defenderLabel = t('Not checked', '확인 안 됨')
   let defenderTone = 'bg-zinc-800 text-zinc-500'
   if (defenderStatus) {
     if (!defenderStatus.available) {
@@ -372,6 +371,9 @@ export default function SecurityTab() {
           {chip(protection?.serviceInstalled ?? null, t('Watchdog service', '워치독 서비스'))}
           {chip(protection?.serviceRunning ?? null, t('Service running', '서비스 실행 중'))}
         </div>
+        <Button className="mt-2" variant="secondary" onClick={() => void refreshProtection()}>
+          {t('Refresh protection status', '보호 상태 새로 고침')}
+        </Button>
         <p className="mt-2 text-xs text-zinc-500">
           {t(
             'Works from any install folder. Cue keeps a protected copy for administrator mode. Asks for UAC once, then restarts Cue elevated and registers a highest-privilege logon task so it starts without another prompt. A normal Task Manager kill is denied, and a killed Cue is restarted within seconds. The CueWatchdog service runs as SYSTEM, so even an administrator killing the watchdog only delays it by about five seconds.',
@@ -402,6 +404,9 @@ export default function SecurityTab() {
           </span>
           <Button disabled={defenderBusy} onClick={() => void addDefender()}>
             {defenderBusy ? t('Adding…', '추가 중…') : t('Add Defender exclusion', 'Defender 예외 추가')}
+          </Button>
+          <Button variant="secondary" disabled={defenderBusy} onClick={() => void refreshDefender()}>
+            {t('Check status', '상태 확인')}
           </Button>
         </div>
         {defenderStatus?.available &&
