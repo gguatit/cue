@@ -37,7 +37,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 저장소: 설정은 zustand persist `cue-settings`(`src/stores/settings.ts`, `version: 15`, `mergeSettings`). 자유 모드(`free`)와 교차 검증(`provider.consensus`/`verifyModel`) 설정을 포함한다. 답변 기록/오류 로그는 `cue-history`/`cue-errors`. 프로필은 `cue-profiles`(`src/lib/settingsBackup.ts`). 업데이트 UI 상태는 `src/stores/updates.ts`, 마지막 확인 시각은 localStorage `cue-update-check`.
 - 오류: Rust는 문자열 코드(`no_key`, `busy`, `http_401`, `config`, `defender` …)로 반환하고 `src/i18n.ts::ERRORS`에서 en/ko로 매핑한다. **새 오류 코드는 반드시 `ERRORS`에 쌍으로 추가** — 없으면 raw 코드가 UI에 노출된다.
 - NSIS 훅: `src-tauri/windows/hooks.nsh`. 설치/제거 시 Run 키·예약 작업·서비스·ProgramData 정리를 유지한다. 업데이트는 `/UPDATE`라 `PREUNINSTALL`/`POSTUNINSTALL`은 실행되지 않고 `PREINSTALL`/`POSTINSTALL`만 실행된다. `POSTINSTALL`의 `--admin-prepare` 실패는 업데이트 모드에서 `admin-prepare.failed` 마커로 남긴다.
-- 문서: 사용법 `README.md`, 변경 기록 `docs/CHANGELOG.md`, 사이트 개발/배포 `site/README.md`.
+- 문서: 사용법 `README.md`, 변경 기록 `docs/CHANGELOG.md`, AI 파라미터 프리셋 `docs/AI_PARAMETER_PRESETS.md`, 사이트 개발/배포 `site/README.md`.
 
 ## 불변식
 
