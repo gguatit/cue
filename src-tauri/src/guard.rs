@@ -314,25 +314,30 @@ pub fn guard_running() -> bool {
 }
 
 pub fn process_running(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
     let Some(target) = canonical(path) else {
         return false;
     };
-    process_paths()
+    process_paths_named(Some(name))
         .into_iter()
-        .any(|p| canonical(&p).as_deref() == Some(target.as_path()))
+        .any(|path| canonical(&path).as_deref() == Some(target.as_path()))
 }
 
 fn canonical(path: &Path) -> Option<PathBuf> {
     std::fs::canonicalize(path).ok().or_else(|| Some(path.to_path_buf()))
 }
 
-fn process_named(name: &str) -> bool {
-    process_paths()
-        .into_iter()
-        .any(|p| p.file_name().is_some_and(|f| f.eq_ignore_ascii_case(name)))
+fn same_exe_name(left: &str, right: &str) -> bool {
+    left.eq_ignore_ascii_case(right)
 }
 
-fn process_paths() -> Vec<PathBuf> {
+fn process_named(name: &str) -> bool {
+    !process_paths_named(Some(name)).is_empty()
+}
+
+fn process_paths_named(name: Option<&str>) -> Vec<PathBuf> {
     use ::windows::Win32::Foundation::CloseHandle;
     use ::windows::Win32::System::Diagnostics::ToolHelp::{
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
@@ -352,21 +357,35 @@ fn process_paths() -> Vec<PathBuf> {
         entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
         if Process32FirstW(snapshot, &mut entry).is_ok() {
             loop {
-                let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, entry.th32ProcessID);
-                if let Ok(handle) = handle {
-                    let mut buf = [0u16; 1024];
-                    let mut len = buf.len() as u32;
-                    if QueryFullProcessImageNameW(
-                        handle,
-                        Default::default(),
-                        PWSTR(buf.as_mut_ptr()),
-                        &mut len,
-                    )
-                    .is_ok()
-                    {
-                        out.push(PathBuf::from(String::from_utf16_lossy(&buf[..len as usize])));
+                let len = entry
+                    .szExeFile
+                    .iter()
+                    .position(|&c| c == 0)
+                    .unwrap_or(entry.szExeFile.len());
+                let exe = String::from_utf16_lossy(&entry.szExeFile[..len]);
+                if name.is_none_or(|target| same_exe_name(&exe, target)) {
+                    let handle = OpenProcess(
+                        PROCESS_QUERY_LIMITED_INFORMATION,
+                        false,
+                        entry.th32ProcessID,
+                    );
+                    if let Ok(handle) = handle {
+                        let mut buf = [0u16; 1024];
+                        let mut length = buf.len() as u32;
+                        if QueryFullProcessImageNameW(
+                            handle,
+                            Default::default(),
+                            PWSTR(buf.as_mut_ptr()),
+                            &mut length,
+                        )
+                        .is_ok()
+                        {
+                            out.push(PathBuf::from(String::from_utf16_lossy(
+                                &buf[..length as usize],
+                            )));
+                        }
+                        let _ = CloseHandle(handle);
                     }
-                    let _ = CloseHandle(handle);
                 }
                 if Process32NextW(snapshot, &mut entry).is_err() {
                     break;
@@ -439,5 +458,11 @@ mod tests {
         // 서비스가 있으면 SYSTEM 작업은 중복이며, 사용자 쓰기 가능한 exe를
         // SYSTEM으로 실행할 수 있으므로 절대 깨우지 않는다.
         assert!(!should_revive(true, false, false, true));
+    }
+
+    #[test]
+    fn executable_names_compare_case_insensitively() {
+        assert!(same_exe_name("CUE.EXE", "cue.exe"));
+        assert!(!same_exe_name("cue.exe", "cue-guard.exe"));
     }
 }
