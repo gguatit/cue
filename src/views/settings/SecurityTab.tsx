@@ -6,7 +6,6 @@ import {
   captureProtectionStatus,
   defenderExclusionStatus,
   guardEnabled,
-  meetingActive,
   openTaskbarSettings,
   protectionStatus,
   repairGuard,
@@ -24,12 +23,12 @@ import { useSettings } from '../../stores/settings'
 
 export default function SecurityTab() {
   const t = useT()
+  const meetingHidden = useAnswer((s) => s.meetingHidden)
   const stealth = useSettings((s) => s.stealth)
   const setStealth = useSettings((s) => s.setStealth)
   const privacy = useSettings((s) => s.privacy)
   const setPrivacy = useSettings((s) => s.setPrivacy)
   const [guardStatus, setGuardStatus] = useState<boolean | null>(null)
-  const [meetingStatus, setMeetingStatus] = useState<boolean | null>(null)
   const [protection, setProtection] = useState<ProtectionStatus | null>(null)
   const [capture, setCapture] = useState<CaptureProtectionStatus | null>(null)
   const [defenderBusy, setDefenderBusy] = useState(false)
@@ -229,24 +228,6 @@ export default function SecurityTab() {
     </span>
   )
 
-  useEffect(() => {
-    let alive = true
-    const refresh = async () => {
-      try {
-        const on = await meetingActive()
-        if (alive) setMeetingStatus(on)
-      } catch {
-        if (alive) setMeetingStatus(null)
-      }
-    }
-    void refresh()
-    const timer = setInterval(() => void refresh(), 15000)
-    return () => {
-      alive = false
-      clearInterval(timer)
-    }
-  }, [])
-
   const repair = async () => {
     try {
       await repairGuard()
@@ -322,7 +303,7 @@ export default function SecurityTab() {
       <Card>
         <div className="flex items-center justify-between gap-3">
           <SectionTitle>{t('Meeting safe mode', '회의 안전 모드')}</SectionTitle>
-          {meetingStatus === true && (
+          {meetingHidden && (
             <span className="mb-3 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400">
               {t('Meeting detected', '회의 감지됨')}
             </span>

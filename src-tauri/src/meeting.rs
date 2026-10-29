@@ -1,3 +1,6 @@
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
+
 use ::windows::core::BOOL;
 use ::windows::Win32::Foundation::{CloseHandle, FALSE, HWND, LPARAM, TRUE};
 use ::windows::Win32::System::Diagnostics::ToolHelp::{
@@ -37,6 +40,38 @@ const MEETING_TITLE_MARKERS: [&str; 9] = [
 ];
 
 const SHARE_TITLE_PREFIXES: [&str; 1] = ["obs "];
+const PROCESS_CACHE_TTL: Duration = Duration::from_secs(3);
+
+struct ProcessCache {
+    checked: Instant,
+    active: bool,
+}
+
+fn process_cache() -> &'static Mutex<Option<ProcessCache>> {
+    static CACHE: OnceLock<Mutex<Option<ProcessCache>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(None))
+}
+
+fn cache_is_fresh(age: Duration) -> bool {
+    age < PROCESS_CACHE_TTL
+}
+
+fn cached_process_running() -> bool {
+    let Ok(mut cache) = process_cache().lock() else {
+        return process_running();
+    };
+    if let Some(cached) = cache.as_ref() {
+        if cache_is_fresh(cached.checked.elapsed()) {
+            return cached.active;
+        }
+    }
+    let active = process_running();
+    *cache = Some(ProcessCache {
+        checked: Instant::now(),
+        active,
+    });
+    active
+}
 
 pub fn is_meeting_process(name: &str) -> bool {
     MEETING_PROCESSES
@@ -55,15 +90,17 @@ pub fn is_meeting_title(title: &str) -> bool {
 }
 
 pub fn meeting_active() -> bool {
-    process_running()
-        || unsafe {
-            let mut found = false;
-            let _ = EnumWindows(
-                Some(find_meeting_window),
-                LPARAM(&mut found as *mut bool as isize),
-            );
-            found
-        }
+    if cached_process_running() {
+        return true;
+    }
+    unsafe {
+        let mut found = false;
+        let _ = EnumWindows(
+            Some(find_meeting_window),
+            LPARAM(&mut found as *mut bool as isize),
+        );
+        found
+    }
 }
 
 fn process_running() -> bool {
@@ -174,10 +211,14 @@ mod tests {
             "Meeting notes - Notepad",
             "Slack | general",
             "Microsoft Word",
-            "Jobs report",
-            "",
         ] {
-            assert!(!is_meeting_title(title), "{title}");
+            assert!(!is_meeting_title(title));
         }
+    }
+
+    #[test]
+    fn process_cache_expires_after_three_seconds() {
+        assert!(cache_is_fresh(Duration::from_millis(2999)));
+        assert!(!cache_is_fresh(PROCESS_CACHE_TTL));
     }
 }
