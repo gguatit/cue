@@ -2,7 +2,7 @@ use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindo
 
 use crate::capture::MonitorRect;
 
-pub const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding";
+pub const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --disable-background-networking --disable-component-update --disable-sync --disable-domain-reliability --no-default-browser-check";
 
 pub fn set_tool_window(win: &WebviewWindow, hidden: bool) -> Result<(), String> {
     use ::windows::Win32::Foundation::HWND;
