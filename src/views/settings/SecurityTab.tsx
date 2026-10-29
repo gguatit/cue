@@ -20,6 +20,7 @@ import {
 } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
 import { useSettings } from '../../stores/settings'
+import { runProtectionRepair } from '../../lib/securityRepair'
 
 export default function SecurityTab() {
   const t = useT()
@@ -200,12 +201,13 @@ export default function SecurityTab() {
   }
 
   const repairAll = async () => {
-    if (protection?.adminPrepareFailed) {
-      await toggleAdmin(true)
-      return
-    }
     try {
-      await repairProtection()
+      const current = await runProtectionRepair(protection, {
+        loadStatus: protectionStatus,
+        elevate: () => toggleAdmin(true),
+        repair: repairProtection,
+      })
+      if (current) setProtection(current)
     } catch {
       void useAnswer.getState().logError('guard')
     }
