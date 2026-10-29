@@ -99,7 +99,7 @@ pub fn encode_capture_crop(
         (w, h)
     };
     let rgb = if scale < 1.0 {
-        image::imageops::resize(&rgb, iw, ih, image::imageops::FilterType::Lanczos3)
+        image::imageops::resize(&rgb, iw, ih, image::imageops::FilterType::CatmullRom)
     } else {
         rgb
     };
