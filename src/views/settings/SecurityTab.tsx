@@ -20,6 +20,7 @@ import {
 } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
 import { useSettings } from '../../stores/settings'
+import { autoRefreshSecurity } from '../../lib/securityAutoRefresh'
 import { runProtectionRepair } from '../../lib/securityRepair'
 
 export default function SecurityTab() {
@@ -83,7 +84,7 @@ export default function SecurityTab() {
 
   useEffect(() => {
     void refreshGuard()
-    void refreshCapture()
+    void autoRefreshSecurity(refreshProtection, refreshDefender)
   }, [])
 
   useEffect(() => {
@@ -110,11 +111,13 @@ export default function SecurityTab() {
             : t('Could not change administrator mode.', '관리자 모드를 변경하지 못했습니다.'),
         )
       }
+      await refreshProtection()
       return
     }
     setAdminMessage('')
     await apply({ admin: false }, () => setAdminMode(false), 'admin')
     if (!useSettings.getState().stealth.admin) setRestartNeeded(true)
+    await refreshProtection()
   }
 
   const addDefender = async () => {
@@ -154,6 +157,7 @@ export default function SecurityTab() {
               )
             : t('Defender exclusion added.', 'Defender 예외를 추가했습니다.'),
         )
+        void refreshDefender()
       }
     } catch {
       void useAnswer.getState().logError('defender')
