@@ -31,6 +31,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 구조
 
 - **창은 `tauri.conf.json`이 아니라 `src-tauri/src/windows.rs`에서 코드로 만든다.** 설정의 `"windows": []`는 비어 있는 게 정상. main/overlay 두 웹뷰가 같은 `index.html`을 쓰고 `App.tsx`가 웹뷰 label로 분기한다(`?view=` 아님). config에 창을 추가하면 중복 생성된다.
+- 오버레이는 시작 시 만들지 않고 첫 `show_overlay`/`capture_and_answer(prepare_overlay)` 때 생성한다. `OverlayView`가 `overlay_ready`를 호출해야 첫 payload가 표시되며, `capture_protection_status.overlay`는 생성 전 `null`이다.
 - Rust (`src-tauri/src/`): `main.rs`(CLI 모드 `--background`, `--elevated`, `--guard`, `--system`, `--service`, `--admin-setup`, `--admin-prepare`, `--admin-teardown`, single-instance, setup), `commands.rs`(invoke 커맨드·`AppState`·HTTP 클라이언트), `updates.rs`(GitHub Releases 업데이트 확인·다운로드·서명 설치), `ai.rs`(프롬프트·프리셋/API 라우팅·base URL 검증·HTTP·파싱·재시도), `capture.rs`(GDI 캡처·커서 모니터·축소·크롭), `shortcut.rs`(저수준 키보드 훅, Tauri 플러그인 아님), `guard.rs`/`elevation.rs`(워치독·예약 작업·서비스·UAC·ProgramData 상태), `windows.rs`(main/overlay 창·DPI·스텔스·캡처 보호), `tray.rs`, `meeting.rs`, `led.rs`, `brightness.rs`, `models.rs`, `secrets.rs`.
 - Frontend: `src/lib/tauri.ts`의 래퍼로만 invoke한다(컴포넌트 직접 invoke 금지). `src/App.tsx`가 main/overlay를 label로 분기. 설정 탭은 `src/views/settings/*`, 오버레이는 `src/overlay/*`.
 - 홍보 사이트: `site/` 별도 Vite + React 19 + Tailwind v4 + shadcn/ui 프로젝트. Cloudflare Worker `cue-site`의 static assets로 배포한다(`cd site; npm run deploy`). 사이트는 `https://cue.neikos.kr`이며 시험 규정 경고를 유지한다.
@@ -85,7 +86,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.1.15**.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.1.16**.
 - 릴리스는 GitHub Actions 없이 수동으로 진행한다.
   1. `npm run check`, `npm test`, Rust 변경 시 `cargo test`.
   2. 서명 키 환경 변수를 설정하고 `npm run tauri build`.
@@ -97,12 +98,12 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 첫 업데이터 릴리스(0.1.2)는 0.1.0/0.1.1 사용자가 한 번 직접 설치해야 한다. 이후 버전은 설정 → 정보에서 자동으로 확인·설치할 수 있다.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.1.15 코드 검증: `npm run check`, `npm test`(181), `cargo test`(141). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
+- 0.1.16 코드 검증: `npm run check`, `npm test`(184), `cargo test`(143). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
 - README의 시험 규정·제재 경고는 의도된 내용이므로 삭제하거나 약화하지 말 것.
 - 워치독·관리자 모드·회의 감지·LED/밝기·언인스톨은 헤드리스로 검증 불가. 릴리스 전 수동으로 확인한다.
 - NSIS는 perMachine, WebView2 offline installer, `windows/hooks.nsh`를 쓴다. 설치/제거 경로를 바꾸면 수동으로 확인한다.
-- 리소스 최적화: 회의 감지 프로세스 스냅샷은 3초 캐시, 보안 탭의 Defender·보호 상태는 탭을 열 때 자동 조회(주기적 폴링 없음), WebView2 `BROWSER_ARGS`의 백그라운드 네트워킹 차단, guard는 실행 파일 이름으로 먼저 필터링, 캡처는 CatmullRom 리사이즈를 유지한다.
+- 리소스 최적화: 회의 감지 프로세스 스냅샷은 3초 캐시, 보안 탭의 Defender·보호 상태는 탭을 열 때 자동 조회(주기적 폴링 없음), WebView2 `BROWSER_ARGS`의 백그라운드 네트워킹 차단, guard는 실행 파일 이름으로 먼저 필터링, 캡처는 CatmullRom 리사이즈, 오버레이는 첫 표시 때 지연 생성한다.
 
 ## 알려진 함정
 
