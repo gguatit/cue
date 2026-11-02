@@ -160,9 +160,21 @@ pub struct Consensus {
     pub error: Option<String>,
 }
 
+fn normalized_label(answer: &str) -> String {
+    answer
+        .trim()
+        .trim_end_matches(['.', ',', ')', ':', ';'])
+        .trim()
+        .to_lowercase()
+}
+
 fn same_candidates(primary: &[String], secondary: &[String]) -> bool {
-    primary.len() == secondary.len()
-        && primary.iter().all(|answer| secondary.contains(answer))
+    let mut primary: Vec<String> = primary.iter().map(|answer| normalized_label(answer)).collect();
+    let mut secondary: Vec<String> =
+        secondary.iter().map(|answer| normalized_label(answer)).collect();
+    primary.sort();
+    secondary.sort();
+    primary == secondary
 }
 
 pub fn merge_consensus(
@@ -171,7 +183,8 @@ pub fn merge_consensus(
 ) -> Result<Consensus, String> {
     match (primary, secondary) {
         (Ok(primary), Ok(secondary)) => Ok(Consensus {
-            matched: primary.first() == secondary.first(),
+            matched: primary.first().map(|answer| normalized_label(answer))
+                == secondary.first().map(|answer| normalized_label(answer)),
             candidates_matched: same_candidates(&primary, &secondary),
             answers: primary,
             secondary,
@@ -1044,6 +1057,22 @@ mod tests {
         assert_eq!(mismatch.answers, vec!["B"]);
         assert_eq!(mismatch.secondary, vec!["C"]);
 
+        let cased = merge_consensus(Ok(vec!["B".into()]), Ok(vec!["b".into()])).unwrap();
+        assert!(cased.matched);
+        assert!(cased.candidates_matched);
+        assert_eq!(cased.answers, vec!["B"]);
+        assert_eq!(cased.secondary, vec!["b"]);
+
+        let punctuated = merge_consensus(Ok(vec!["B".into()]), Ok(vec!["B.".into()])).unwrap();
+        assert!(punctuated.matched);
+        assert!(punctuated.candidates_matched);
+        assert_eq!(punctuated.answers, vec!["B"]);
+        assert_eq!(punctuated.secondary, vec!["B."]);
+
+        let circled = merge_consensus(Ok(vec!["1".into()]), Ok(vec!["①".into()])).unwrap();
+        assert!(!circled.matched);
+        assert!(!circled.candidates_matched);
+
         let fallback = merge_consensus(Ok(vec!["B".into()]), Err("network".into())).unwrap();
         assert!(!fallback.matched);
         assert!(!fallback.candidates_matched);
@@ -1499,6 +1528,7 @@ mod tests {
         assert_eq!(api_for("opencode", "gemini-3.8-flash"), Api::Google);
         assert_eq!(api_for("opencode", "gpt-5.5"), Api::Responses);
         assert_eq!(api_for("opencode", "grok-4.6"), Api::Responses);
+        assert_eq!(api_for("opencode", "muse-spark-1.3"), Api::Responses);
         assert_eq!(api_for("opencode", "deepseek-v4-pro"), Api::Chat);
         assert_eq!(api_for("openai", "gpt-5.5"), Api::Chat);
     }
@@ -1563,6 +1593,8 @@ mod tests {
         assert_eq!(api_for("opencode-go", "minimax-m3.1-flash-free"), Api::Chat);
         assert_eq!(api_for("opencode-go", "gemini-4-argon-contributor"), Api::Google);
         assert_eq!(api_for("opencode-go", "gpt-6-luna"), Api::Responses);
+        assert_eq!(api_for("opencode-go", "grok-4.6"), Api::Responses);
+        assert_eq!(api_for("opencode-go", "muse-spark-1.3"), Api::Responses);
         assert_eq!(api_for("opencode-go", "deepseek-v4-pro"), Api::Chat);
         let base = "https://opencode.ai/inference/go/openai/v1";
         assert_eq!(

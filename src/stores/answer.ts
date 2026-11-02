@@ -400,7 +400,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       const myRun = ++runSeq
       const my = ++seq
       set({ running: true, mode: { kind: 'loading' } })
-      const { provider, answer, privacy } = useSettings.getState()
+      const { provider, answer, privacy, display: displaySettings } = useSettings.getState()
       const freeMode = mode === 'free'
       const textMode = freeMode || provider.answerType === 'text'
       try {
@@ -458,6 +458,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
             useSettings.getState().free.instruction,
             provider.consensus,
             provider.verifyModel,
+            textMode || displaySettings.overlay || displaySettings.flash,
           )
         }
         if (seq !== my) return

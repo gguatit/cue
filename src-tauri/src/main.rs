@@ -161,6 +161,7 @@ fn main() {
             commands::cancel_answer,
             commands::clear_clipboard,
             commands::show_overlay,
+            commands::overlay_ready,
             commands::hide_overlay,
             commands::hide_main,
             commands::meeting_active,
@@ -247,7 +248,6 @@ fn main() {
             if let Ok(spec) = shortcut::ShortcutSpec::parse("Control+Alt+Super") {
                 shortcut::install(&handle, spec);
             }
-            windows::create_overlay(&handle)?;
             let main = windows::create_main(&handle, !background)?;
             let w = main.clone();
             main.on_window_event(move |e| {

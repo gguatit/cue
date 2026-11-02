@@ -25,6 +25,53 @@ import { useSettings } from '../../stores/settings'
 import { autoRefreshSecurity } from '../../lib/securityAutoRefresh'
 import { runProtectionRepair } from '../../lib/securityRepair'
 
+function captureProtectionLabel(
+  capture: CaptureProtectionStatus | null,
+  t: (en: string, ko: string) => string,
+): string {
+  if (!capture) return t('Status unavailable', '상태를 확인할 수 없습니다')
+  if (capture.overlay === null) {
+    if (capture.main === 0x11) {
+      return t(
+        'The main window is excluded from screen capture. The overlay will be created protected when first shown.',
+        '메인 창은 화면 캡처에서 제외됩니다. 오버레이는 처음 표시될 때 보호된 상태로 생성됩니다.',
+      )
+    }
+    if (capture.main === 0x01) {
+      return t(
+        'Windows 10 before 2004: the main window appears blank in captures. The overlay will be created protected when first shown.',
+        'Windows 10 2004 이전: 메인 창이 캡처에서 빈 창으로 보입니다. 오버레이는 처음 표시될 때 보호된 상태로 생성됩니다.',
+      )
+    }
+    if (capture.main === 0) {
+      return t('Screen capture protection is off.', '화면 캡처 보호가 꺼져 있습니다.')
+    }
+    return t(
+      'Screen capture protection is only partially applied.',
+      '화면 캡처 보호가 일부만 적용되었습니다.',
+    )
+  }
+  if (capture.main === 0x11 && capture.overlay === 0x11) {
+    return t(
+      'Both Cue windows are excluded from screen capture.',
+      'Cue 창 두 개가 화면 캡처에서 제외됩니다.',
+    )
+  }
+  if (capture.main === 0x01 && capture.overlay === 0x01) {
+    return t(
+      'Windows 10 before 2004: Cue windows appear blank in captures.',
+      'Windows 10 2004 이전: 캡처에서 Cue 창이 빈 창으로 보입니다.',
+    )
+  }
+  if (capture.main === 0 && capture.overlay === 0) {
+    return t('Screen capture protection is off.', '화면 캡처 보호가 꺼져 있습니다.')
+  }
+  return t(
+    'Screen capture protection is only partially applied.',
+    '화면 캡처 보호가 일부만 적용되었습니다.',
+  )
+}
+
 export default function SecurityTab() {
   const t = useT()
   const meetingHidden = useAnswer((s) => s.meetingHidden)
@@ -291,24 +338,7 @@ export default function SecurityTab() {
               : 'text-zinc-500'
           }`}
         >
-          {capture
-            ? capture.main === 0x11 && capture.overlay === 0x11
-              ? t(
-                  'Both Cue windows are excluded from screen capture.',
-                  'Cue 창 두 개가 화면 캡처에서 제외됩니다.',
-                )
-              : capture.main === 0x01 && capture.overlay === 0x01
-                ? t(
-                    'Windows 10 before 2004: Cue windows appear blank in captures.',
-                    'Windows 10 2004 이전: 캡처에서 Cue 창이 빈 창으로 보입니다.',
-                  )
-                : capture.main === 0 && capture.overlay === 0
-                  ? t('Screen capture protection is off.', '화면 캡처 보호가 꺼져 있습니다.')
-                  : t(
-                      'Screen capture protection is only partially applied.',
-                      '화면 캡처 보호가 일부만 적용되었습니다.',
-                    )
-            : t('Status unavailable', '상태를 확인할 수 없습니다')}
+          {captureProtectionLabel(capture, t)}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
           {t(
@@ -346,15 +376,15 @@ export default function SecurityTab() {
               void refreshMeetingSignals()
             }}
           >
-            <option value="both">{t('Process and window title', '프로세스 + 창 제목')}</option>
-            <option value="window">{t('Window title only', '창 제목만')}</option>
-            <option value="process">{t('Process only', '프로세스만')}</option>
+            <option value="both">{t('Meeting window or share app', '회의 창 또는 공유 앱')}</option>
+            <option value="window">{t('Meeting window title only', '회의 창 제목만')}</option>
+            <option value="process">{t('Running app (sensitive)', '실행 중인 앱 (민감)')}</option>
           </Select>
         </div>
         <p className="mt-2 text-xs text-zinc-500">
           {t(
-            'Window title only reduces false positives from OBS, RDP and remote-desktop apps, but may miss a hidden meeting. Process only catches minimized meetings but also triggers when such an app is merely running.',
-            '창 제목만은 OBS·RDP·원격 데스크톱 앱의 오탐을 줄이지만 숨겨진 회의를 놓칠 수 있습니다. 프로세스만은 최소화된 회의를 잡지만 해당 앱이 실행 중이기만 해도 감지됩니다.',
+            'The default needs a meeting window for meeting apps, while OBS, RDP and remote apps trigger by process alone. Window title only may miss hidden meetings; running-app mode is the most sensitive.',
+            '기본은 회의 앱에 회의 창이 있어야 감지하고, OBS·RDP·원격 앱은 실행만으로 감지합니다. 창 제목만은 숨겨진 회의를 놓칠 수 있고, 실행 중인 앱 모드는 가장 민감합니다.',
           )}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -365,10 +395,24 @@ export default function SecurityTab() {
                 : 'bg-zinc-800 text-zinc-400'
             }`}
           >
-            {t('Process', '프로세스')}:{' '}
+            {t('Meeting app', '회의 앱')}:{' '}
             {meetingState === null
               ? t('checking', '확인 중')
               : meetingState.process
+                ? t('detected', '감지')
+                : t('none', '없음')}
+          </span>
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs ${
+              meetingState?.share
+                ? 'bg-amber-500/15 text-amber-400'
+                : 'bg-zinc-800 text-zinc-400'
+            }`}
+          >
+            {t('Share/remote', '공유/원격')}:{' '}
+            {meetingState === null
+              ? t('checking', '확인 중')
+              : meetingState.share
                 ? t('detected', '감지')
                 : t('none', '없음')}
           </span>

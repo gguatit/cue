@@ -10,7 +10,7 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetWindowTextLengthW, GetWindowTextW, IsWindowVisible,
 };
 
-const MEETING_PROCESSES: [&str; 14] = [
+const MEETING_PROCESSES: [&str; 9] = [
     "zoom.exe",
     "teams.exe",
     "ms-teams.exe",
@@ -20,6 +20,9 @@ const MEETING_PROCESSES: [&str; 14] = [
     "CiscoCollabHost.exe",
     "gotomeeting.exe",
     "bluejeans.exe",
+];
+
+const SHARE_PROCESSES: [&str; 5] = [
     "obs64.exe",
     "obs32.exe",
     "mstsc.exe",
@@ -27,19 +30,34 @@ const MEETING_PROCESSES: [&str; 14] = [
     "parsec.exe",
 ];
 
-const MEETING_TITLE_MARKERS: [&str; 5] = [
+const MEETING_TITLE_MARKERS: [&str; 8] = [
     "zoom meeting",
     "google meet",
     "meet - ",
-    "webex",
-    "microsoft teams",
+    "webex meeting",
+    "webex - ",
+    "meeting in ",
+    "call with ",
+    "meeting | ",
 ];
 
 const PROCESS_CACHE_TTL: Duration = Duration::from_secs(3);
 
+#[derive(Clone, Copy, Default)]
+struct ProcessSignals {
+    meeting: bool,
+    share: bool,
+}
+
+impl ProcessSignals {
+    fn any(self) -> bool {
+        self.meeting || self.share
+    }
+}
+
 struct ProcessCache {
     checked: Instant,
-    active: bool,
+    signals: ProcessSignals,
 }
 
 fn process_cache() -> &'static Mutex<Option<ProcessCache>> {
@@ -51,25 +69,31 @@ fn cache_is_fresh(age: Duration) -> bool {
     age < PROCESS_CACHE_TTL
 }
 
-fn cached_process_running() -> bool {
+fn cached_process_signals() -> ProcessSignals {
     let Ok(mut cache) = process_cache().lock() else {
-        return process_running();
+        return process_signals();
     };
     if let Some(cached) = cache.as_ref() {
         if cache_is_fresh(cached.checked.elapsed()) {
-            return cached.active;
+            return cached.signals;
         }
     }
-    let active = process_running();
+    let signals = process_signals();
     *cache = Some(ProcessCache {
         checked: Instant::now(),
-        active,
+        signals,
     });
-    active
+    signals
 }
 
 pub fn is_meeting_process(name: &str) -> bool {
     MEETING_PROCESSES
+        .iter()
+        .any(|p| name.eq_ignore_ascii_case(p))
+}
+
+pub fn is_share_process(name: &str) -> bool {
+    SHARE_PROCESSES
         .iter()
         .any(|p| name.eq_ignore_ascii_case(p))
 }
@@ -92,45 +116,59 @@ fn window_active() -> bool {
     }
 }
 
-pub fn meeting_decision(policy: &str, process: bool, window: bool) -> bool {
+pub fn meeting_decision(
+    policy: &str,
+    meeting_process: bool,
+    share_process: bool,
+    window: bool,
+) -> bool {
     match policy {
         "window" => window,
-        "process" => process,
-        _ => process || window,
+        "process" => meeting_process || share_process,
+        // A meeting app that is merely running is a common false positive.
+        // Share/remote apps still count by process because they may not expose
+        // a distinctive meeting title.
+        _ => share_process || window,
     }
 }
 
 pub fn meeting_active(policy: &str) -> bool {
     match policy {
-        "window" => meeting_decision(policy, false, window_active()),
-        "process" => meeting_decision(policy, cached_process_running(), false),
-        _ => cached_process_running() || window_active(),
+        "window" => window_active(),
+        "process" => cached_process_signals().any(),
+        _ => {
+            let signals = cached_process_signals();
+            signals.share || window_active()
+        }
     }
 }
 
 #[derive(Debug, Default, serde::Serialize)]
 pub struct MeetingSignals {
     pub process: bool,
+    pub share: bool,
     pub window: bool,
 }
 
 pub fn meeting_signals() -> MeetingSignals {
+    let signals = cached_process_signals();
     MeetingSignals {
-        process: cached_process_running(),
+        process: signals.meeting,
+        share: signals.share,
         window: window_active(),
     }
 }
 
-fn process_running() -> bool {
+fn process_signals() -> ProcessSignals {
     unsafe {
         let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else {
-            return false;
+            return ProcessSignals::default();
         };
         let mut entry = PROCESSENTRY32W {
             dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
             ..Default::default()
         };
-        let mut found = false;
+        let mut signals = ProcessSignals::default();
         if Process32FirstW(snapshot, &mut entry).is_ok() {
             loop {
                 let len = entry
@@ -139,8 +177,9 @@ fn process_running() -> bool {
                     .position(|&c| c == 0)
                     .unwrap_or(entry.szExeFile.len());
                 let name = String::from_utf16_lossy(&entry.szExeFile[..len]);
-                if is_meeting_process(&name) {
-                    found = true;
+                signals.meeting |= is_meeting_process(&name);
+                signals.share |= is_share_process(&name);
+                if signals.meeting && signals.share {
                     break;
                 }
                 if Process32NextW(snapshot, &mut entry).is_err() {
@@ -149,7 +188,7 @@ fn process_running() -> bool {
             }
         }
         let _ = CloseHandle(snapshot);
-        found
+        signals
     }
 }
 
@@ -189,11 +228,16 @@ mod tests {
             "CiscoCollabHost.exe",
             "GoToMeeting.exe",
             "BlueJeans.exe",
-            "obs64.exe",
-            "mstsc.exe",
-            "rustdesk.exe",
         ] {
             assert!(is_meeting_process(name), "{name}");
+        }
+    }
+
+    #[test]
+    fn detects_share_processes_separately() {
+        for name in ["obs64.exe", "OBS32.EXE", "mstsc.exe", "rustdesk.exe", "parsec.exe"] {
+            assert!(is_share_process(name), "{name}");
+            assert!(!is_meeting_process(name), "{name}");
         }
     }
 
@@ -201,6 +245,7 @@ mod tests {
     fn ignores_unrelated_processes() {
         for name in ["explorer.exe", "chrome.exe", "Cue.exe", "zoom", ""] {
             assert!(!is_meeting_process(name), "{name}");
+            assert!(!is_share_process(name), "{name}");
         }
     }
 
@@ -211,8 +256,11 @@ mod tests {
             "zoom meeting - 123 456 789",
             "Google Meet - Weekly sync",
             "Meet - abc-defg-hij - Google Chrome",
-            "Webex",
-            "Microsoft Teams - Standup",
+            "Webex Meeting",
+            "Webex - Weekly sync",
+            "Meeting in General | Microsoft Teams",
+            "Call with Bob | Microsoft Teams",
+            "Meeting | Weekly | Microsoft Teams",
         ] {
             assert!(is_meeting_title(title), "{title}");
         }
@@ -232,6 +280,10 @@ mod tests {
             "TeamViewer",
             "Parsec",
             "RustDesk",
+            "Webex",
+            "Microsoft Teams",
+            "Chat | Bob | Microsoft Teams",
+            "Webex Teams",
         ] {
             assert!(!is_meeting_title(title), "{title}");
         }
@@ -239,14 +291,17 @@ mod tests {
 
     #[test]
     fn meeting_policy_chooses_process_or_window_signals() {
-        assert!(meeting_decision("both", true, false));
-        assert!(meeting_decision("both", false, true));
-        assert!(!meeting_decision("both", false, false));
-        assert!(meeting_decision("process", true, false));
-        assert!(!meeting_decision("process", false, true));
-        assert!(meeting_decision("window", false, true));
-        assert!(!meeting_decision("window", true, false));
-        assert!(meeting_decision("unknown", true, false));
+        assert!(meeting_decision("both", false, true, false));
+        assert!(meeting_decision("both", false, false, true));
+        assert!(!meeting_decision("both", true, false, false));
+        assert!(!meeting_decision("both", false, false, false));
+        assert!(meeting_decision("process", true, false, false));
+        assert!(meeting_decision("process", false, true, false));
+        assert!(!meeting_decision("process", false, false, true));
+        assert!(meeting_decision("window", true, true, true));
+        assert!(!meeting_decision("window", true, true, false));
+        assert!(!meeting_decision("unknown", true, false, false));
+        assert!(meeting_decision("unknown", false, true, false));
     }
 
     #[test]

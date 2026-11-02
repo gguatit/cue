@@ -103,6 +103,7 @@ describe('answer store', () => {
       '',
       false,
       '',
+      false,
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'answer', answers: ['C'] })
   })
@@ -129,6 +130,7 @@ describe('answer store', () => {
       '',
       false,
       '',
+      true,
     )
   })
 
@@ -330,6 +332,7 @@ describe('answer store', () => {
       '',
       false,
       '',
+      true,
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'text', text: '광합성입니다.' })
     expect(setTrayLoading).not.toHaveBeenCalled()
@@ -810,6 +813,7 @@ describe('answer store', () => {
       'Explain this code',
       true,
       'verify',
+      true,
     )
     expect(showOverlay).toHaveBeenCalledWith('Explanation', 'text', 12000)
     expect(useAnswer.getState().history[0]).toMatchObject({ answers: [], text: 'Explanation' })

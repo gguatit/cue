@@ -53,7 +53,7 @@ export const setHideFromTaskbar = (hidden: boolean) => invoke<void>('set_hide_fr
 export const setContentProtection = (enabled: boolean) => invoke<void>('set_content_protection', { enabled })
 export interface CaptureProtectionStatus {
   main: number
-  overlay: number
+  overlay: number | null
 }
 export const captureProtectionStatus = () =>
   invoke<CaptureProtectionStatus>('capture_protection_status')
@@ -92,6 +92,7 @@ export const captureAndAnswer = (
   freeInstruction = '',
   consensus = false,
   verifyModel = '',
+  prepareOverlay = false,
 ) =>
   invoke<CaptureResult>('capture_and_answer', {
     preset,
@@ -107,6 +108,7 @@ export const captureAndAnswer = (
     freeInstruction,
     consensus,
     verifyModel,
+    prepareOverlay,
   })
 export const showOverlay = (
   answer: string,
@@ -120,12 +122,14 @@ export const showOverlay = (
     durationMs,
     verification: verification ?? null,
   })
+export const overlayReady = () => invoke<void>('overlay_ready')
 export const hideOverlay = () => invoke<void>('hide_overlay')
 export const hideMain = () => invoke<void>('hide_main')
 export type MeetingPolicy = 'both' | 'window' | 'process'
 
 export interface MeetingSignals {
   process: boolean
+  share: boolean
   window: boolean
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import { Button, Card, Input, SectionTitle, Select, Toggle } from '../../components/ui'
 import { useT } from '../../i18n'
 import {
@@ -32,6 +33,7 @@ export default function GeneralTab() {
   const [profiles, setProfiles] = useState<Profile[]>(() => loadProfiles())
   const [profileName, setProfileName] = useState('')
   const [backupMessage, setBackupMessage] = useState('')
+  const [pendingImport, setPendingImport] = useState<ReturnType<typeof mergeSettings> | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const applySettings = async (next: ReturnType<typeof mergeSettings>) => {
@@ -76,19 +78,22 @@ export default function GeneralTab() {
       const clearsHistory = current.storage.history && !next.storage.history
       const enablesGuard = !current.stealth.guard && next.stealth.guard
       if (changesProvider || clearsHistory || enablesGuard) {
-        const ok = window.confirm(
-          t(
-            'This backup changes the AI endpoint, deletes stored history, or enables the guard. Apply it?',
-            '이 백업은 AI 주소를 바꾸거나 저장된 기록을 삭제하거나 보호 기능을 켭니다. 적용할까요?',
-          ),
-        )
-        if (!ok) return
+        setPendingImport(next)
+        return
       }
       await applySettings(next)
       setBackupMessage(t('Settings imported.', '설정을 가져왔습니다.'))
     } catch {
       setBackupMessage(t('This file is not a valid Cue settings backup.', '올바른 Cue 설정 백업 파일이 아닙니다.'))
     }
+  }
+
+  const confirmImport = async () => {
+    const next = pendingImport
+    setPendingImport(null)
+    if (!next) return
+    await applySettings(next)
+    setBackupMessage(t('Settings imported.', '설정을 가져왔습니다.'))
   }
 
   const saveProfile = () => {
@@ -427,6 +432,18 @@ export default function GeneralTab() {
         )}
         {backupMessage && <p className="text-xs text-zinc-400">{backupMessage}</p>}
       </Card>
+      {pendingImport && (
+        <ConfirmDialog
+          title={t('Apply imported settings?', '가져온 설정을 적용할까요?')}
+          description={t(
+            'This backup changes the AI endpoint, deletes stored history, or enables the guard. Apply it?',
+            '이 백업은 AI 주소를 바꾸거나 저장된 기록을 삭제하거나 보호 기능을 켭니다. 적용할까요?',
+          )}
+          confirmLabel={t('Apply', '적용')}
+          onCancel={() => setPendingImport(null)}
+          onConfirm={() => void confirmImport()}
+        />
+      )}
     </div>
   )
 }

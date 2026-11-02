@@ -11,6 +11,14 @@ pub struct AppState {
     pub capture_in_flight: AtomicBool,
     pub last_capture: Mutex<Option<(i32, i32, crate::capture::MonitorRect)>>,
     pub cancel: tokio::sync::watch::Sender<u64>,
+    pub content_protection: AtomicBool,
+    pub overlay_state: Mutex<OverlayDelivery>,
+}
+
+#[derive(Default)]
+pub struct OverlayDelivery {
+    ready: bool,
+    pending: Option<serde_json::Value>,
 }
 
 impl Default for AppState {
@@ -27,6 +35,8 @@ impl Default for AppState {
             capture_in_flight: AtomicBool::new(false),
             last_capture: Mutex::new(None),
             cancel,
+            content_protection: AtomicBool::new(true),
+            overlay_state: Mutex::new(OverlayDelivery::default()),
         }
     }
 }
@@ -82,6 +92,24 @@ pub struct Verification {
     pub error: Option<String>,
 }
 
+fn verify_provider<'a>(
+    preset: &'a str,
+    base_url: &'a str,
+    model: &'a str,
+    key: &'a str,
+) -> crate::ai::Provider<'a> {
+    // Extra JSON is tuned for the primary model's protocol. Applying it to a
+    // verifier on another protocol can make the request invalid (for example,
+    // max_tokens on the Responses API).
+    crate::ai::Provider {
+        preset,
+        base_url,
+        model,
+        extra: "",
+        key,
+    }
+}
+
 #[derive(Debug, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum AnswerPayload {
@@ -100,6 +128,7 @@ pub enum AnswerPayload {
 
 #[tauri::command]
 pub async fn capture_and_answer(
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     preset: String,
     base_url: String,
@@ -114,6 +143,7 @@ pub async fn capture_and_answer(
     free_instruction: String,
     consensus: bool,
     verify_model: String,
+    prepare_overlay: bool,
 ) -> Result<AnswerPayload, String> {
     if state.capture_in_flight.swap(true, Ordering::SeqCst) {
         return Err("busy".into());
@@ -124,6 +154,11 @@ pub async fn capture_and_answer(
     let work = async {
     crate::ai::validate_base_url(&preset, &base_url)?;
     let key = crate::secrets::get_key(&preset)?.ok_or("no_key".to_string())?;
+    if prepare_overlay {
+        // Create the overlay while capture and AI are running so its listener
+        // is ready before the first answer is displayed.
+        let _ = ensure_overlay(&app);
+    }
     let (cap, cursor) = tauri::async_runtime::spawn_blocking(move || {
         let (buf, w, h, cursor, mon) = crate::capture::raw_capture()?;
         let region = crop.then(|| {
@@ -173,13 +208,7 @@ pub async fn capture_and_answer(
         "choice" => {
             let verify = verify_model.trim();
             if consensus && !verify.is_empty() && verify != model {
-                let verify_provider = crate::ai::Provider {
-                    preset: &preset,
-                    base_url: &base_url,
-                    model: verify,
-                    extra: &extra_json,
-                    key: &key,
-                };
+                let verifier = verify_provider(&preset, &base_url, verify, &key);
                 let (primary, secondary) = tokio::join!(
                     crate::ai::request_answers(
                         &state.http,
@@ -192,7 +221,7 @@ pub async fn capture_and_answer(
                     ),
                     crate::ai::request_answers(
                         &state.http,
-                        &verify_provider,
+                        &verifier,
                         &cap.b64,
                         cap.cursor_x,
                         cap.cursor_y,
@@ -266,8 +295,16 @@ pub async fn capture_and_answer(
 
 static OVERLAY_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+fn ensure_overlay(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, String> {
+    use tauri::Manager;
+    if let Some(window) = app.get_webview_window("overlay") {
+        return Ok(window);
+    }
+    crate::windows::create_overlay(app).map_err(|_| "capture".to_string())
+}
+
 #[tauri::command]
-pub fn show_overlay(
+pub async fn show_overlay(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     answer: String,
@@ -275,8 +312,10 @@ pub fn show_overlay(
     duration_ms: u64,
     verification: Option<Verification>,
 ) -> Result<(), String> {
-    use tauri::{Emitter, Manager};
-    let overlay = app.get_webview_window("overlay").ok_or("capture")?;
+    use tauri::Emitter;
+    let overlay = ensure_overlay(&app)?;
+    let protect = state.content_protection.load(Ordering::SeqCst);
+    let _ = crate::windows::set_capture_protection(&overlay, protect);
     let last = *state
         .last_capture
         .lock()
@@ -327,7 +366,18 @@ pub fn show_overlay(
             "verification": verification,
         })
     };
-    let _ = app.emit_to("overlay", "overlay-show", payload);
+    let deliver_now = {
+        let mut delivery = state.overlay_state.lock().map_err(|_| "capture")?;
+        if delivery.ready {
+            true
+        } else {
+            delivery.pending = Some(payload.clone());
+            false
+        }
+    };
+    if deliver_now {
+        let _ = app.emit_to("overlay", "overlay-show", payload);
+    }
     let app2 = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(duration_ms));
@@ -341,9 +391,29 @@ pub fn show_overlay(
 }
 
 #[tauri::command]
-pub fn hide_overlay(app: tauri::AppHandle) {
+pub fn overlay_ready(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    use tauri::Emitter;
+    let pending = {
+        let mut delivery = state.overlay_state.lock().map_err(|_| "capture")?;
+        delivery.ready = true;
+        delivery.pending.take()
+    };
+    if let Some(payload) = pending {
+        let _ = app.emit_to("overlay", "overlay-show", payload);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn hide_overlay(app: tauri::AppHandle, state: tauri::State<'_, AppState>) {
     use tauri::Manager;
     OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    if let Ok(mut delivery) = state.overlay_state.lock() {
+        delivery.pending = None;
+    }
     if let Some(w) = app.get_webview_window("overlay") {
         let _ = w.hide();
     }
@@ -603,7 +673,7 @@ pub fn set_hide_from_taskbar(app: tauri::AppHandle, hidden: bool) -> Result<(), 
 #[derive(serde::Serialize)]
 pub struct CaptureProtectionStatus {
     pub main: u32,
-    pub overlay: u32,
+    pub overlay: Option<u32>,
 }
 
 #[tauri::command]
@@ -612,16 +682,24 @@ pub fn capture_protection_status(
 ) -> Result<CaptureProtectionStatus, String> {
     use tauri::Manager;
     let main = app.get_webview_window("main").ok_or("stealth")?;
-    let overlay = app.get_webview_window("overlay").ok_or("stealth")?;
+    let overlay = app
+        .get_webview_window("overlay")
+        .map(|window| crate::windows::capture_affinity(&window))
+        .transpose()?;
     Ok(CaptureProtectionStatus {
         main: crate::windows::capture_affinity(&main)?,
-        overlay: crate::windows::capture_affinity(&overlay)?,
+        overlay,
     })
 }
 
 #[tauri::command]
-pub fn set_content_protection(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+pub fn set_content_protection(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    enabled: bool,
+) -> Result<(), String> {
     use tauri::Manager;
+    state.content_protection.store(enabled, Ordering::SeqCst);
     let mut failed = false;
     for label in ["main", "overlay"] {
         if let Some(w) = app.get_webview_window(label) {
@@ -1235,5 +1313,11 @@ mod tests {
         assert!(is_cue_exe(r"C:\home\Cue_App\Cue\CUE.EXE"));
         assert!(!is_cue_exe(r"C:\ProgramData\Cue\cue-guard.exe"));
         assert!(!is_cue_exe(r"C:\ProgramData\Cue\cue.exe.bak"));
+    }
+
+    #[test]
+    fn verifier_ignores_primary_extra_parameters() {
+        let provider = verify_provider("openai", "https://api.openai.com/v1", "gpt-4o-mini", "key");
+        assert_eq!(provider.extra, "");
     }
 }

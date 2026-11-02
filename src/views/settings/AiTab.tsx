@@ -9,6 +9,7 @@ import {
   type AnswerLevel,
 } from '../../stores/settings'
 import { useAnswer } from '../../stores/answer'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import { Button, Card, Field, Input, SectionTitle, Select, Toggle } from '../../components/ui'
 
 function ModelChips({
@@ -54,6 +55,7 @@ export default function AiTab() {
   const [countdown, setCountdown] = useState(0)
   const [models, setModels] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [extraDraft, setExtraDraft] = useState(provider.extraJson)
   const [extraError, setExtraError] = useState('')
   const loadId = useRef(0)
@@ -158,7 +160,6 @@ export default function AiTab() {
     }
   }
   const remove = async () => {
-    if (!window.confirm(t('Delete the stored API key?', '저장된 API 키를 삭제할까요?'))) return
     cancelLoad()
     stopRealTest()
     try {
@@ -399,8 +400,8 @@ export default function AiTab() {
             />
             <p className="mt-1 text-xs text-zinc-500">
               {t(
-                'A second model from the same provider checks the answer. Matching answers show a match badge; different answers show both.',
-                '같은 프로바이더의 두 번째 모델이 답을 검증합니다. 일치하면 일치 배지, 다르면 두 답을 모두 표시합니다.',
+                'A second model from the same provider checks the answer. Matching answers show a match badge; different answers show both. The verifier does not use the extra parameters below, so mixed API protocols stay valid.',
+                '같은 프로바이더의 두 번째 모델이 답을 검증합니다. 일치하면 일치 배지, 다르면 두 답을 모두 표시합니다. 검증 모델에는 아래 추가 파라미터를 적용하지 않아 서로 다른 API 방식에서도 요청이 깨지지 않습니다.',
               )}
             </p>
             {(!provider.verifyModel.trim() ||
@@ -507,7 +508,11 @@ export default function AiTab() {
           <Button variant="primary" disabled={!keyInput.trim()} onClick={save}>
             {t('Save', '저장')}
           </Button>
-          <Button variant="danger" disabled={keyState === 'none'} onClick={remove}>
+          <Button
+            variant="danger"
+            disabled={keyState === 'none'}
+            onClick={() => setConfirmDelete(true)}
+          >
             {t('Delete', '삭제')}
           </Button>
         </div>
@@ -598,6 +603,22 @@ export default function AiTab() {
           '바꿔 표현을 켜면 추출된 답변 텍스트가 한 번의 추가 재작성 요청으로 프로바이더에 전송됩니다. 화면에는 정리된 답변만 표시되며, 보이지 않는 워터마크 문자와 HTML 태그는 제거됩니다.',
         )}
       </p>
+      {confirmDelete && (
+        <ConfirmDialog
+          title={t('Delete the stored API key?', '저장된 API 키를 삭제할까요?')}
+          description={t(
+            'The key will be removed from the Windows Credential Manager. You can enter it again later.',
+            'Windows 자격증명 관리자에서 키가 삭제됩니다. 나중에 다시 입력할 수 있습니다.',
+          )}
+          confirmLabel={t('Delete', '삭제')}
+          danger
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            setConfirmDelete(false)
+            void remove()
+          }}
+        />
+      )}
     </div>
   )
 }
