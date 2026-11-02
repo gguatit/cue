@@ -49,12 +49,6 @@ struct ProcessSignals {
     share: bool,
 }
 
-impl ProcessSignals {
-    fn any(self) -> bool {
-        self.meeting || self.share
-    }
-}
-
 struct ProcessCache {
     checked: Instant,
     signals: ProcessSignals,
@@ -133,14 +127,15 @@ pub fn meeting_decision(
 }
 
 pub fn meeting_active(policy: &str) -> bool {
-    match policy {
-        "window" => window_active(),
-        "process" => cached_process_signals().any(),
-        _ => {
-            let signals = cached_process_signals();
-            signals.share || window_active()
-        }
+    if policy == "window" {
+        return meeting_decision(policy, false, false, window_active());
     }
+    let signals = cached_process_signals();
+    if policy == "process" {
+        return meeting_decision(policy, signals.meeting, signals.share, false);
+    }
+    // Short-circuit the window scan when a share/remote process already matches.
+    signals.share || meeting_decision(policy, signals.meeting, false, window_active())
 }
 
 #[derive(Debug, Default, serde::Serialize)]
