@@ -102,8 +102,8 @@ pub fn meeting_decision(policy: &str, process: bool, window: bool) -> bool {
 
 pub fn meeting_active(policy: &str) -> bool {
     match policy {
-        "window" => window_active(),
-        "process" => cached_process_running(),
+        "window" => meeting_decision(policy, false, window_active()),
+        "process" => meeting_decision(policy, cached_process_running(), false),
         _ => cached_process_running() || window_active(),
     }
 }
