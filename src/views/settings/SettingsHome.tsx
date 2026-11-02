@@ -1,13 +1,15 @@
+import { lazy, Suspense } from 'react'
 import { BookOpen, Crosshair, Info, Settings, Shield, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useT } from '../../i18n'
 import { useUi } from '../../stores/ui'
-import AboutTab from './AboutTab'
-import AiTab from './AiTab'
-import GeneralTab from './GeneralTab'
-import HelpTab from './HelpTab'
-import ModeTab from './ModeTab'
-import SecurityTab from './SecurityTab'
+
+const AboutTab = lazy(() => import('./AboutTab'))
+const AiTab = lazy(() => import('./AiTab'))
+const GeneralTab = lazy(() => import('./GeneralTab'))
+const HelpTab = lazy(() => import('./HelpTab'))
+const ModeTab = lazy(() => import('./ModeTab'))
+const SecurityTab = lazy(() => import('./SecurityTab'))
 
 const TABS = ['general', 'mode', 'ai', 'security', 'help', 'about'] as const
 type Tab = (typeof TABS)[number]
@@ -69,12 +71,14 @@ export default function SettingsHome() {
           </div>
         </nav>
         <main className="min-w-0 flex-1 p-4">
-          {tab === 'general' && <GeneralTab />}
-          {tab === 'mode' && <ModeTab />}
-          {tab === 'ai' && <AiTab />}
-          {tab === 'security' && <SecurityTab />}
-          {tab === 'help' && <HelpTab />}
-          {tab === 'about' && <AboutTab />}
+          <Suspense fallback={<div className="h-24" />}>
+            {tab === 'general' && <GeneralTab />}
+            {tab === 'mode' && <ModeTab />}
+            {tab === 'ai' && <AiTab />}
+            {tab === 'security' && <SecurityTab />}
+            {tab === 'help' && <HelpTab />}
+            {tab === 'about' && <AboutTab />}
+          </Suspense>
         </main>
       </div>
     </div>

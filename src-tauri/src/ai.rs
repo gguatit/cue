@@ -339,6 +339,9 @@ fn endpoint_for(base_url: &str, model: &str, api: Api) -> String {
 }
 
 fn api_headers(api: Api, preset: &str, key: &str) -> Vec<(&'static str, String)> {
+    if key.is_empty() {
+        return Vec::new();
+    }
     if preset == "anthropic" {
         return vec![
             ("x-api-key", key.to_string()),
@@ -629,6 +632,20 @@ pub fn is_loopback_host(host: &str) -> bool {
         || host
             .parse::<std::net::Ipv4Addr>()
             .map(|ip| ip.is_loopback())
+            .unwrap_or(false)
+}
+
+pub fn key_may_be_empty(preset: &str, base_url: &str) -> bool {
+    if preset != "custom" {
+        return false;
+    }
+    let Ok(url) = reqwest::Url::parse(base_url.trim_end_matches('/')) else {
+        return false;
+    };
+    matches!(url.scheme(), "http" | "https")
+        && url
+            .host_str()
+            .map(is_loopback_host)
             .unwrap_or(false)
 }
 
@@ -1165,6 +1182,21 @@ mod tests {
             budget_left(start, start + Duration::from_secs(90), Duration::from_secs(90)),
             None
         );
+    }
+
+    #[test]
+    fn empty_keys_are_allowed_only_for_loopback_custom() {
+        assert!(key_may_be_empty("custom", "http://127.0.0.1:11434/v1"));
+        assert!(key_may_be_empty("custom", "http://localhost:1234/v1"));
+        assert!(key_may_be_empty("custom", "http://[::1]:11434/v1"));
+        assert!(!key_may_be_empty("custom", "https://api.openai.com/v1"));
+        assert!(!key_may_be_empty("openai", "http://127.0.0.1:11434/v1"));
+        assert!(!key_may_be_empty("custom", "http://192.168.0.5/v1"));
+    }
+
+    #[test]
+    fn empty_keys_send_no_authorization_header() {
+        assert!(api_headers(Api::Chat, "custom", "").is_empty());
     }
 
     #[test]

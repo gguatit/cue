@@ -34,37 +34,42 @@ export async function runStartup(): Promise<void> {
     useAnswer.getState().panicClear()
     void hideMain().catch(() => {})
   }).catch(() => {})
-  await listenEvent<{ sample: boolean; mode?: 'exam' | 'free' }>('trigger-answer', (e) => {
-    void useAnswer.getState().run(e.payload.sample, e.payload.mode)
-  }).catch(() => {})
-  await listenEvent('show-last', () => {
-    void useAnswer.getState().showLast()
-  }).catch(() => {})
-  await listenEvent('copy-last', () => {
-    void useAnswer.getState().copyLast()
-  }).catch(() => {})
-  await listenEvent('tray-clear', () => {
-    useAnswer.getState().clearTray()
-  }).catch(() => {})
-  await listenEvent('open-help', () => {
-    useUi.getState().setTab('help')
-  }).catch(() => {})
-  await listenEvent('main-shown', () => {
-    useAnswer.setState({ panicHidden: false })
-  }).catch(() => {})
+  await Promise.all([
+    listenEvent<{ sample: boolean; mode?: 'exam' | 'free' }>('trigger-answer', (e) => {
+      void useAnswer.getState().run(e.payload.sample, e.payload.mode)
+    }).catch(() => {}),
+    listenEvent('show-last', () => {
+      void useAnswer.getState().showLast()
+    }).catch(() => {}),
+    listenEvent('copy-last', () => {
+      void useAnswer.getState().copyLast()
+    }).catch(() => {}),
+    listenEvent('tray-clear', () => {
+      useAnswer.getState().clearTray()
+    }).catch(() => {}),
+    listenEvent('open-help', () => {
+      useUi.getState().setTab('help')
+    }).catch(() => {}),
+    listenEvent('main-shown', () => {
+      useAnswer.setState({ panicHidden: false })
+    }).catch(() => {}),
+  ])
 
   const s = useSettings.getState()
-  await applyTrayMenuLabels()
-  await setTrayIdle().catch(() => useAnswer.getState().logError('tray'))
-  await setContentProtection(s.stealth.contentProtection).catch(() =>
-    useAnswer.getState().logError('stealth'),
-  )
-  await setHideFromTaskbar(s.stealth.skipTaskbar).catch(() =>
-    useAnswer.getState().logError('stealth'),
-  )
-  if (s.stealth.guard) {
-    await setGuard(true).catch(() => useAnswer.getState().logError('guard'))
-  }
+  const peripheral = (async () => {
+    await applyTrayMenuLabels()
+    await setTrayIdle().catch(() => useAnswer.getState().logError('tray'))
+    await setContentProtection(s.stealth.contentProtection).catch(() =>
+      useAnswer.getState().logError('stealth'),
+    )
+    await setHideFromTaskbar(s.stealth.skipTaskbar).catch(() =>
+      useAnswer.getState().logError('stealth'),
+    )
+    if (s.stealth.guard) {
+      await setGuard(true).catch(() => useAnswer.getState().logError('guard'))
+    }
+  })()
+  // Shortcut registration stays ordered: each call validates against the others.
   await setShortcut(s.shortcut.accelerator, s.shortcut.click, s.shortcut.button).catch(() =>
     useAnswer.getState().logError('shortcut'),
   )
@@ -77,6 +82,7 @@ export async function runStartup(): Promise<void> {
   await setPanicShortcut(s.panic.accelerator).catch(() =>
     useAnswer.getState().logError('shortcut'),
   )
+  await peripheral
   const installed = await shortcutInstalled().catch(() => true)
   if (!installed) await useAnswer.getState().logError('shortcut')
 }

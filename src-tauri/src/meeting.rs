@@ -7,7 +7,7 @@ use ::windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
 };
 use ::windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, GetWindowTextLengthW, GetWindowTextW, IsWindowVisible,
+    EnumWindows, GetForegroundWindow, GetWindowTextLengthW, GetWindowTextW, IsWindowVisible,
 };
 
 const MEETING_PROCESSES: [&str; 9] = [
@@ -42,6 +42,7 @@ const MEETING_TITLE_MARKERS: [&str; 8] = [
 ];
 
 const PROCESS_CACHE_TTL: Duration = Duration::from_secs(3);
+const WINDOW_SCAN_INTERVAL: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Copy, Default)]
 struct ProcessSignals {
@@ -99,7 +100,34 @@ pub fn is_meeting_title(title: &str) -> bool {
         .any(|marker| lower.contains(marker))
 }
 
-fn window_active() -> bool {
+fn window_scan_cache() -> &'static Mutex<Option<Instant>> {
+    static CACHE: OnceLock<Mutex<Option<Instant>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(None))
+}
+
+fn window_scan_due(last: Option<Instant>, now: Instant) -> bool {
+    last.map_or(true, |checked| now.duration_since(checked) >= WINDOW_SCAN_INTERVAL)
+}
+
+fn title_of(hwnd: HWND) -> Option<String> {
+    let len = unsafe { GetWindowTextLengthW(hwnd) };
+    if len <= 0 {
+        return None;
+    }
+    let mut buf = vec![0u16; len as usize + 1];
+    let copied = unsafe { GetWindowTextW(hwnd, &mut buf) };
+    if copied <= 0 {
+        return None;
+    }
+    Some(String::from_utf16_lossy(&buf[..copied as usize]))
+}
+
+fn foreground_meeting() -> bool {
+    let hwnd = unsafe { GetForegroundWindow() };
+    title_of(hwnd).is_some_and(|title| is_meeting_title(&title))
+}
+
+fn window_active_full() -> bool {
     unsafe {
         let mut found = false;
         let _ = EnumWindows(
@@ -108,6 +136,22 @@ fn window_active() -> bool {
         );
         found
     }
+}
+
+fn window_active() -> bool {
+    if foreground_meeting() {
+        return true;
+    }
+    let now = Instant::now();
+    let Ok(mut last) = window_scan_cache().lock() else {
+        return window_active_full();
+    };
+    if !window_scan_due(*last, now) {
+        return false;
+    }
+    *last = Some(now);
+    drop(last);
+    window_active_full()
 }
 
 pub fn meeting_decision(
@@ -150,7 +194,7 @@ pub fn meeting_signals() -> MeetingSignals {
     MeetingSignals {
         process: signals.meeting,
         share: signals.share,
-        window: window_active(),
+        window: window_active_full(),
     }
 }
 
@@ -303,5 +347,16 @@ mod tests {
     fn process_cache_expires_after_three_seconds() {
         assert!(cache_is_fresh(Duration::from_millis(2999)));
         assert!(!cache_is_fresh(PROCESS_CACHE_TTL));
+    }
+
+    #[test]
+    fn window_scan_is_throttled_to_two_seconds() {
+        let now = Instant::now();
+        assert!(window_scan_due(None, now));
+        assert!(!window_scan_due(
+            Some(now - Duration::from_millis(1999)),
+            now
+        ));
+        assert!(window_scan_due(Some(now - WINDOW_SCAN_INTERVAL), now));
     }
 }

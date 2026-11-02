@@ -75,6 +75,7 @@ pub async fn list_models(
             .get(&url)
             .header("x-api-key", key)
             .header("anthropic-version", "2023-06-01"),
+        _ if key.is_empty() => client.get(&url),
         _ => client.get(&url).bearer_auth(key),
     };
     let resp = req.send().await.map_err(|_| "network".to_string())?;

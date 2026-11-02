@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { clearApiKey, hasApiKey, listModels, setApiKey, testConnection } from '../../lib/tauri'
 import { errorMessage, useT } from '../../i18n'
 import { filterChatModels, nextModel, nextVerifyModel } from '../../lib/modelPick'
+import { isLoopbackUrl } from '../../lib/localEndpoint'
 import {
   PRESETS,
   useSettings,
@@ -240,6 +241,15 @@ export default function AiTab() {
     })
   }
 
+  const useLocalEndpoint = (baseUrl: string) => {
+    cancelLoad()
+    stopRealTest()
+    setProvider({ preset: 'custom', baseUrl, model: '' })
+    setModels([])
+    setStatus('')
+    setStatusKind('idle')
+  }
+
   const applyExtra = () => {
     setExtraError('')
     if (extraDraft.trim()) {
@@ -317,6 +327,32 @@ export default function AiTab() {
                 '이 프리셋의 공식 주소는 고정되어 있습니다. 다른 호환 주소를 쓰려면 Custom을 선택하세요.',
               )}
             </p>
+          )}
+          {provider.preset === 'custom' && (
+            <div className="mt-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2.5">
+              <p className="text-xs text-zinc-500">
+                {t(
+                  'Local models can run without an API key on loopback. Ollama defaults to 11434; LM Studio to 1234.',
+                  '로컬 모델은 루프백 주소에서 API 키 없이 실행할 수 있습니다. Ollama는 11434, LM Studio는 1234를 사용합니다.',
+                )}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <Button onClick={() => useLocalEndpoint('http://127.0.0.1:11434/v1')}>
+                  Ollama
+                </Button>
+                <Button onClick={() => useLocalEndpoint('http://127.0.0.1:1234/v1')}>
+                  LM Studio
+                </Button>
+              </div>
+              {isLoopbackUrl(provider.baseUrl) && (
+                <p className="mt-2 text-xs text-emerald-400">
+                  {t(
+                    'Loopback endpoint: API key is optional.',
+                    '루프백 주소: API 키는 선택 사항입니다.',
+                  )}
+                </p>
+              )}
+            </div>
           )}
         </Field>
         <Field label={t('Model (vision-capable)', '모델 (비전 지원 필요)')}>
@@ -533,6 +569,14 @@ export default function AiTab() {
                 : t('Unavailable', '확인할 수 없음')}
           </span>
         </div>
+        {provider.preset === 'custom' && isLoopbackUrl(provider.baseUrl) && (
+          <p className="mt-2 text-xs text-emerald-400">
+            {t(
+              'No API key is required for this loopback endpoint. Leave the key blank.',
+              '이 루프백 주소에는 API 키가 필요하지 않습니다. 키를 비워 두세요.',
+            )}
+          </p>
+        )}
       </Card>
       <Card>
         <SectionTitle>{t('Extra parameters (JSON)', '추가 파라미터 (JSON)')}</SectionTitle>

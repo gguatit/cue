@@ -92,6 +92,14 @@ pub struct Verification {
     pub error: Option<String>,
 }
 
+fn provider_key(preset: &str, base_url: &str) -> Result<String, String> {
+    match crate::secrets::get_key(preset)? {
+        Some(key) => Ok(key),
+        None if crate::ai::key_may_be_empty(preset, base_url) => Ok(String::new()),
+        None => Err("no_key".into()),
+    }
+}
+
 fn verify_provider<'a>(
     preset: &'a str,
     base_url: &'a str,
@@ -153,7 +161,7 @@ pub async fn capture_and_answer(
     let mine = *cancel_rx.borrow();
     let work = async {
     crate::ai::validate_base_url(&preset, &base_url)?;
-    let key = crate::secrets::get_key(&preset)?.ok_or("no_key".to_string())?;
+    let key = provider_key(&preset, &base_url)?;
     if prepare_overlay {
         // Create the overlay on the main thread without blocking capture/AI.
         let overlay_app = app.clone();
@@ -514,7 +522,7 @@ pub async fn test_connection(
     extra_json: String,
 ) -> Result<bool, String> {
     crate::ai::validate_base_url(&preset, &base_url)?;
-    let key = crate::secrets::get_key(&preset)?.ok_or("no_key".to_string())?;
+    let key = provider_key(&preset, &base_url)?;
     let p = crate::ai::Provider {
         preset: &preset,
         base_url: &base_url,
@@ -532,7 +540,7 @@ pub async fn list_models(
     base_url: String,
 ) -> Result<Vec<String>, String> {
     crate::ai::validate_base_url(&preset, &base_url)?;
-    let key = crate::secrets::get_key(&preset)?.ok_or("no_key".to_string())?;
+    let key = provider_key(&preset, &base_url)?;
     crate::models::list_models(&state.http, &preset, &base_url, &key).await
 }
 
