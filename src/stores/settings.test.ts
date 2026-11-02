@@ -14,6 +14,7 @@ describe('mergeSettings', () => {
     expect(merged.stealth.skipTaskbar).toBe(true)
     expect(merged.stealth.guard).toBe(false)
     expect(merged.stealth.meetingSafe).toBe(true)
+    expect(merged.stealth.meetingPolicy).toBe('both')
     expect(merged.trayIcons.byAnswer['1']).toBe('char')
     expect(merged.panic).toEqual(defaults.panic)
     expect(merged.provider.answerType).toBe('choice')
@@ -143,6 +144,13 @@ describe('mergeSettings', () => {
     const merged = mergeSettings({ stealth: { meetingSafe: false } })
     expect(merged.stealth.meetingSafe).toBe(false)
     expect(merged.stealth.contentProtection).toBe(true)
+  })
+
+  it('merges a stored meeting detection policy', () => {
+    expect(defaults.stealth.meetingPolicy).toBe('both')
+    expect(mergeSettings({ stealth: { meetingPolicy: 'window' } }).stealth.meetingPolicy).toBe('window')
+    expect(mergeSettings({ stealth: { meetingPolicy: 'process' } }).stealth.meetingPolicy).toBe('process')
+    expect(mergeSettings({ stealth: { meetingPolicy: 'bad' } }).stealth.meetingPolicy).toBe('both')
   })
 
   it('merges a stored panic shortcut', () => {

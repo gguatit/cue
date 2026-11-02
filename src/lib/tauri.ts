@@ -68,6 +68,7 @@ export const listModels = (preset: string, baseUrl: string) =>
   invoke<string[]>('list_models', { preset, baseUrl })
 export interface Verification {
   matched: boolean
+  candidatesMatched?: boolean
   secondary: string[]
   error?: string
 }
@@ -75,6 +76,7 @@ export interface Verification {
 export type CaptureResult =
   | { kind: 'choice'; answers: string[]; verification?: Verification }
   | { kind: 'text'; text: string }
+  | { kind: 'none'; reason: string }
 
 export const captureAndAnswer = (
   preset: string,
@@ -120,7 +122,16 @@ export const showOverlay = (
   })
 export const hideOverlay = () => invoke<void>('hide_overlay')
 export const hideMain = () => invoke<void>('hide_main')
-export const meetingActive = () => invoke<boolean>('meeting_active')
+export type MeetingPolicy = 'both' | 'window' | 'process'
+
+export interface MeetingSignals {
+  process: boolean
+  window: boolean
+}
+
+export const meetingActive = (policy: MeetingPolicy = 'both') =>
+  invoke<boolean>('meeting_active', { policy })
+export const meetingSignals = () => invoke<MeetingSignals>('meeting_signals')
 export const blinkAnswer = (answer: string, key: string) => invoke<void>('blink_answer', { answer, key })
 export const blinkBrightness = (answer: string) => invoke<void>('blink_brightness', { answer })
 export const setAutostart = (enabled: boolean) => invoke<void>('set_autostart', { enabled })

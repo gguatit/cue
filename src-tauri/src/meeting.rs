@@ -27,19 +27,14 @@ const MEETING_PROCESSES: [&str; 14] = [
     "parsec.exe",
 ];
 
-const MEETING_TITLE_MARKERS: [&str; 9] = [
+const MEETING_TITLE_MARKERS: [&str; 5] = [
     "zoom meeting",
     "google meet",
     "meet - ",
     "webex",
     "microsoft teams",
-    "anydesk",
-    "teamviewer",
-    "parsec",
-    "rustdesk",
 ];
 
-const SHARE_TITLE_PREFIXES: [&str; 1] = ["obs "];
 const PROCESS_CACHE_TTL: Duration = Duration::from_secs(3);
 
 struct ProcessCache {
@@ -84,15 +79,9 @@ pub fn is_meeting_title(title: &str) -> bool {
     MEETING_TITLE_MARKERS
         .iter()
         .any(|marker| lower.contains(marker))
-        || SHARE_TITLE_PREFIXES
-            .iter()
-            .any(|prefix| lower.starts_with(prefix))
 }
 
-pub fn meeting_active() -> bool {
-    if cached_process_running() {
-        return true;
-    }
+fn window_active() -> bool {
     unsafe {
         let mut found = false;
         let _ = EnumWindows(
@@ -100,6 +89,35 @@ pub fn meeting_active() -> bool {
             LPARAM(&mut found as *mut bool as isize),
         );
         found
+    }
+}
+
+pub fn meeting_decision(policy: &str, process: bool, window: bool) -> bool {
+    match policy {
+        "window" => window,
+        "process" => process,
+        _ => process || window,
+    }
+}
+
+pub fn meeting_active(policy: &str) -> bool {
+    match policy {
+        "window" => window_active(),
+        "process" => cached_process_running(),
+        _ => cached_process_running() || window_active(),
+    }
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+pub struct MeetingSignals {
+    pub process: bool,
+    pub window: bool,
+}
+
+pub fn meeting_signals() -> MeetingSignals {
+    MeetingSignals {
+        process: cached_process_running(),
+        window: window_active(),
     }
 }
 
@@ -195,25 +213,40 @@ mod tests {
             "Meet - abc-defg-hij - Google Chrome",
             "Webex",
             "Microsoft Teams - Standup",
-            "OBS 30.0.0 - Profile: Untitled",
-            "AnyDesk",
-            "TeamViewer",
-            "Parsec",
         ] {
             assert!(is_meeting_title(title), "{title}");
         }
     }
 
     #[test]
-    fn ignores_ordinary_window_titles() {
+    fn ignores_ordinary_and_remote_window_titles() {
         for title in [
             "Zoom",
             "Meeting notes - Notepad",
             "Slack | general",
             "Microsoft Word",
+            "Jobs report",
+            "",
+            "OBS 30.0.0 - Profile: Untitled",
+            "AnyDesk",
+            "TeamViewer",
+            "Parsec",
+            "RustDesk",
         ] {
-            assert!(!is_meeting_title(title));
+            assert!(!is_meeting_title(title), "{title}");
         }
+    }
+
+    #[test]
+    fn meeting_policy_chooses_process_or_window_signals() {
+        assert!(meeting_decision("both", true, false));
+        assert!(meeting_decision("both", false, true));
+        assert!(!meeting_decision("both", false, false));
+        assert!(meeting_decision("process", true, false));
+        assert!(!meeting_decision("process", false, true));
+        assert!(meeting_decision("window", false, true));
+        assert!(!meeting_decision("window", true, false));
+        assert!(meeting_decision("unknown", true, false));
     }
 
     #[test]

@@ -216,9 +216,9 @@ export default function GeneralTab() {
                   value={shortcut.button}
                   onChange={(e) => void changeButton(e.target.value as MouseButton)}
                 >
-                  <option value="left">{t('Left', '왼쪽')}</option>
-                  <option value="right">{t('Right', '오른쪽')}</option>
-                  <option value="middle">{t('Middle', '가운데')}</option>
+                  <option value="left">{t('Left', '좌클릭')}</option>
+                  <option value="right">{t('Right', '우클릭')}</option>
+                  <option value="middle">{t('Middle', '휠클릭')}</option>
                 </Select>
               </div>
             )}
@@ -294,10 +294,10 @@ export default function GeneralTab() {
                   .map((button) => (
                     <option key={button} value={button}>
                       {button === 'left'
-                        ? t('Left', '왼쪽')
+                        ? t('Left', '좌클릭')
                         : button === 'right'
-                          ? t('Right', '오른쪽')
-                          : t('Middle', '가운데')}
+                          ? t('Right', '우클릭')
+                          : t('Middle', '휠클릭')}
                     </option>
                   ))}
               </Select>

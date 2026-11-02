@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, SectionTitle, Toggle } from '../../components/ui'
+import { Button, Card, SectionTitle, Select, Toggle } from '../../components/ui'
 import { useT } from '../../i18n'
 import {
   addDefenderExclusion,
   captureProtectionStatus,
   defenderExclusionStatus,
   guardEnabled,
+  meetingSignals,
   openTaskbarSettings,
   protectionStatus,
   repairGuard,
@@ -16,6 +17,7 @@ import {
   setHideFromTaskbar,
   type CaptureProtectionStatus,
   type DefenderExclusionStatus,
+  type MeetingSignals,
   type ProtectionStatus,
 } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
@@ -36,6 +38,7 @@ export default function SecurityTab() {
   const [defenderBusy, setDefenderBusy] = useState(false)
   const [defenderMessage, setDefenderMessage] = useState('')
   const [defenderStatus, setDefenderStatus] = useState<DefenderExclusionStatus | null>(null)
+  const [meetingState, setMeetingState] = useState<MeetingSignals | null>(null)
   const [adminMessage, setAdminMessage] = useState('')
   const [restartNeeded, setRestartNeeded] = useState(false)
 
@@ -82,8 +85,17 @@ export default function SecurityTab() {
     }
   }
 
+  const refreshMeetingSignals = async () => {
+    try {
+      setMeetingState(await meetingSignals())
+    } catch {
+      setMeetingState(null)
+    }
+  }
+
   useEffect(() => {
     void refreshGuard()
+    void refreshMeetingSignals()
     void autoRefreshSecurity(refreshProtection, refreshDefender)
   }, [])
 
@@ -319,6 +331,65 @@ export default function SecurityTab() {
           onChange={(v) => setStealth({ meetingSafe: v })}
           label={t('Meeting safe mode', '회의 안전 모드')}
         />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 pt-3">
+          <span className="text-sm text-zinc-300">
+            {t('Detection signal', '감지 기준')}
+          </span>
+          <Select
+            className="w-52"
+            aria-label={t('Detection signal', '감지 기준')}
+            value={stealth.meetingPolicy}
+            onChange={(e) => {
+              setStealth({
+                meetingPolicy: e.target.value as 'both' | 'window' | 'process',
+              })
+              void refreshMeetingSignals()
+            }}
+          >
+            <option value="both">{t('Process and window title', '프로세스 + 창 제목')}</option>
+            <option value="window">{t('Window title only', '창 제목만')}</option>
+            <option value="process">{t('Process only', '프로세스만')}</option>
+          </Select>
+        </div>
+        <p className="mt-2 text-xs text-zinc-500">
+          {t(
+            'Window title only reduces false positives from OBS, RDP and remote-desktop apps, but may miss a hidden meeting. Process only catches minimized meetings but also triggers when such an app is merely running.',
+            '창 제목만은 OBS·RDP·원격 데스크톱 앱의 오탐을 줄이지만 숨겨진 회의를 놓칠 수 있습니다. 프로세스만은 최소화된 회의를 잡지만 해당 앱이 실행 중이기만 해도 감지됩니다.',
+          )}
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs ${
+              meetingState?.process
+                ? 'bg-amber-500/15 text-amber-400'
+                : 'bg-zinc-800 text-zinc-400'
+            }`}
+          >
+            {t('Process', '프로세스')}:{' '}
+            {meetingState === null
+              ? t('checking', '확인 중')
+              : meetingState.process
+                ? t('detected', '감지')
+                : t('none', '없음')}
+          </span>
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs ${
+              meetingState?.window
+                ? 'bg-amber-500/15 text-amber-400'
+                : 'bg-zinc-800 text-zinc-400'
+            }`}
+          >
+            {t('Window', '창')}:{' '}
+            {meetingState === null
+              ? t('checking', '확인 중')
+              : meetingState.window
+                ? t('detected', '감지')
+                : t('none', '없음')}
+          </span>
+          <Button variant="secondary" onClick={() => void refreshMeetingSignals()}>
+            {t('Refresh signals', '감지 신호 새로고침')}
+          </Button>
+        </div>
         <p className="mt-2 text-xs text-zinc-500">
           {t(
             'When a meeting or screen-share app is detected, Cue hides the tray icon, overlay and flash, and uses only the keyboard LED and screen brightness. Detection checks running meeting/screen-share processes and window titles, so it is a heuristic and may miss some meetings or hide answers during unrelated activity. If LED and brightness are off, no answer is shown. Answer history is still recorded.',

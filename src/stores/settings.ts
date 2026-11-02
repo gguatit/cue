@@ -25,6 +25,7 @@ export type DisplayMode = 'tray' | 'overlay' | 'flash' | 'led' | 'brightness'
 export type LedKey = 'scroll' | 'caps' | 'num'
 export type AnswerLanguage = 'auto' | 'ko' | 'en'
 export type AnswerLevel = 'concise' | 'normal' | 'detailed'
+export type MeetingPolicy = 'both' | 'window' | 'process'
 
 export interface Settings {
   shortcut: { accelerator: string; display: string; click: boolean; button: MouseButton }
@@ -60,6 +61,7 @@ export interface Settings {
     skipTaskbar: boolean
     guard: boolean
     meetingSafe: boolean
+    meetingPolicy: MeetingPolicy
     admin: boolean
   }
   storage: { history: boolean; errors: boolean }
@@ -124,7 +126,7 @@ export const defaults: Settings = {
   },
   answer: { language: 'auto', level: 'normal' },
   privacy: { crop: false },
-  stealth: { contentProtection: true, skipTaskbar: true, guard: false, meetingSafe: true, admin: false },
+  stealth: { contentProtection: true, skipTaskbar: true, guard: false, meetingSafe: true, meetingPolicy: 'both', admin: false },
   storage: { history: true, errors: true },
   updates: { autoCheck: true },
   onboarded: false,
@@ -202,6 +204,11 @@ export function mergeSettings(persisted: unknown): Settings {
       skipTaskbar: bool(p.stealth?.skipTaskbar, defaults.stealth.skipTaskbar),
       guard: bool(p.stealth?.guard, defaults.stealth.guard),
       meetingSafe: bool(p.stealth?.meetingSafe, defaults.stealth.meetingSafe),
+      meetingPolicy: oneOf(
+        p.stealth?.meetingPolicy,
+        ['both', 'window', 'process'] as const,
+        defaults.stealth.meetingPolicy,
+      ),
       admin: bool(p.stealth?.admin, defaults.stealth.admin),
     },
     storage: {
@@ -309,7 +316,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 15,
+      version: 16,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

@@ -27,6 +27,7 @@ export type AnswerMode =
   | { kind: 'loading' }
   | { kind: 'answer'; answers: string[]; verification?: Verification }
   | { kind: 'text'; text: string }
+  | { kind: 'none'; reason: string }
   | { kind: 'error'; code: string }
 
 export interface LogEntry {
@@ -74,6 +75,7 @@ function isVerification(v: unknown): v is Verification {
     !!e &&
     typeof e === 'object' &&
     typeof e.matched === 'boolean' &&
+    (e.candidatesMatched === undefined || typeof e.candidatesMatched === 'boolean') &&
     Array.isArray(e.secondary) &&
     e.secondary.every((a) => typeof a === 'string') &&
     (e.error === undefined || typeof e.error === 'string')
@@ -135,7 +137,7 @@ async function hiddenByMeeting(): Promise<boolean> {
   if (!useSettings.getState().stealth.meetingSafe) return false
   if (useAnswer.getState().meetingHidden) return true
   try {
-    if (await meetingActive()) {
+    if (await meetingActive(useSettings.getState().stealth.meetingPolicy)) {
       useAnswer.setState({ meetingHidden: true })
       return true
     }
@@ -181,7 +183,7 @@ async function pollMeeting(): Promise<void> {
   }
   meetingPolling = true
   try {
-    const active = await meetingActive()
+    const active = await meetingActive(useSettings.getState().stealth.meetingPolicy)
     if (!useSettings.getState().stealth.meetingSafe) {
       if (useAnswer.getState().meetingHidden) await restoreMeetingDisplay()
       return
@@ -461,6 +463,11 @@ export const useAnswer = create<AnswerState>()((set, get) => {
         if (seq !== my) return
         const hidden = await hiddenByMeeting()
         if (seq !== my) return
+        if (result.kind === 'none') {
+          set({ mode: { kind: 'none', reason: result.reason } })
+          await setTrayIdle().catch(() => {})
+          return
+        }
         if (result.kind === 'text') {
           const text = result.text
           if (useSettings.getState().storage.history) {

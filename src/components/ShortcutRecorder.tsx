@@ -144,10 +144,10 @@ export default function ShortcutRecorder({ panic = false }: { panic?: boolean })
 
   const clickText =
     button === 'left'
-      ? t('Left click', '왼쪽 클릭')
+      ? t('Left click', '좌클릭')
       : button === 'right'
-        ? t('Right click', '오른쪽 클릭')
-        : t('Middle click', '가운데 클릭')
+        ? t('Right click', '우클릭')
+        : t('Middle click', '휠클릭')
 
   return (
     <div className="space-y-2">

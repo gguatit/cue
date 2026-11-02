@@ -164,6 +164,7 @@ fn main() {
             commands::hide_overlay,
             commands::hide_main,
             commands::meeting_active,
+            commands::meeting_signals,
             commands::copy_text,
             commands::blink_answer,
             commands::blink_brightness,

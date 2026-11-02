@@ -155,8 +155,14 @@ pub fn parse_answers(content: &str) -> Result<Vec<String>, ParseError> {
 pub struct Consensus {
     pub answers: Vec<String>,
     pub matched: bool,
+    pub candidates_matched: bool,
     pub secondary: Vec<String>,
     pub error: Option<String>,
+}
+
+fn same_candidates(primary: &[String], secondary: &[String]) -> bool {
+    primary.len() == secondary.len()
+        && primary.iter().all(|answer| secondary.contains(answer))
 }
 
 pub fn merge_consensus(
@@ -166,6 +172,7 @@ pub fn merge_consensus(
     match (primary, secondary) {
         (Ok(primary), Ok(secondary)) => Ok(Consensus {
             matched: primary.first() == secondary.first(),
+            candidates_matched: same_candidates(&primary, &secondary),
             answers: primary,
             secondary,
             error: None,
@@ -173,12 +180,14 @@ pub fn merge_consensus(
         (Ok(primary), Err(error)) => Ok(Consensus {
             answers: primary,
             matched: false,
+            candidates_matched: false,
             secondary: Vec::new(),
             error: Some(error),
         }),
         (Err(error), Ok(secondary)) => Ok(Consensus {
             answers: secondary,
             matched: false,
+            candidates_matched: false,
             secondary: Vec::new(),
             error: Some(error),
         }),
@@ -1008,17 +1017,36 @@ mod tests {
     fn consensus_reports_match_mismatch_and_fallback() {
         let matched = merge_consensus(Ok(vec!["B".into()]), Ok(vec!["B".into()])).unwrap();
         assert!(matched.matched);
+        assert!(matched.candidates_matched);
         assert_eq!(matched.answers, vec!["B"]);
         assert_eq!(matched.secondary, vec!["B"]);
         assert!(matched.error.is_none());
 
+        let top_only = merge_consensus(
+            Ok(vec!["A".into(), "B".into()]),
+            Ok(vec!["A".into(), "C".into()]),
+        )
+        .unwrap();
+        assert!(top_only.matched);
+        assert!(!top_only.candidates_matched);
+
+        let reordered = merge_consensus(
+            Ok(vec!["A".into(), "B".into()]),
+            Ok(vec!["B".into(), "A".into()]),
+        )
+        .unwrap();
+        assert!(!reordered.matched);
+        assert!(reordered.candidates_matched);
+
         let mismatch = merge_consensus(Ok(vec!["B".into()]), Ok(vec!["C".into()])).unwrap();
         assert!(!mismatch.matched);
+        assert!(!mismatch.candidates_matched);
         assert_eq!(mismatch.answers, vec!["B"]);
         assert_eq!(mismatch.secondary, vec!["C"]);
 
         let fallback = merge_consensus(Ok(vec!["B".into()]), Err("network".into())).unwrap();
         assert!(!fallback.matched);
+        assert!(!fallback.candidates_matched);
         assert_eq!(fallback.answers, vec!["B"]);
         assert_eq!(fallback.error.as_deref(), Some("network"));
 

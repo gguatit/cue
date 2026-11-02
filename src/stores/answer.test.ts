@@ -30,7 +30,7 @@ import {
   meetingActive,
   showOverlay,
 } from '../lib/tauri'
-import { setTrayAnswer, setTrayIdle, setTrayLoading, setTrayVisible } from '../lib/trayDisplay'
+import { setTrayAnswer, setTrayError, setTrayIdle, setTrayLoading, setTrayVisible } from '../lib/trayDisplay'
 import { startMeetingWatch, useAnswer } from './answer'
 import { defaults, useSettings } from './settings'
 
@@ -815,8 +815,19 @@ describe('answer store', () => {
     expect(useAnswer.getState().history[0]).toMatchObject({ answers: [], text: 'Explanation' })
   })
 
+  it('treats an empty answer as a neutral no-answer state', async () => {
+    vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'none', reason: 'empty' })
+
+    await useAnswer.getState().run(false)
+
+    expect(useAnswer.getState().mode).toEqual({ kind: 'none', reason: 'empty' })
+    expect(setTrayError).not.toHaveBeenCalled()
+    expect(useAnswer.getState().log).toEqual([])
+    expect(useAnswer.getState().history).toEqual([])
+  })
+
   it('shows and records a cross-check mismatch', async () => {
-    const verification = { matched: false, secondary: ['C'] }
+    const verification = { matched: false, candidatesMatched: false, secondary: ['C'] }
     vi.mocked(captureAndAnswer).mockResolvedValue({
       kind: 'choice',
       answers: ['B'],

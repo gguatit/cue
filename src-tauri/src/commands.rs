@@ -73,8 +73,10 @@ impl Drop for FlagGuard<'_> {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Verification {
     pub matched: bool,
+    pub candidates_matched: bool,
     pub secondary: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -90,6 +92,9 @@ pub enum AnswerPayload {
     },
     Text {
         text: String,
+    },
+    None {
+        reason: String,
     },
 }
 
@@ -146,7 +151,7 @@ pub async fn capture_and_answer(
         key: &key,
     };
     if mode == "free" {
-        let text = crate::ai::request_free(
+        return match crate::ai::request_free(
             &state.http,
             &provider,
             &cap,
@@ -155,8 +160,14 @@ pub async fn capture_and_answer(
             &language,
             &level,
         )
-        .await?;
-        return Ok(AnswerPayload::Text { text });
+        .await
+        {
+            Ok(text) => Ok(AnswerPayload::Text { text }),
+            Err(error) if error == "empty_text" => Ok(AnswerPayload::None {
+                reason: error,
+            }),
+            Err(error) => Err(error),
+        };
     }
     match answer_type.as_str() {
         "choice" => {
@@ -189,17 +200,24 @@ pub async fn capture_and_answer(
                         cap.img_h,
                     ),
                 );
-                let consensus = crate::ai::merge_consensus(primary, secondary)?;
+                let consensus = match crate::ai::merge_consensus(primary, secondary) {
+                    Ok(consensus) => consensus,
+                    Err(error) if error == "empty" => {
+                        return Ok(AnswerPayload::None { reason: error })
+                    }
+                    Err(error) => return Err(error),
+                };
                 return Ok(AnswerPayload::Choice {
                     answers: consensus.answers,
                     verification: Some(Verification {
                         matched: consensus.matched,
+                        candidates_matched: consensus.candidates_matched,
                         secondary: consensus.secondary,
                         error: consensus.error,
                     }),
                 });
             }
-            let answers = crate::ai::request_answers(
+            let answers = match crate::ai::request_answers(
                 &state.http,
                 &provider,
                 &cap.b64,
@@ -208,24 +226,35 @@ pub async fn capture_and_answer(
                 cap.img_w,
                 cap.img_h,
             )
-            .await?;
+            .await
+            {
+                Ok(answers) => answers,
+                Err(error) if error == "empty" => {
+                    return Ok(AnswerPayload::None { reason: error })
+                }
+                Err(error) => return Err(error),
+            };
             Ok(AnswerPayload::Choice {
                 answers,
                 verification: None,
             })
         }
-        "text" => {
-            let text = crate::ai::request_text(
-                &state.http,
-                &provider,
-                &cap,
-                paraphrase,
-                &language,
-                &level,
-            )
-            .await?;
-            Ok(AnswerPayload::Text { text })
-        }
+        "text" => match crate::ai::request_text(
+            &state.http,
+            &provider,
+            &cap,
+            paraphrase,
+            &language,
+            &level,
+        )
+        .await
+        {
+            Ok(text) => Ok(AnswerPayload::Text { text }),
+            Err(error) if error == "empty_text" => Ok(AnswerPayload::None {
+                reason: error,
+            }),
+            Err(error) => Err(error),
+        },
         _ => Err("config".into()),
     }
     };
@@ -326,10 +355,17 @@ pub fn hide_main(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
-pub async fn meeting_active() -> bool {
-    tauri::async_runtime::spawn_blocking(crate::meeting::meeting_active)
+pub async fn meeting_active(policy: String) -> bool {
+    tauri::async_runtime::spawn_blocking(move || crate::meeting::meeting_active(&policy))
         .await
         .unwrap_or(false)
+}
+
+#[tauri::command]
+pub async fn meeting_signals() -> crate::meeting::MeetingSignals {
+    tauri::async_runtime::spawn_blocking(crate::meeting::meeting_signals)
+        .await
+        .unwrap_or_default()
 }
 
 #[tauri::command]
@@ -1109,6 +1145,7 @@ mod tests {
             answers: vec!["B".to_string()],
             verification: Some(Verification {
                 matched: false,
+                candidates_matched: false,
                 secondary: vec!["C".to_string()],
                 error: None,
             }),
@@ -1118,8 +1155,19 @@ mod tests {
             serde_json::json!({
                 "kind": "choice",
                 "answers": ["B"],
-                "verification": { "matched": false, "secondary": ["C"] }
+                "verification": {
+                    "matched": false,
+                    "candidatesMatched": false,
+                    "secondary": ["C"]
+                }
             })
+        );
+        let none = AnswerPayload::None {
+            reason: "empty".to_string(),
+        };
+        assert_eq!(
+            serde_json::to_value(&none).unwrap(),
+            serde_json::json!({ "kind": "none", "reason": "empty" })
         );
         let text = AnswerPayload::Text {
             text: "설명형 답변".to_string(),

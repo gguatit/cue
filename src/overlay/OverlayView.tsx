@@ -12,8 +12,13 @@ interface Payload {
 function verificationLabel(verification: Verification | undefined, t: (en: string, ko: string) => string): string {
   if (!verification) return ''
   if (verification.error) return t('Check failed', '검증 실패')
-  if (verification.matched) return t('Models agree', '모델 일치')
-  return `${t('Models disagree', '모델 불일치')}: ${verification.secondary.join(', ')}`
+  if (!verification.matched) {
+    return `${t('Models disagree', '모델 불일치')}: ${verification.secondary.join(', ')}`
+  }
+  if (verification.candidatesMatched === false) {
+    return t('Top answer matches, alternates differ', '최상위 일치 · 후보 다름')
+  }
+  return t('Models agree', '모델 일치')
 }
 
 export default function OverlayView() {
