@@ -42,7 +42,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 
 ## 불변식
 
-- **보안/네트워크**: 내장 프리셋(opencode/OpenAI/Google/Anthropic)의 키와 캡처는 `ai.rs::validate_base_url` 덕분에 공식 엔드포인트로만 전송된다. 이 검증을 느슨하게 하거나 프리셋 base URL을 사용자 입력으로 덮어쓰게 만들지 말 것. 커스텀 URL은 HTTPS 또는 루프백 HTTP만 허용하고, HTTP 클라이언트는 리다이렉트를 추적하지 않는다(`commands.rs`). 모델 목록 URL 예외는 `models.rs`. 서버·계정·텔레메트리·분석 호출을 추가하지 말 것. API 키는 keyring에만 저장하고 로그·설정 내보내기에 포함하지 말 것.
+- **보안/네트워크**: 내장 프리셋(opencode/OpenAI/Google/Anthropic)의 키와 캡처는 `ai.rs::validate_base_url` 덕분에 공식 엔드포인트로만 전송된다. 이 검증을 느슨하게 하거나 프리셋 base URL을 사용자 입력으로 덮어쓰게 만들지 말 것. 커스텀 URL은 HTTPS 또는 루프백 HTTP만 허용하고, HTTP 클라이언트는 리다이렉트를 추적하지 않는다(`commands.rs`). 모델 목록 URL 예외는 `models.rs`. 키 없는 요청은 `custom` + 루프백 URL에만 허용하고(`ai.rs::key_may_be_empty`), 원격 HTTPS·내장 프리셋에 빈 키를 허용하지 말 것. 서버·계정·텔레메트리·분석 호출을 추가하지 말 것. API 키는 keyring에만 저장하고 로그·설정 내보내기에 포함하지 말 것.
 - **AI 요청**: OpenCode/Anthropic 네이티브 엔드포인트는 `temperature`를 거부한다. 요청 바디에 넣지 말 것. `extraJson`은 `temperature`, `model`, `messages`, `input`, `contents`, `stream`을 덮어쓸 수 없다(`ai.rs::merge_extra`).
 - **캡처**: 커서가 있는 모니터만, 장변 1920 이하로 축소하고 커서 좌표도 같은 비율로 변환한다. 크롭은 1600×1000, `capture_in_flight`로 중복 실행을 막는다. 픽셀 상한은 40M(`capture::capture_fits`), GDI 비트맵은 `GetDIBits` 전에 DC에서 선택 해제한다.
 - **오버레이 DPI**: 배지/텍스트 크기는 창의 `scale_factor`가 아니라 대상 모니터의 DPI(`windows::monitor_scale`)로 계산한다.
@@ -74,6 +74,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 업데이트 변경: `updates.rs` + `commands.rs` + `main.rs` 등록 + `src/lib/tauri.ts` 래퍼 + `src/stores/updates.ts`. `npm run check`, `npm test`, `cargo test` 후 서명 빌드로 `.sig`/`latest.json` 확인.
 - 자유 모드/교차 검증 변경: `settings.ts` v16, `shortcut.rs`의 free 버튼, `ai.rs`의 free prompt/consensus, `commands.rs`의 mode/consensus 인자, `answer.ts`의 텍스트/검증 표시, `OverlayView.tsx`의 일치 배지를 함께 확인. README의 **자유 모드 추천 지시문**도 유지한다.
 - 회의 감지 변경: `settings.ts`의 `stealth.meetingPolicy`, `meeting.rs`의 process/window 신호, `commands.rs`의 `meeting_active`/`meeting_signals`, `SecurityTab.tsx`의 선택·신호 표시를 함께 확인한다.
+- 로컬 LLM 변경: `ai.rs::key_may_be_empty`, `commands.rs::provider_key`, `api_headers`/`models.rs`의 빈 키 처리, AI 탭의 Ollama/LM Studio 버튼을 함께 확인한다.
 - 변경 후: `npm run check`, `npm test`, (Rust) `cargo test`; 릴리스는 `npm run tauri build`.
 - 빌드 산출물: 최신 릴리스만 `src-tauri/target/release/`와 `artifacts/`에 두고, `artifacts/`에는 `Cue_<version>_x64-setup.exe`, `cue.exe`, `SHA256.txt`만 유지한다.
 
@@ -86,7 +87,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.1.17**.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.1.18**.
 - 릴리스는 GitHub Actions 없이 수동으로 진행한다.
   1. `npm run check`, `npm test`, Rust 변경 시 `cargo test`.
   2. 서명 키 환경 변수를 설정하고 `npm run tauri build`.
@@ -98,12 +99,12 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 첫 업데이터 릴리스(0.1.2)는 0.1.0/0.1.1 사용자가 한 번 직접 설치해야 한다. 이후 버전은 설정 → 정보에서 자동으로 확인·설치할 수 있다.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.1.17 코드 검증: `npm run check`, `npm test`(184), `cargo test`(144). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
+- 0.1.18 코드 검증: `npm run check`, `npm test`(186), `cargo test`(147). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
 - README의 시험 규정·제재 경고는 의도된 내용이므로 삭제하거나 약화하지 말 것.
 - 워치독·관리자 모드·회의 감지·LED/밝기·언인스톨은 헤드리스로 검증 불가. 릴리스 전 수동으로 확인한다.
 - NSIS는 perMachine, WebView2 offline installer, `windows/hooks.nsh`를 쓴다. 설치/제거 경로를 바꾸면 수동으로 확인한다.
-- 리소스 최적화: 회의 감지 프로세스 스냅샷은 3초 캐시, 보안 탭의 Defender·보호 상태는 탭을 열 때 자동 조회(주기적 폴링 없음), WebView2 `BROWSER_ARGS`의 백그라운드 네트워킹 차단, guard는 실행 파일 이름으로 먼저 필터링, 캡처는 CatmullRom 리사이즈, 오버레이는 첫 표시 때 지연 생성하되 오버레이가 필요한 설정에서만 단축키 보조키 입력 시 prewarm한다.
+- 리소스 최적화: 회의 감지 프로세스 스냅샷은 3초 캐시, 포그라운드 창은 매 poll·전체 창 열거는 2초 간격, 보안 탭의 Defender·보호 상태는 탭을 열 때 자동 조회(주기적 폴링 없음), WebView2 `BROWSER_ARGS`의 백그라운드 네트워킹 차단, guard는 실행 파일 이름으로 먼저 필터링, 캡처는 CatmullRom 리사이즈, 오버레이는 첫 표시 때 지연 생성하되 오버레이가 필요한 설정에서만 단축키 보조키 입력 시 prewarm한다. 오버레이/설정 탭은 지연 로드 청크로 분리되어 있다.
 
 ## 알려진 함정
 
