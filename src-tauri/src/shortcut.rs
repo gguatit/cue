@@ -129,6 +129,7 @@ pub struct HookCtx {
     pub answer_button: AtomicU8,
     pub free_enabled: AtomicBool,
     pub free_button: AtomicU8,
+    pub prewarm_enabled: AtomicBool,
     pub mouse_hook_installed: AtomicBool,
 }
 
@@ -142,6 +143,7 @@ static PANIC_KEY_LATCH: AtomicBool = AtomicBool::new(false);
 static SUPPRESS: AtomicU32 = AtomicU32::new(0);
 static MOUSE_LATCH: AtomicBool = AtomicBool::new(false);
 static MOUSE_SUPPRESS: AtomicU8 = AtomicU8::new(0);
+static PREWARM_LATCH: AtomicBool = AtomicBool::new(false);
 
 pub fn install(app: &AppHandle, spec: ShortcutSpec) {
     let ctx = CTX.get_or_init(|| HookCtx {
@@ -155,6 +157,7 @@ pub fn install(app: &AppHandle, spec: ShortcutSpec) {
         answer_button: AtomicU8::new(MouseButton::Left.code()),
         free_enabled: AtomicBool::new(false),
         free_button: AtomicU8::new(MouseButton::Right.code()),
+        prewarm_enabled: AtomicBool::new(false),
         mouse_hook_installed: AtomicBool::new(false),
     });
     if let Ok(mut g) = ctx.spec.lock() {
@@ -202,6 +205,7 @@ pub fn set_spec(accel: &str, click: bool, button: &str) -> Result<(), String> {
     }
     let mut g = ctx.spec.lock().map_err(|_| "shortcut")?;
     *g = Some(spec);
+    PREWARM_LATCH.store(false, Ordering::Relaxed);
     ctx.answer_click.store(click, Ordering::Relaxed);
     ctx.answer_button.store(button.code(), Ordering::Relaxed);
     let free_button = MouseButton::from_code(ctx.free_button.load(Ordering::Relaxed))
@@ -211,6 +215,12 @@ pub fn set_spec(accel: &str, click: bool, button: &str) -> Result<(), String> {
     {
         ctx.free_enabled.store(false, Ordering::Relaxed);
     }
+    Ok(())
+}
+
+pub fn set_prewarm(enabled: bool) -> Result<(), String> {
+    let ctx = CTX.get().ok_or("shortcut")?;
+    ctx.prewarm_enabled.store(enabled, Ordering::Relaxed);
     Ok(())
 }
 
@@ -274,6 +284,7 @@ pub fn set_recording(recording: bool) {
             SUPPRESS.store(0, Ordering::Relaxed);
             MOUSE_LATCH.store(false, Ordering::Relaxed);
             MOUSE_SUPPRESS.store(0, Ordering::Relaxed);
+            PREWARM_LATCH.store(false, Ordering::Relaxed);
         }
     }
 }
@@ -354,6 +365,25 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                             }
                         }
                     }
+                    if !fired && ctx.answer_click.load(Ordering::Relaxed) {
+                        if let Ok(guard) = ctx.spec.try_lock() {
+                            if let Some(spec) = *guard {
+                                if should_prewarm(
+                                    spec,
+                                    true,
+                                    ctx.prewarm_enabled.load(Ordering::Relaxed),
+                                    mods,
+                                    down,
+                                ) {
+                                    if !PREWARM_LATCH.swap(true, Ordering::Relaxed) {
+                                        prewarm_overlay(ctx);
+                                    }
+                                } else if mods != spec.mods {
+                                    PREWARM_LATCH.store(false, Ordering::Relaxed);
+                                }
+                            }
+                        }
+                    }
                     if !fired && !ctx.answer_click.load(Ordering::Relaxed) {
                         if let Ok(guard) = ctx.spec.try_lock() {
                             if let Some(spec) = *guard {
@@ -396,6 +426,16 @@ fn can_enable_free(
     free_button: MouseButton,
 ) -> bool {
     click && spec.key.is_none() && answer_button != free_button
+}
+
+fn should_prewarm(
+    spec: ShortcutSpec,
+    click: bool,
+    enabled: bool,
+    mods: u8,
+    down: bool,
+) -> bool {
+    enabled && click && down && spec.key.is_none() && mods == spec.mods
 }
 
 fn should_fire_on_mouse(
@@ -501,6 +541,14 @@ fn check_spec(
             false
         }
     }
+}
+
+fn prewarm_overlay(ctx: &HookCtx) {
+    let app = ctx.app.clone();
+    let overlay_app = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        let _ = crate::commands::ensure_overlay(&overlay_app);
+    });
 }
 
 fn fire(ctx: &HookCtx, free: bool) {
@@ -656,6 +704,18 @@ mod tests {
             true,
             MOD_CTRL | MOD_ALT
         ));
+    }
+
+    #[test]
+    fn prewarm_only_for_click_modifier_specs_when_mods_match() {
+        let spec = ShortcutSpec::parse("Control+Alt").unwrap();
+        assert!(should_prewarm(spec, true, true, MOD_CTRL | MOD_ALT, true));
+        assert!(!should_prewarm(spec, true, false, MOD_CTRL | MOD_ALT, true));
+        assert!(!should_prewarm(spec, false, true, MOD_CTRL | MOD_ALT, true));
+        assert!(!should_prewarm(spec, true, true, MOD_CTRL, true));
+        assert!(!should_prewarm(spec, true, true, MOD_CTRL | MOD_ALT, false));
+        let keyed = ShortcutSpec::parse("Control+Alt+Q").unwrap();
+        assert!(!should_prewarm(keyed, true, true, MOD_CTRL | MOD_ALT, true));
     }
 
     #[test]

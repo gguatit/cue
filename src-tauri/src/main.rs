@@ -154,6 +154,7 @@ fn main() {
             commands::set_tray_menu_labels,
             commands::set_shortcut,
             commands::set_free_shortcut,
+            commands::set_overlay_prewarm,
             commands::set_panic_shortcut,
             commands::set_shortcut_recording,
             commands::shortcut_installed,

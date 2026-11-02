@@ -6,6 +6,7 @@ import {
   setFreeShortcut,
   setGuard,
   setHideFromTaskbar,
+  setOverlayPrewarm,
   setPanicShortcut,
   setShortcut,
   setTrayMenuLabels,
@@ -20,6 +21,10 @@ import { useUi } from '../stores/ui'
 export async function applyTrayMenuLabels(): Promise<void> {
   const l = trayMenuLabels()
   await setTrayMenuLabels(l.open, l.help, l.last, l.copy, l.clear, l.quit).catch(() => {})
+}
+
+function wantsOverlayPrewarm(s: ReturnType<typeof useSettings.getState>): boolean {
+  return s.display.overlay || s.display.flash || s.provider.answerType === 'text' || s.free.enabled
 }
 
 export async function runStartup(): Promise<void> {
@@ -66,9 +71,19 @@ export async function runStartup(): Promise<void> {
   await setFreeShortcut(s.free.enabled, s.free.button).catch(() =>
     useAnswer.getState().logError('shortcut'),
   )
+  await setOverlayPrewarm(wantsOverlayPrewarm(s)).catch(() =>
+    useAnswer.getState().logError('shortcut'),
+  )
   await setPanicShortcut(s.panic.accelerator).catch(() =>
     useAnswer.getState().logError('shortcut'),
   )
   const installed = await shortcutInstalled().catch(() => true)
   if (!installed) await useAnswer.getState().logError('shortcut')
 }
+
+useSettings.subscribe((state, prev) => {
+  if (!isTauri()) return
+  const next = wantsOverlayPrewarm(state)
+  if (next === wantsOverlayPrewarm(prev)) return
+  void setOverlayPrewarm(next).catch(() => {})
+})

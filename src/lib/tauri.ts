@@ -3,7 +3,8 @@ import { listen } from '@tauri-apps/api/event'
 import type { AnswerLanguage, AnswerLevel } from '../stores/settings'
 import type { MouseButton } from './shortcutKeys'
 
-export const isTauri = (): boolean => '__TAURI_INTERNALS__' in window
+export const isTauri = (): boolean =>
+  typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
 export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (!isTauri()) return Promise.reject('network')
@@ -44,6 +45,8 @@ export const setShortcut = (accelerator: string, click: boolean, button: MouseBu
   invoke<void>('set_shortcut', { accelerator, click, button })
 export const setFreeShortcut = (enabled: boolean, button: MouseButton) =>
   invoke<void>('set_free_shortcut', { enabled, button })
+export const setOverlayPrewarm = (enabled: boolean) =>
+  invoke<void>('set_overlay_prewarm', { enabled })
 export const setPanicShortcut = (accelerator: string) =>
   invoke<void>('set_panic_shortcut', { accelerator })
 export const setShortcutRecording = (recording: boolean) => invoke<void>('set_shortcut_recording', { recording })

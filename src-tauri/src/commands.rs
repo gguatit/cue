@@ -155,9 +155,11 @@ pub async fn capture_and_answer(
     crate::ai::validate_base_url(&preset, &base_url)?;
     let key = crate::secrets::get_key(&preset)?.ok_or("no_key".to_string())?;
     if prepare_overlay {
-        // Create the overlay while capture and AI are running so its listener
-        // is ready before the first answer is displayed.
-        let _ = ensure_overlay(&app);
+        // Create the overlay on the main thread without blocking capture/AI.
+        let overlay_app = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            let _ = ensure_overlay(&overlay_app);
+        });
     }
     let (cap, cursor) = tauri::async_runtime::spawn_blocking(move || {
         let (buf, w, h, cursor, mon) = crate::capture::raw_capture()?;
@@ -294,9 +296,11 @@ pub async fn capture_and_answer(
 }
 
 static OVERLAY_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static OVERLAY_CREATE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-fn ensure_overlay(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, String> {
+pub(crate) fn ensure_overlay(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, String> {
     use tauri::Manager;
+    let _guard = OVERLAY_CREATE_LOCK.lock().map_err(|_| "capture")?;
     if let Some(window) = app.get_webview_window("overlay") {
         return Ok(window);
     }
@@ -612,6 +616,11 @@ pub fn set_shortcut(accelerator: String, click: bool, button: String) -> Result<
 #[tauri::command]
 pub fn set_free_shortcut(enabled: bool, button: String) -> Result<(), String> {
     crate::shortcut::set_free(enabled, &button)
+}
+
+#[tauri::command]
+pub fn set_overlay_prewarm(enabled: bool) -> Result<(), String> {
+    crate::shortcut::set_prewarm(enabled)
 }
 
 #[tauri::command]
