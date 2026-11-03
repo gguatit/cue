@@ -144,10 +144,6 @@ struct GestureDetector {
 }
 
 impl GestureDetector {
-    fn new() -> Self {
-        Self::default()
-    }
-
     fn reset(&mut self) {
         *self = Self::default();
     }
@@ -1142,7 +1138,7 @@ mod tests {
     #[test]
     fn hold_gesture_needs_the_full_duration_and_no_movement() {
         let cfg = mouse_config("hold");
-        let mut d = GestureDetector::new();
+        let mut d = GestureDetector::default();
 
         assert_eq!(d.on_down(0, (0, 0), &cfg), Some(GestureSignal::HoldStart));
         assert_eq!(d.on_up(799, (0, 0), &cfg), Some(GestureSignal::HoldCancel));
@@ -1158,7 +1154,7 @@ mod tests {
     #[test]
     fn hold_cooldown_blocks_an_immediate_second_trigger() {
         let cfg = mouse_config("hold");
-        let mut d = GestureDetector::new();
+        let mut d = GestureDetector::default();
         assert_eq!(d.on_down(0, (0, 0), &cfg), Some(GestureSignal::HoldStart));
         assert_eq!(d.on_up(800, (0, 0), &cfg), Some(GestureSignal::HoldTrigger));
         assert_eq!(d.on_down(900, (0, 0), &cfg), None);
@@ -1168,7 +1164,7 @@ mod tests {
     #[test]
     fn shake_gesture_counts_direction_reversals() {
         let cfg = mouse_config("shake");
-        let mut d = GestureDetector::new();
+        let mut d = GestureDetector::default();
         assert_eq!(d.on_move(0, (0, 0), &cfg), None);
         assert_eq!(d.on_move(10, (20, 0), &cfg), None);
         assert_eq!(
@@ -1201,7 +1197,7 @@ mod tests {
     #[test]
     fn shake_gesture_ignores_jitter_and_expires_slow_sequences() {
         let cfg = mouse_config("shake");
-        let mut d = GestureDetector::new();
+        let mut d = GestureDetector::default();
         d.on_move(0, (0, 0), &cfg);
         d.on_move(10, (20, 0), &cfg);
         assert_eq!(d.on_move(20, (22, 0), &cfg), None);
