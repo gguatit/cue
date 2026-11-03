@@ -216,7 +216,7 @@ export default function GeneralTab() {
             />
             {shortcut.click && (
               <div className="flex items-center justify-between gap-3 px-1">
-                <span className="text-sm text-zinc-300">{t('Mouse button', '마우스 버튼')}</span>
+                <span className="shrink-0 whitespace-nowrap text-sm text-zinc-300">{t('Mouse button', '마우스 버튼')}</span>
                 <Select
                   className="w-36"
                   aria-label={t('Mouse button', '마우스 버튼')}
@@ -290,7 +290,7 @@ export default function GeneralTab() {
         {free.enabled && (
           <>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-zinc-300">{t('Free mode button', '자유 모드 버튼')}</span>
+              <span className="shrink-0 whitespace-nowrap text-sm text-zinc-300">{t('Free mode button', '자유 모드 버튼')}</span>
               <Select
                 className="w-36"
                 aria-label={t('Free mode button', '자유 모드 버튼')}

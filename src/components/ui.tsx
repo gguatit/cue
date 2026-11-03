@@ -6,14 +6,16 @@ import type {
 } from 'react'
 
 const fieldClass =
-  'w-full rounded-lg border border-zinc-700/80 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 transition-colors placeholder:text-zinc-600 focus:border-accent focus:outline-none'
+  'w-full rounded-[10px] border border-separator/80 bg-surface-2 px-3 py-2 text-[13px] text-ink transition-colors placeholder:text-ink-3 focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50'
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger'
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  primary: 'bg-accent text-zinc-950 hover:bg-accent-strong',
-  secondary: 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700',
-  danger: 'border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20',
+  primary: 'bg-accent text-black hover:bg-accent-strong active:scale-[0.98]',
+  secondary:
+    'bg-surface-2 text-ink ring-1 ring-white/[0.06] hover:bg-surface-3 active:scale-[0.98]',
+  danger:
+    'bg-danger/10 text-danger ring-1 ring-danger/20 hover:bg-danger/15 active:scale-[0.98]',
 }
 
 export function Button({
@@ -23,7 +25,7 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
   return (
     <button
-      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40 ${BUTTON_STYLES[variant]} ${className}`}
+      className={`inline-flex h-8 items-center justify-center rounded-[9px] px-3 text-[13px] font-medium transition-[background-color,box-shadow,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40 ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}
     />
   )
@@ -31,14 +33,18 @@ export function Button({
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-xl border border-zinc-800 bg-surface p-4 ${className}`}>
+    <section className={`rounded-[14px] bg-surface p-4 ring-1 ring-white/[0.05] ${className}`}>
       {children}
     </section>
   )
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
-  return <h2 className="mb-3 text-xs font-semibold tracking-wide text-zinc-500">{children}</h2>
+  return (
+    <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+      {children}
+    </h2>
+  )
 }
 
 export function Toggle({
@@ -61,20 +67,22 @@ export function Toggle({
       aria-checked={checked}
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
-      className="flex w-full items-center justify-between gap-4 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-zinc-800/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex w-full items-center justify-between gap-4 rounded-[10px] px-2 py-2.5 text-left transition-colors hover:bg-white/[0.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
     >
       <span className="min-w-0">
-        <span className="block text-sm text-zinc-100">{label}</span>
-        {hint && <span className="mt-0.5 block text-xs text-zinc-500">{hint}</span>}
+        <span className="block text-[13px] font-medium text-ink">{label}</span>
+        {hint && (
+          <span className="mt-0.5 block text-[11.5px] leading-relaxed text-ink-3">{hint}</span>
+        )}
       </span>
       <span
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-          checked ? 'bg-accent' : 'bg-zinc-700'
+        className={`relative h-[26px] w-[44px] shrink-0 rounded-full border transition-colors duration-150 ${
+          checked ? 'border-accent bg-accent' : 'border-white/10 bg-surface-3'
         }`}
       >
         <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-            checked ? 'translate-x-[22px]' : 'translate-x-0.5'
+          className={`absolute top-[3px] h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-150 ${
+            checked ? 'translate-x-[21px]' : 'translate-x-[3px]'
           }`}
         />
       </span>
@@ -91,7 +99,7 @@ export function Field({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="block text-sm text-zinc-300">{label}</span>
+      <span className="block text-[12px] font-medium text-ink-2">{label}</span>
       {children}
     </label>
   )

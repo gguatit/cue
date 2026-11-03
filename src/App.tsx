@@ -27,7 +27,7 @@ export default function App() {
     )
   }
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#111113]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-bg" />}>
       {onboarded ? <SettingsHome /> : <Onboarding />}
     </Suspense>
   )
