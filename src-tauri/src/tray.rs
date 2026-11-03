@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -5,6 +7,21 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::commands::{promote_tray_icon_once, AppState, MenuHandles};
 use crate::windows;
+
+pub fn refresh_visibility(app: &AppHandle) {
+    let Some(state) = app.try_state::<AppState>() else {
+        return;
+    };
+    if !state.tray_visible.load(Ordering::Relaxed) {
+        return;
+    }
+    let Ok(guard) = state.tray.lock() else {
+        return;
+    };
+    if let Some(tray) = guard.as_ref() {
+        let _ = tray.set_visible(true);
+    }
+}
 
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
     let open = MenuItemBuilder::with_id("open", "Open").build(app)?;

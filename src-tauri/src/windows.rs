@@ -217,6 +217,9 @@ pub fn show_main(app: &AppHandle) {
     let _ = app.emit("main-shown", ());
     // Panic clearing hides the tray; opening the window must bring it back.
     if let Some(state) = app.try_state::<crate::commands::AppState>() {
+        state
+            .tray_visible
+            .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(guard) = state.tray.lock() {
             if let Some(tray) = guard.as_ref() {
                 let _ = tray.set_visible(true);

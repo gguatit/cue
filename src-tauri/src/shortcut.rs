@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU32, AtomicU8, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
@@ -7,9 +7,10 @@ use windows::core::Error;
 use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, HHOOK, KBDLLHOOKSTRUCT, MSLLHOOKSTRUCT, SetWindowsHookExW, WH_KEYBOARD_LL,
-    WH_MOUSE_LL, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN,
-    WM_MBUTTONUP, WM_MOUSEMOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    CallNextHookEx, HHOOK, KBDLLHOOKSTRUCT, MSLLHOOKSTRUCT, SetWindowsHookExW,
+    UnhookWindowsHookEx, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN,
+    WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_RBUTTONDOWN, WM_RBUTTONUP,
+    WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 pub const MOD_CTRL: u8 = 1;
@@ -364,6 +365,8 @@ pub struct HookCtx {
     pub free_button: AtomicU8,
     pub prewarm_enabled: AtomicBool,
     pub mouse_hook_installed: AtomicBool,
+    keyboard_hook: AtomicIsize,
+    mouse_hook: AtomicIsize,
     mouse: Mutex<MouseRuntime>,
     gesture_test: AtomicBool,
     started: Instant,
@@ -395,6 +398,8 @@ pub fn install(app: &AppHandle, spec: ShortcutSpec) {
         free_button: AtomicU8::new(MouseButton::Right.code()),
         prewarm_enabled: AtomicBool::new(false),
         mouse_hook_installed: AtomicBool::new(false),
+        keyboard_hook: AtomicIsize::new(0),
+        mouse_hook: AtomicIsize::new(0),
         mouse: Mutex::new(MouseRuntime::default()),
         gesture_test: AtomicBool::new(false),
         started: Instant::now(),
@@ -404,6 +409,9 @@ pub fn install(app: &AppHandle, spec: ShortcutSpec) {
     }
     let hmod = unsafe { GetModuleHandleW(None) }.ok().map(Into::into);
     let hook = unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook_proc), hmod, 0) };
+    if let Ok(handle) = &hook {
+        ctx.keyboard_hook.store(handle.0 as isize, Ordering::Relaxed);
+    }
     ctx.hook_installed
         .store(hook_install_ok(&hook), Ordering::Relaxed);
     ensure_mouse_hook(ctx);
@@ -415,9 +423,68 @@ fn ensure_mouse_hook(ctx: &HookCtx) -> bool {
     }
     let hmod = unsafe { GetModuleHandleW(None) }.ok().map(Into::into);
     let hook = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_hook_proc), hmod, 0) };
+    if let Ok(handle) = &hook {
+        ctx.mouse_hook.store(handle.0 as isize, Ordering::Relaxed);
+    }
     let ok = hook_install_ok(&hook);
     ctx.mouse_hook_installed.store(ok, Ordering::Relaxed);
     ok
+}
+
+fn unhook(handle: &AtomicIsize) {
+    let value = handle.swap(0, Ordering::SeqCst);
+    if value != 0 {
+        unsafe {
+            let _ = UnhookWindowsHookEx(HHOOK(value as *mut std::ffi::c_void));
+        }
+    }
+}
+
+pub fn refresh_hooks() {
+    let Some(ctx) = CTX.get() else {
+        return;
+    };
+    let Ok(_settings) = ctx.settings.lock() else {
+        return;
+    };
+
+    let hmod = unsafe { GetModuleHandleW(None) }.ok().map(Into::into);
+    if let Ok(hook) = unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook_proc), hmod, 0) } {
+        let old = ctx.keyboard_hook.swap(hook.0 as isize, Ordering::SeqCst);
+        if old != 0 {
+            unsafe {
+                let _ = UnhookWindowsHookEx(HHOOK(old as *mut _));
+            }
+        }
+        ctx.hook_installed.store(true, Ordering::Relaxed);
+    } else if ctx.keyboard_hook.load(Ordering::Relaxed) == 0 {
+        ctx.hook_installed.store(false, Ordering::Relaxed);
+    }
+
+    let needs_mouse = ctx.answer_click.load(Ordering::Relaxed)
+        || ctx.free_enabled.load(Ordering::Relaxed)
+        || ctx
+            .mouse
+            .lock()
+            .map(|mouse| mouse.config.mode != crate::shortcut::MouseTriggerMode::Off)
+            .unwrap_or(false);
+    if !needs_mouse {
+        unhook(&ctx.mouse_hook);
+        ctx.mouse_hook_installed.store(false, Ordering::Relaxed);
+        return;
+    }
+    let hmod = unsafe { GetModuleHandleW(None) }.ok().map(Into::into);
+    if let Ok(hook) = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_hook_proc), hmod, 0) } {
+        let old = ctx.mouse_hook.swap(hook.0 as isize, Ordering::SeqCst);
+        if old != 0 {
+            unsafe {
+                let _ = UnhookWindowsHookEx(HHOOK(old as *mut _));
+            }
+        }
+        ctx.mouse_hook_installed.store(true, Ordering::Relaxed);
+    } else if ctx.mouse_hook.load(Ordering::Relaxed) == 0 {
+        ctx.mouse_hook_installed.store(false, Ordering::Relaxed);
+    }
 }
 
 fn hook_install_ok(result: &Result<HHOOK, Error>) -> bool {

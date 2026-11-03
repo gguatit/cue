@@ -13,6 +13,7 @@ pub struct AppState {
     pub cancel: tokio::sync::watch::Sender<u64>,
     pub content_protection: AtomicBool,
     pub overlay_state: Mutex<OverlayDelivery>,
+    pub tray_visible: AtomicBool,
 }
 
 #[derive(Default)]
@@ -37,6 +38,7 @@ impl Default for AppState {
             cancel,
             content_protection: AtomicBool::new(true),
             overlay_state: Mutex::new(OverlayDelivery::default()),
+            tray_visible: AtomicBool::new(true),
         }
     }
 }
@@ -690,6 +692,7 @@ pub fn set_tray_icons(state: State<'_, AppState>, icons: Vec<TrayIconSpec>) -> R
 
 #[tauri::command]
 pub fn set_tray_visible(state: State<'_, AppState>, visible: bool) -> Result<(), String> {
+    state.tray_visible.store(visible, Ordering::Relaxed);
     let guard = state.tray.lock().map_err(|_| "tray")?;
     let tray = guard.as_ref().ok_or("tray")?;
     tray.set_visible(visible).map_err(|_| "tray")?;

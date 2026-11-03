@@ -266,6 +266,12 @@ fn main() {
                 watch_guard(exe);
             }
             std::thread::spawn(crate::updates::cleanup_temp_installers);
+            let hook_handle = handle.clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_secs(60));
+                shortcut::refresh_hooks();
+                tray::refresh_visibility(&hook_handle);
+            });
             Ok(())
         })
         .build(tauri::generate_context!())
