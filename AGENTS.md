@@ -79,6 +79,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 로컬 LLM 변경: `ai.rs::key_may_be_empty`, `commands.rs::provider_key`, `api_headers`/`models.rs`의 빈 키 처리, AI 탭의 Ollama/LM Studio 버튼을 함께 확인한다.
 - 변경 후: `npm run check`, `npm test`, (Rust) `cargo test`; 릴리스는 `npm run tauri build`.
 - 빌드 산출물: 최신 릴리스만 `src-tauri/target/release/`와 `artifacts/`에 두고, `artifacts/`에는 `Cue_<version>_x64-setup.exe`, `cue.exe`, `SHA256.txt`만 유지한다.
+- 프로젝트 용량: `src-tauri/target/**/*.pdb`(디버그 심볼, 빌드 캐시 아님), 중복된 `target/release/bundle` 설치 파일, `dist/`, `site/dist/`, `.playwright-mcp/`, 오래된 스크린샷·임시 로그를 정리한다. `target/debug`의 deps/build/.fingerprint/incremental, `target/release/deps/build/.fingerprint`, `node_modules`, `site/node_modules`, Cargo/npm 캐시는 빌드 캐시이므로 유지한다.
 
 ## 검증 원칙
 
