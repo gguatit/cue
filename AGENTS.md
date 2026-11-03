@@ -36,7 +36,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - Rust (`src-tauri/src/`): `main.rs`(CLI 모드 `--background`, `--elevated`, `--guard`, `--system`, `--service`, `--admin-setup`, `--admin-prepare`, `--admin-teardown`, single-instance, setup), `commands.rs`(invoke 커맨드·`AppState`·HTTP 클라이언트), `updates.rs`(GitHub Releases 업데이트 확인·다운로드·서명 설치), `ai.rs`(프롬프트·프리셋/API 라우팅·base URL 검증·HTTP·파싱·재시도), `capture.rs`(GDI 캡처·커서 모니터·축소·크롭), `shortcut.rs`(저수준 키보드 훅, Tauri 플러그인 아님), `guard.rs`/`elevation.rs`(워치독·예약 작업·서비스·UAC·ProgramData 상태), `windows.rs`(main/overlay 창·DPI·스텔스·캡처 보호), `tray.rs`, `meeting.rs`, `led.rs`, `brightness.rs`, `models.rs`, `secrets.rs`.
 - Frontend: `src/lib/tauri.ts`의 래퍼로만 invoke한다(컴포넌트 직접 invoke 금지). `src/App.tsx`가 main/overlay를 label로 분기. 설정 탭은 `src/views/settings/*`, 오버레이는 `src/overlay/*`.
 - 홍보 사이트: `site/` 별도 Vite + React 19 + Tailwind v4 + shadcn/ui 프로젝트. Cloudflare Worker `cue-site`의 static assets로 배포한다(`cd site; npm run deploy`). 사이트는 `https://cue.neikos.kr`이며 시험 규정 경고를 유지한다.
-- 저장소: 설정은 zustand persist `cue-settings`(`src/stores/settings.ts`, `version: 19`, `mergeSettings`). 자유 모드(`free`), 마우스 전용 트리거(`mouse`: hold/shake, ms/px 값), 교차 검증(`provider.consensus`/`verifyModel`), 회의 감지 기준(`stealth.meetingPolicy`), 테마·강조 색(`appearance.theme`: dark/light/system, `appearance.accent`: system/amber/blue/violet) 설정을 포함한다. 답변 기록/오류 로그는 `cue-history`/`cue-errors`. 프로필은 `cue-profiles`(`src/lib/settingsBackup.ts`). 업데이트 UI 상태는 `src/stores/updates.ts`, 마지막 확인 시각은 localStorage `cue-update-check`.
+- 저장소: 설정은 zustand persist `cue-settings`(`src/stores/settings.ts`, `version: 20`, `mergeSettings`). 자유 모드(`free`), 마우스 전용 트리거(`mouse`: hold/shake, ms/px 값), 교차 검증(`provider.consensus`/`verifyModel`), 대체 모델(`provider.fallbackModel`), 회의 감지 기준(`stealth.meetingPolicy`), 테마·강조 색(`appearance.theme`: dark/light/system, `appearance.accent`: system/amber/blue/violet) 설정을 포함한다. 답변 기록/오류 로그는 `cue-history`/`cue-errors`. 프로필은 `cue-profiles`(`src/lib/settingsBackup.ts`). 업데이트 UI 상태는 `src/stores/updates.ts`, 마지막 확인 시각은 localStorage `cue-update-check`.
 - 오류: Rust는 문자열 코드(`no_key`, `busy`, `http_401`, `config`, `defender` …)로 반환하고 `src/i18n.ts::ERRORS`에서 en/ko로 매핑한다. **새 오류 코드는 반드시 `ERRORS`에 쌍으로 추가** — 없으면 raw 코드가 UI에 노출된다.
 - NSIS 훅: `src-tauri/windows/hooks.nsh`. 설치/제거 시 Run 키·예약 작업·서비스·ProgramData 정리를 유지한다. 업데이트는 `/UPDATE`라 `PREUNINSTALL`/`POSTUNINSTALL`은 실행되지 않고 `PREINSTALL`/`POSTINSTALL`만 실행된다. `POSTINSTALL`의 `--admin-prepare` 실패는 업데이트 모드에서 `admin-prepare.failed` 마커로 남긴다.
 - 문서: 사용법 `README.md`, 변경 기록 `docs/CHANGELOG.md`, AI 파라미터 프리셋 `docs/AI_PARAMETER_PRESETS.md`, 제외 범위 `docs/OUT_OF_SCOPE.md`, 사이트 개발/배포 `site/README.md`.
@@ -91,7 +91,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.1.21**.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.2.0**.
 - 릴리스는 GitHub Actions 없이 수동으로 진행한다.
   1. `npm run check`, `npm test`, Rust 변경 시 `cargo test`.
   2. 서명 키 환경 변수를 설정하고 `npm run tauri build`.
@@ -103,12 +103,13 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 첫 업데이터 릴리스(0.1.2)는 0.1.0/0.1.1 사용자가 한 번 직접 설치해야 한다. 이후 버전은 설정 → 정보에서 자동으로 확인·설치할 수 있다.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.1.21 코드 검증: `npm run check`, `npm test`(196), `cargo test`(154). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
+- 0.2.0 코드 검증: `npm run check`, `npm test`(196), `cargo test`(155). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
 - README의 시험 규정·제재 경고는 의도된 내용이므로 삭제하거나 약화하지 말 것.
 - 워치독·관리자 모드·회의 감지·LED/밝기·언인스톨은 헤드리스로 검증 불가. 릴리스 전 수동으로 확인한다.
 - NSIS는 perMachine, WebView2 offline installer, `windows/hooks.nsh`를 쓴다. 설치/제거 경로를 바꾸면 수동으로 확인한다.
 - 리소스 최적화: 회의 감지 프로세스 스냅샷은 3초 캐시, 포그라운드 창은 매 poll·전체 창 열거는 2초 간격, 보안 탭의 Defender·보호 상태는 탭을 열 때 자동 조회(주기적 폴링 없음), WebView2 `BROWSER_ARGS`의 백그라운드 네트워킹 차단, guard는 실행 파일 이름으로 먼저 필터링, 캡처는 CatmullRom 리사이즈, 오버레이는 첫 표시 때 지연 생성하되 오버레이가 필요한 설정에서만 단축키 보조키 입력 시 prewarm한다. 오버레이/설정 탭은 지연 로드 청크로 분리되어 있다.
+- 입력 훅과 트레이는 60초마다 재등록·복구한다. 캡처 보호는 fail-closed: `show_overlay`가 WDA 적용 실패 또는 affinity != 0x11을 확인하면 답변을 표시하지 않고 숨긴다.
 - 테마: 설정 창은 iOS/Fluent 하이브리드 셸(`SettingsHome` 사이드바, `Group`/`Row`/`Switch`/`SegmentedControl`). `appearance.theme`은 dark/light/system이며 `src/lib/appearance.ts`가 `data-theme`, `color-scheme`, DWM 제목 표시줄 테마를 적용한다. `appearance.accent`가 `system`이면 `commands::system_accent`가 DWM 색을 읽고 `--color-accent*`를 적용한다. 오버레이·트레이는 항상 다크다.
 
 ## 알려진 함정
