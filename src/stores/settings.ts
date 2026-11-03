@@ -26,6 +26,7 @@ export type LedKey = 'scroll' | 'caps' | 'num'
 export type AnswerLanguage = 'auto' | 'ko' | 'en'
 export type AnswerLevel = 'concise' | 'normal' | 'detailed'
 export type MeetingPolicy = 'both' | 'window' | 'process'
+export type AccentChoice = 'system' | 'amber' | 'blue' | 'violet'
 export type MouseTriggerMode = 'off' | 'hold' | 'shake'
 export type MouseTrigger = {
   mode: MouseTriggerMode
@@ -44,6 +45,7 @@ export interface Settings {
   mouse: MouseTrigger
   panic: { accelerator: string; display: string }
   language: 'ko' | 'en'
+  appearance: { accent: AccentChoice }
   display: {
     tray: boolean
     overlay: boolean
@@ -89,6 +91,7 @@ interface Actions {
   setMouse: (patch: Partial<MouseTrigger>) => void
   setPanicShortcut: (accelerator: string, display: string) => void
   setLanguage: (language: 'ko' | 'en') => void
+  setAppearance: (patch: Partial<Settings['appearance']>) => void
   setDisplayMode: (mode: DisplayMode, on: boolean) => boolean
   setFlashMs: (ms: number) => void
   setBadgeMs: (ms: number) => void
@@ -125,6 +128,7 @@ export const defaults: Settings = {
   },
   panic: { accelerator: 'Control+Alt+Shift+X', display: 'Ctrl + Alt + Shift + X' },
   language: 'ko',
+  appearance: { accent: 'system' },
   display: {
     tray: true,
     overlay: false,
@@ -212,6 +216,13 @@ export function mergeSettings(persisted: unknown): Settings {
       display: str(p.panic?.display, defaults.panic.display),
     },
     language: oneOf(p.language, ['ko', 'en'] as const, 'ko'),
+    appearance: {
+      accent: oneOf(
+        p.appearance?.accent,
+        ['system', 'amber', 'blue', 'violet'] as const,
+        defaults.appearance.accent,
+      ),
+    },
     display: {
       tray: bool(p.display?.tray, defaults.display.tray),
       overlay: bool(p.display?.overlay, defaults.display.overlay),
@@ -317,6 +328,7 @@ export const useSettings = create<Settings & Actions>()(
       setMouse: (patch) => set((s) => ({ mouse: { ...s.mouse, ...patch } })),
       setPanicShortcut: (accelerator, display) => set({ panic: { accelerator, display } }),
       setLanguage: (language) => set({ language }),
+      setAppearance: (patch) => set((s) => ({ appearance: { ...s.appearance, ...patch } })),
       setDisplayMode: (mode, on) => {
         if (!on) {
           const othersOn = (['tray', 'overlay', 'flash', 'led', 'brightness'] as const).some(
@@ -355,7 +367,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 17,
+      version: 18,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

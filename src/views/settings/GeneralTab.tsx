@@ -2,7 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import MouseTriggerCard from '../../components/MouseTriggerCard'
-import { Button, Card, Input, SectionTitle, Select, Toggle } from '../../components/ui'
+import {
+  Button,
+  Card,
+  Group,
+  GroupHeader,
+  Input,
+  Row,
+  SectionTitle,
+  SegmentedControl,
+  Select,
+  Toggle,
+} from '../../components/ui'
 import { useT } from '../../i18n'
 import {
   addProfile,
@@ -16,12 +27,14 @@ import { isModifierOnly, shortcutConflicts, type MouseButton } from '../../lib/s
 import { applyTrayMenuLabels } from '../../lib/startup'
 import { getAutostart, setAutostart, setContentProtection, setFreeShortcut, setGuard, setHideFromTaskbar, setMouseTrigger, setPanicShortcut, setShortcut } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
-import { mergeSettings, useSettings } from '../../stores/settings'
+import { mergeSettings, useSettings, type AccentChoice } from '../../stores/settings'
 
 export default function GeneralTab() {
   const t = useT()
   const language = useSettings((s) => s.language)
   const setLanguage = useSettings((s) => s.setLanguage)
+  const appearance = useSettings((s) => s.appearance)
+  const setAppearance = useSettings((s) => s.setAppearance)
   const shortcut = useSettings((s) => s.shortcut)
   const free = useSettings((s) => s.free)
   const setFree = useSettings((s) => s.setFree)
@@ -344,6 +357,31 @@ export default function GeneralTab() {
           <option value="en">English</option>
         </Select>
       </Card>
+      <Group>
+        <GroupHeader>{t('Appearance', '모양')}</GroupHeader>
+        <Row>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-ink">{t('Accent color', '강조 색')}</p>
+            <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-3">
+              {t(
+                'Follow the Windows accent or pick a fixed color.',
+                'Windows 강조 색을 따르거나 고정 색을 선택합니다.',
+              )}
+            </p>
+          </div>
+          <SegmentedControl<AccentChoice>
+            value={appearance.accent}
+            label={t('Accent color', '강조 색')}
+            onChange={(accent) => setAppearance({ accent })}
+            options={[
+              { value: 'system', label: t('System', '시스템') },
+              { value: 'amber', label: t('Amber', '호박') },
+              { value: 'blue', label: t('Blue', '파랑') },
+              { value: 'violet', label: t('Violet', '보라') },
+            ]}
+          />
+        </Row>
+      </Group>
       <Card>
         <SectionTitle>{t('Startup', '시작')}</SectionTitle>
         <Toggle

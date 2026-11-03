@@ -84,6 +84,7 @@ export const captureProtectionStatus = () =>
   invoke<CaptureProtectionStatus>('capture_protection_status')
 export const openTaskbarSettings = () => invoke<void>('open_taskbar_settings')
 export const openExternal = (url: string) => invoke<void>('open_external', { url })
+export const systemAccent = () => invoke<string>('system_accent')
 export const setApiKey = (preset: string, key: string) => invoke<void>('set_api_key', { preset, key })
 export const hasApiKey = (preset: string) => invoke<boolean>('has_api_key', { preset })
 export const clearApiKey = (preset: string) => invoke<void>('clear_api_key', { preset })

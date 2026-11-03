@@ -39,6 +39,120 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
   )
 }
 
+export function Group({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <section
+      className={`overflow-hidden rounded-[14px] bg-surface ring-1 ring-white/[0.05] ${className}`}
+    >
+      {children}
+    </section>
+  )
+}
+
+export function GroupHeader({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <h2
+      className={`px-4 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3 ${className}`}
+    >
+      {children}
+    </h2>
+  )
+}
+
+export function Row({
+  children,
+  onClick,
+  className = '',
+  ariaLabel,
+}: {
+  children: ReactNode
+  onClick?: () => void
+  className?: string
+  ariaLabel?: string
+}) {
+  const classes = `flex w-full items-center gap-3 border-b border-separator/60 px-4 py-3 text-left last:border-b-0 ${className}`
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        onClick={onClick}
+        className={`${classes} transition-colors hover:bg-white/[0.03] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent`}
+      >
+        {children}
+      </button>
+    )
+  }
+  return <div className={classes}>{children}</div>
+}
+
+export function Switch({
+  checked,
+  onChange,
+  label,
+  disabled = false,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  label: string
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
+      className="relative h-[26px] w-[44px] shrink-0 rounded-full border border-white/10 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+      style={{ backgroundColor: checked ? 'var(--color-accent)' : 'var(--color-surface-3)' }}
+    >
+      <span
+        className={`absolute top-[3px] h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-150 ${
+          checked ? 'translate-x-[21px]' : 'translate-x-[3px]'
+        }`}
+      />
+    </button>
+  )
+}
+
+export function SegmentedControl<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T
+  options: readonly { value: T; label: ReactNode }[]
+  onChange: (value: T) => void
+  label: string
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="inline-flex rounded-[9px] bg-surface-2 p-0.5 ring-1 ring-white/[0.06]"
+    >
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={`h-7 rounded-[7px] px-2.5 text-[12px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
+            value === option.value
+              ? 'bg-surface-3 font-medium text-ink shadow-sm'
+              : 'text-ink-2 hover:text-ink'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function SectionTitle({ children }: { children: ReactNode }) {
   return (
     <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">

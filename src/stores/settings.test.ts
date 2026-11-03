@@ -307,6 +307,17 @@ describe('setDisplayMode', () => {
   })
 })
 
+describe('appearance settings', () => {
+  it('defaults to the system accent', () => {
+    expect(mergeSettings({}).appearance.accent).toBe('system')
+  })
+
+  it('merges a fixed accent and rejects unknown values', () => {
+    expect(mergeSettings({ appearance: { accent: 'blue' } }).appearance.accent).toBe('blue')
+    expect(mergeSettings({ appearance: { accent: 'pink' } }).appearance.accent).toBe('system')
+  })
+})
+
 describe('consensus and free mode settings', () => {
   it('defaults consensus off and free mode off', () => {
     const merged = mergeSettings({})

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod ai;
+mod appearance;
 mod brightness;
 mod capture;
 mod commands;
@@ -183,6 +184,7 @@ fn main() {
             commands::open_taskbar_settings,
             commands::tray_icon_shown,
             commands::open_external,
+            commands::system_accent,
             commands::set_autostart,
             commands::get_autostart,
             commands::set_guard,

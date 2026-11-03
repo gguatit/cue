@@ -788,6 +788,11 @@ pub fn open_external(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn system_accent() -> Result<String, String> {
+    crate::appearance::system_accent()
+}
+
+#[tauri::command]
 pub fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
     let m = app.autolaunch();

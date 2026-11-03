@@ -4,6 +4,7 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
 import './index.css'
+import { startAppearanceSync } from './lib/appearance'
 import { runStartup } from './lib/startup'
 import { isTauri, showOverlay } from './lib/tauri'
 import { startMeetingWatch } from './stores/answer'
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 )
 
 if (!isTauri() || getCurrentWebviewWindow().label !== 'overlay') {
+  startAppearanceSync()
   void runStartup()
   if (isTauri()) {
     startMeetingWatch()
