@@ -35,6 +35,7 @@ export const ERRORS: Record<string, [string, string]> = {
   config: ['Check the extra parameters JSON', '추가 파라미터 JSON을 확인하세요'],
   keystore: ['Credential store is unavailable', '자격증명 저장소를 사용할 수 없습니다'],
   shortcut: ['Could not register the shortcut', '단축키를 등록할 수 없습니다'],
+  gesture: ['Could not register the mouse trigger', '마우스 트리거를 등록할 수 없습니다'],
   tray: ['Could not update the tray icon', '트레이 아이콘을 갱신할 수 없습니다'],
   link: ['This link is not permitted', '허용되지 않은 링크입니다'],
   autostart: ['Could not change the autostart setting', '자동 실행 설정을 변경할 수 없습니다'],

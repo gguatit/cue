@@ -345,3 +345,64 @@ describe('consensus and free mode settings', () => {
     expect(merged.free.enabled).toBe(false)
   })
 })
+
+describe('mouse trigger settings', () => {
+  it('defaults to off with detailed tuning values', () => {
+    const merged = mergeSettings({})
+    expect(merged.mouse).toEqual(defaults.mouse)
+    expect(merged.mouse.mode).toBe('off')
+    expect(merged.mouse.holdMs).toBe(800)
+    expect(merged.mouse.moveTolerance).toBe(8)
+    expect(merged.mouse.shakeReversals).toBe(4)
+    expect(merged.mouse.shakeWindowMs).toBe(900)
+    expect(merged.mouse.shakeMinDelta).toBe(12)
+    expect(merged.mouse.shakeCooldownMs).toBe(600)
+    expect(merged.mouse.holdCooldownMs).toBe(800)
+  })
+
+  it('merges valid mouse trigger values', () => {
+    const merged = mergeSettings({
+      mouse: {
+        mode: 'shake',
+        holdMs: 1200,
+        moveTolerance: 16,
+        shakeReversals: 6,
+        shakeWindowMs: 1100,
+        shakeMinDelta: 20,
+        shakeCooldownMs: 900,
+        holdCooldownMs: 1000,
+      },
+    })
+    expect(merged.mouse.mode).toBe('shake')
+    expect(merged.mouse.holdMs).toBe(1200)
+    expect(merged.mouse.moveTolerance).toBe(16)
+    expect(merged.mouse.shakeReversals).toBe(6)
+    expect(merged.mouse.shakeWindowMs).toBe(1100)
+    expect(merged.mouse.shakeMinDelta).toBe(20)
+    expect(merged.mouse.shakeCooldownMs).toBe(900)
+    expect(merged.mouse.holdCooldownMs).toBe(1000)
+  })
+
+  it('clamps invalid mouse trigger values', () => {
+    const merged = mergeSettings({
+      mouse: {
+        mode: 'nope',
+        holdMs: 10,
+        moveTolerance: 999,
+        shakeReversals: 1.4,
+        shakeWindowMs: 1,
+        shakeMinDelta: 0,
+        shakeCooldownMs: 99999,
+        holdCooldownMs: -5,
+      },
+    })
+    expect(merged.mouse.mode).toBe('off')
+    expect(merged.mouse.holdMs).toBe(200)
+    expect(merged.mouse.moveTolerance).toBe(50)
+    expect(merged.mouse.shakeReversals).toBe(2)
+    expect(merged.mouse.shakeWindowMs).toBe(200)
+    expect(merged.mouse.shakeMinDelta).toBe(2)
+    expect(merged.mouse.shakeCooldownMs).toBe(5000)
+    expect(merged.mouse.holdCooldownMs).toBe(0)
+  })
+})

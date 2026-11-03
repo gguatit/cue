@@ -632,6 +632,35 @@ pub fn set_overlay_prewarm(enabled: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn set_mouse_trigger(
+    mode: String,
+    hold_ms: u64,
+    move_tolerance: i32,
+    shake_reversals: u8,
+    shake_window_ms: u64,
+    shake_min_delta: i32,
+    shake_cooldown_ms: u64,
+    hold_cooldown_ms: u64,
+) -> Result<(), String> {
+    let config = crate::shortcut::MouseTriggerConfig::new(
+        &mode,
+        hold_ms,
+        move_tolerance,
+        shake_reversals,
+        shake_window_ms,
+        shake_min_delta,
+        shake_cooldown_ms,
+        hold_cooldown_ms,
+    )?;
+    crate::shortcut::set_mouse_trigger(config)
+}
+
+#[tauri::command]
+pub fn set_gesture_test(enabled: bool) {
+    crate::shortcut::set_gesture_test(enabled);
+}
+
+#[tauri::command]
 pub fn set_panic_shortcut(accelerator: String) -> Result<(), String> {
     crate::shortcut::set_panic_spec(&accelerator)
 }

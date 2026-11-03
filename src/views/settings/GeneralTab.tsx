@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import MouseTriggerCard from '../../components/MouseTriggerCard'
 import { Button, Card, Input, SectionTitle, Select, Toggle } from '../../components/ui'
 import { useT } from '../../i18n'
 import {
@@ -13,7 +14,7 @@ import {
 } from '../../lib/settingsBackup'
 import { isModifierOnly, shortcutConflicts, type MouseButton } from '../../lib/shortcutKeys'
 import { applyTrayMenuLabels } from '../../lib/startup'
-import { getAutostart, setAutostart, setContentProtection, setFreeShortcut, setGuard, setHideFromTaskbar, setPanicShortcut, setShortcut } from '../../lib/tauri'
+import { getAutostart, setAutostart, setContentProtection, setFreeShortcut, setGuard, setHideFromTaskbar, setMouseTrigger, setPanicShortcut, setShortcut } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
 import { mergeSettings, useSettings } from '../../stores/settings'
 
@@ -42,6 +43,7 @@ export default function GeneralTab() {
       () => log('shortcut'),
     )
     await setFreeShortcut(next.free.enabled, next.free.button).catch(() => log('shortcut'))
+    await setMouseTrigger(next.mouse).catch(() => log('gesture'))
     await Promise.all([
       setPanicShortcut(next.panic.accelerator).catch(() => log('shortcut')),
       setContentProtection(next.stealth.contentProtection).catch(() => log('stealth')),
@@ -257,6 +259,7 @@ export default function GeneralTab() {
           )}
         </div>
       </Card>
+      <MouseTriggerCard />
       <Card className="space-y-4">
         <div>
           <SectionTitle>{t('Free mode', '자유 모드')}</SectionTitle>

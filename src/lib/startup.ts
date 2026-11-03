@@ -6,6 +6,7 @@ import {
   setFreeShortcut,
   setGuard,
   setHideFromTaskbar,
+  setMouseTrigger,
   setOverlayPrewarm,
   setPanicShortcut,
   setShortcut,
@@ -76,6 +77,7 @@ export async function runStartup(): Promise<void> {
   await setFreeShortcut(s.free.enabled, s.free.button).catch(() =>
     useAnswer.getState().logError('shortcut'),
   )
+  await setMouseTrigger(s.mouse).catch(() => useAnswer.getState().logError('gesture'))
   await setOverlayPrewarm(wantsOverlayPrewarm(s)).catch(() =>
     useAnswer.getState().logError('shortcut'),
   )

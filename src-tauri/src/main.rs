@@ -155,6 +155,8 @@ fn main() {
             commands::set_shortcut,
             commands::set_free_shortcut,
             commands::set_overlay_prewarm,
+            commands::set_mouse_trigger,
+            commands::set_gesture_test,
             commands::set_panic_shortcut,
             commands::set_shortcut_recording,
             commands::shortcut_installed,

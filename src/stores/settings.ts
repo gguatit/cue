@@ -26,10 +26,22 @@ export type LedKey = 'scroll' | 'caps' | 'num'
 export type AnswerLanguage = 'auto' | 'ko' | 'en'
 export type AnswerLevel = 'concise' | 'normal' | 'detailed'
 export type MeetingPolicy = 'both' | 'window' | 'process'
+export type MouseTriggerMode = 'off' | 'hold' | 'shake'
+export type MouseTrigger = {
+  mode: MouseTriggerMode
+  holdMs: number
+  moveTolerance: number
+  shakeReversals: number
+  shakeWindowMs: number
+  shakeMinDelta: number
+  shakeCooldownMs: number
+  holdCooldownMs: number
+}
 
 export interface Settings {
   shortcut: { accelerator: string; display: string; click: boolean; button: MouseButton }
   free: { enabled: boolean; button: MouseButton; instruction: string }
+  mouse: MouseTrigger
   panic: { accelerator: string; display: string }
   language: 'ko' | 'en'
   display: {
@@ -74,6 +86,7 @@ interface Actions {
   setShortcutClick: (click: boolean) => void
   setShortcutButton: (button: MouseButton) => void
   setFree: (patch: Partial<Settings['free']>) => void
+  setMouse: (patch: Partial<MouseTrigger>) => void
   setPanicShortcut: (accelerator: string, display: string) => void
   setLanguage: (language: 'ko' | 'en') => void
   setDisplayMode: (mode: DisplayMode, on: boolean) => boolean
@@ -100,6 +113,16 @@ export const defaults: Settings = {
     button: 'left',
   },
   free: { enabled: false, button: 'right', instruction: '' },
+  mouse: {
+    mode: 'off',
+    holdMs: 800,
+    moveTolerance: 8,
+    shakeReversals: 4,
+    shakeWindowMs: 900,
+    shakeMinDelta: 12,
+    shakeCooldownMs: 600,
+    holdCooldownMs: 800,
+  },
   panic: { accelerator: 'Control+Alt+Shift+X', display: 'Ctrl + Alt + Shift + X' },
   language: 'ko',
   display: {
@@ -136,6 +159,10 @@ const bool = (v: unknown, fallback: boolean) => (typeof v === 'boolean' ? v : fa
 const str = (v: unknown, fallback: string) => (typeof v === 'string' ? v : fallback)
 const num = (v: unknown, min: number, max: number, fallback: number) =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback
+const int = (v: unknown, min: number, max: number, fallback: number) =>
+  typeof v === 'number' && Number.isFinite(v)
+    ? Math.min(max, Math.max(min, Math.round(v)))
+    : fallback
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T =>
   allowed.includes(v as T) ? (v as T) : fallback
 
@@ -166,9 +193,20 @@ export function mergeSettings(persisted: unknown): Settings {
     button: oneOf(p.free?.button, ['left', 'right', 'middle'] as const, defaults.free.button),
     instruction: str(p.free?.instruction, defaults.free.instruction),
   }
+  const mouse: MouseTrigger = {
+    mode: oneOf(p.mouse?.mode, ['off', 'hold', 'shake'] as const, defaults.mouse.mode),
+    holdMs: int(p.mouse?.holdMs, 200, 3000, defaults.mouse.holdMs),
+    moveTolerance: int(p.mouse?.moveTolerance, 1, 50, defaults.mouse.moveTolerance),
+    shakeReversals: int(p.mouse?.shakeReversals, 2, 10, defaults.mouse.shakeReversals),
+    shakeWindowMs: int(p.mouse?.shakeWindowMs, 200, 3000, defaults.mouse.shakeWindowMs),
+    shakeMinDelta: int(p.mouse?.shakeMinDelta, 2, 50, defaults.mouse.shakeMinDelta),
+    shakeCooldownMs: int(p.mouse?.shakeCooldownMs, 0, 5000, defaults.mouse.shakeCooldownMs),
+    holdCooldownMs: int(p.mouse?.holdCooldownMs, 0, 5000, defaults.mouse.holdCooldownMs),
+  }
   const merged: Settings = {
     shortcut,
     free,
+    mouse,
     panic: {
       accelerator: str(p.panic?.accelerator, defaults.panic.accelerator),
       display: str(p.panic?.display, defaults.panic.display),
@@ -276,6 +314,7 @@ export const useSettings = create<Settings & Actions>()(
         })),
       setShortcutButton: (button) => set((s) => ({ shortcut: { ...s.shortcut, button } })),
       setFree: (patch) => set((s) => ({ free: { ...s.free, ...patch } })),
+      setMouse: (patch) => set((s) => ({ mouse: { ...s.mouse, ...patch } })),
       setPanicShortcut: (accelerator, display) => set({ panic: { accelerator, display } }),
       setLanguage: (language) => set({ language }),
       setDisplayMode: (mode, on) => {
@@ -316,7 +355,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 16,
+      version: 17,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

@@ -1,6 +1,6 @@
 import { invoke as tauriInvoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import type { AnswerLanguage, AnswerLevel } from '../stores/settings'
+import type { AnswerLanguage, AnswerLevel, MouseTrigger } from '../stores/settings'
 import type { MouseButton } from './shortcutKeys'
 
 export const isTauri = (): boolean =>
@@ -45,6 +45,28 @@ export const setShortcut = (accelerator: string, click: boolean, button: MouseBu
   invoke<void>('set_shortcut', { accelerator, click, button })
 export const setFreeShortcut = (enabled: boolean, button: MouseButton) =>
   invoke<void>('set_free_shortcut', { enabled, button })
+export const setMouseTrigger = (mouse: MouseTrigger) =>
+  invoke<void>('set_mouse_trigger', {
+    mode: mouse.mode,
+    holdMs: mouse.holdMs,
+    moveTolerance: mouse.moveTolerance,
+    shakeReversals: mouse.shakeReversals,
+    shakeWindowMs: mouse.shakeWindowMs,
+    shakeMinDelta: mouse.shakeMinDelta,
+    shakeCooldownMs: mouse.shakeCooldownMs,
+    holdCooldownMs: mouse.holdCooldownMs,
+  })
+export const setGestureTest = (enabled: boolean) =>
+  invoke<void>('set_gesture_test', { enabled })
+export interface GestureTestEvent {
+  kind: 'hold' | 'shake'
+  phase: 'down' | 'cancel' | 'trigger' | 'reversal'
+  elapsedMs?: number
+  reversals?: number
+  required?: number
+}
+export const onGestureTest = (handler: (event: GestureTestEvent) => void) =>
+  listenEvent<GestureTestEvent>('gesture-test', (event) => handler(event.payload))
 export const setOverlayPrewarm = (enabled: boolean) =>
   invoke<void>('set_overlay_prewarm', { enabled })
 export const setPanicShortcut = (accelerator: string) =>
