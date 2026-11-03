@@ -120,6 +120,7 @@ export const captureAndAnswer = (
   freeInstruction = '',
   consensus = false,
   verifyModel = '',
+  fallbackModel = '',
   prepareOverlay = false,
 ) =>
   invoke<CaptureResult>('capture_and_answer', {
@@ -136,6 +137,7 @@ export const captureAndAnswer = (
     freeInstruction,
     consensus,
     verifyModel,
+    fallbackModel,
     prepareOverlay,
   })
 export const showOverlay = (

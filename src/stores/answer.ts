@@ -458,6 +458,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
             useSettings.getState().free.instruction,
             provider.consensus,
             provider.verifyModel,
+            provider.fallbackModel,
             textMode || displaySettings.overlay || displaySettings.flash,
           )
         }

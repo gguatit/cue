@@ -330,16 +330,18 @@ describe('consensus and free mode settings', () => {
     const merged = mergeSettings({})
     expect(merged.provider.consensus).toBe(false)
     expect(merged.provider.verifyModel).toBe('')
+    expect(merged.provider.fallbackModel).toBe('')
     expect(merged.free).toEqual({ enabled: false, button: 'right', instruction: '' })
   })
 
   it('merges consensus and free mode settings', () => {
     const merged = mergeSettings({
-      provider: { consensus: true, verifyModel: 'verify-model' },
+      provider: { consensus: true, verifyModel: 'verify-model', fallbackModel: 'fallback-model' },
       free: { enabled: true, button: 'middle', instruction: 'Explain this code' },
     })
     expect(merged.provider.consensus).toBe(true)
     expect(merged.provider.verifyModel).toBe('verify-model')
+    expect(merged.provider.fallbackModel).toBe('fallback-model')
     expect(merged.free).toEqual({
       enabled: true,
       button: 'middle',

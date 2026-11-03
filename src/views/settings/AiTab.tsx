@@ -459,6 +459,38 @@ export default function AiTab() {
             )}
           </p>
         )}
+        <Field label={t('Fallback model (optional)', '대체 모델 (선택)')}>
+          <Input
+            list="cue-fallback-models"
+            placeholder={t('Leave empty to disable', '비워 두면 사용 안 함')}
+            value={provider.fallbackModel}
+            onChange={(e) => setProvider({ fallbackModel: e.target.value })}
+          />
+          <datalist id="cue-fallback-models">
+            {models.map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
+          <ModelChips
+            models={models}
+            selected={provider.fallbackModel}
+            onSelect={(model) => setProvider({ fallbackModel: model })}
+          />
+          <p className="mt-1 text-xs text-zinc-500">
+            {t(
+              'If the primary model rejects the image, protocol, or plan, Cue retries once with this model. It uses the same provider and key, without the extra parameters below.',
+              '기본 모델이 이미지·프로토콜·플랜 문제를 반환하면 이 모델로 한 번 다시 시도합니다. 같은 공급자와 키를 쓰며 아래 추가 파라미터는 적용하지 않습니다.',
+            )}
+          </p>
+          {provider.fallbackModel.trim() === provider.model && provider.model && (
+            <p className="mt-1 text-xs text-amber-400">
+              {t(
+                'Pick a different model to make fallback work.',
+                '기본 모델과 다른 모델을 선택해야 대체 모델이 작동합니다.',
+              )}
+            </p>
+          )}
+        </Field>
         <Field label={t('Answer type', '답변 유형')}>
           <Select
             value={provider.answerType}

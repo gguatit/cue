@@ -676,6 +676,20 @@ pub fn retryable(code: &str) -> bool {
     matches!(code, "network" | "http_429" | "http_5xx")
 }
 
+pub fn fallback_allowed(code: &str) -> bool {
+    matches!(
+        code,
+        "http_400"
+            | "vision"
+            | "model_protocol"
+            | "model_unavailable"
+            | "model_session"
+            | "empty"
+            | "empty_text"
+            | "parse"
+    )
+}
+
 pub fn retry_delay_ms(retry: usize, retry_after: Option<u64>) -> Option<u64> {
     let base = *RETRY_DELAYS_MS.get(retry)?;
     Some(
@@ -1245,6 +1259,35 @@ mod tests {
                 auth_headers(preset, "k"),
                 vec![("authorization", "Bearer k".to_string())]
             );
+        }
+    }
+
+    #[test]
+    fn fallback_policy_covers_model_and_verification_failures() {
+        for code in [
+            "http_400",
+            "vision",
+            "model_protocol",
+            "model_unavailable",
+            "model_session",
+            "empty",
+            "empty_text",
+            "parse",
+        ] {
+            assert!(fallback_allowed(code), "{code}");
+        }
+        for code in [
+            "network",
+            "timeout",
+            "http_401",
+            "http_403",
+            "http_429",
+            "http_5xx",
+            "cancelled",
+            "config",
+            "extra",
+        ] {
+            assert!(!fallback_allowed(code), "{code}");
         }
     }
 

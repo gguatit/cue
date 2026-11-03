@@ -86,6 +86,7 @@ describe('answer store', () => {
         paraphrase: false,
         consensus: false,
         verifyModel: '',
+        fallbackModel: '',
       },
     })
     await useAnswer.getState().run(false)
@@ -102,6 +103,7 @@ describe('answer store', () => {
       'exam',
       '',
       false,
+      '',
       '',
       false,
     )
@@ -129,6 +131,7 @@ describe('answer store', () => {
       'exam',
       '',
       false,
+      '',
       '',
       true,
     )
@@ -315,6 +318,7 @@ describe('answer store', () => {
         paraphrase: true,
         consensus: false,
         verifyModel: '',
+        fallbackModel: '',
       },
     })
     await useAnswer.getState().run(false)
@@ -331,6 +335,7 @@ describe('answer store', () => {
       'exam',
       '',
       false,
+      '',
       '',
       true,
     )
@@ -813,6 +818,7 @@ describe('answer store', () => {
       'Explain this code',
       true,
       'verify',
+      '',
       true,
     )
     expect(showOverlay).toHaveBeenCalledWith('Explanation', 'text', 12000)

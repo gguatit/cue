@@ -68,6 +68,7 @@ export interface Settings {
     paraphrase: boolean
     consensus: boolean
     verifyModel: string
+    fallbackModel: string
   }
   answer: { language: AnswerLanguage; level: AnswerLevel }
   privacy: { crop: boolean }
@@ -151,6 +152,7 @@ export const defaults: Settings = {
     paraphrase: false,
     consensus: false,
     verifyModel: '',
+    fallbackModel: '',
   },
   answer: { language: 'auto', level: 'normal' },
   privacy: { crop: false },
@@ -184,6 +186,7 @@ export function mergeSettings(persisted: unknown): Settings {
     paraphrase: bool(providerRaw.paraphrase, false),
     consensus: bool(providerRaw.consensus, false),
     verifyModel: str(providerRaw.verifyModel, ''),
+    fallbackModel: str(providerRaw.fallbackModel, ''),
   }
   const shortcutAccel = str(p.shortcut?.accelerator, defaults.shortcut.accelerator)
   const shortcut = {
@@ -373,7 +376,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 19,
+      version: 20,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

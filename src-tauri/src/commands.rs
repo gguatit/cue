@@ -118,6 +118,95 @@ fn verify_provider<'a>(
     }
 }
 
+async fn answers_with_fallback(
+    client: &reqwest::Client,
+    provider: &crate::ai::Provider<'_>,
+    fallback: Option<&crate::ai::Provider<'_>>,
+    b64: &str,
+    cx: i32,
+    cy: i32,
+    w: u32,
+    h: u32,
+) -> Result<Vec<String>, String> {
+    match crate::ai::request_answers(client, provider, b64, cx, cy, w, h).await {
+        Ok(answers) => Ok(answers),
+        Err(error)
+            if fallback.is_some() && crate::ai::fallback_allowed(&error) =>
+        {
+            crate::ai::request_answers(client, fallback.unwrap(), b64, cx, cy, w, h).await
+        }
+        Err(error) => Err(error),
+    }
+}
+
+async fn text_with_fallback(
+    client: &reqwest::Client,
+    provider: &crate::ai::Provider<'_>,
+    fallback: Option<&crate::ai::Provider<'_>>,
+    capture: &crate::capture::Capture,
+    paraphrase: bool,
+    language: &str,
+    level: &str,
+) -> Result<String, String> {
+    match crate::ai::request_text(client, provider, capture, paraphrase, language, level).await {
+        Ok(text) => Ok(text),
+        Err(error)
+            if fallback.is_some() && crate::ai::fallback_allowed(&error) =>
+        {
+            crate::ai::request_text(
+                client,
+                fallback.unwrap(),
+                capture,
+                paraphrase,
+                language,
+                level,
+            )
+            .await
+        }
+        Err(error) => Err(error),
+    }
+}
+
+async fn free_with_fallback(
+    client: &reqwest::Client,
+    provider: &crate::ai::Provider<'_>,
+    fallback: Option<&crate::ai::Provider<'_>>,
+    capture: &crate::capture::Capture,
+    paraphrase: bool,
+    instruction: &str,
+    language: &str,
+    level: &str,
+) -> Result<String, String> {
+    match crate::ai::request_free(
+        client,
+        provider,
+        capture,
+        paraphrase,
+        instruction,
+        language,
+        level,
+    )
+    .await
+    {
+        Ok(text) => Ok(text),
+        Err(error)
+            if fallback.is_some() && crate::ai::fallback_allowed(&error) =>
+        {
+            crate::ai::request_free(
+                client,
+                fallback.unwrap(),
+                capture,
+                paraphrase,
+                instruction,
+                language,
+                level,
+            )
+            .await
+        }
+        Err(error) => Err(error),
+    }
+}
+
 #[derive(Debug, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum AnswerPayload {
@@ -151,6 +240,7 @@ pub async fn capture_and_answer(
     free_instruction: String,
     consensus: bool,
     verify_model: String,
+    fallback_model: String,
     prepare_overlay: bool,
 ) -> Result<AnswerPayload, String> {
     if state.capture_in_flight.swap(true, Ordering::SeqCst) {
@@ -195,10 +285,14 @@ pub async fn capture_and_answer(
         extra: &extra_json,
         key: &key,
     };
+    let fallback_name = fallback_model.trim();
+    let fallback = (!fallback_name.is_empty() && fallback_name != model)
+        .then(|| verify_provider(&preset, &base_url, fallback_name, &key));
     if mode == "free" {
-        return match crate::ai::request_free(
+        return match free_with_fallback(
             &state.http,
             &provider,
+            fallback.as_ref(),
             &cap,
             paraphrase,
             &free_instruction,
@@ -208,9 +302,7 @@ pub async fn capture_and_answer(
         .await
         {
             Ok(text) => Ok(AnswerPayload::Text { text }),
-            Err(error) if error == "empty_text" => Ok(AnswerPayload::None {
-                reason: error,
-            }),
+            Err(error) if error == "empty_text" => Ok(AnswerPayload::None { reason: error }),
             Err(error) => Err(error),
         };
     }
@@ -220,9 +312,10 @@ pub async fn capture_and_answer(
             if consensus && !verify.is_empty() && verify != model {
                 let verifier = verify_provider(&preset, &base_url, verify, &key);
                 let (primary, secondary) = tokio::join!(
-                    crate::ai::request_answers(
+                    answers_with_fallback(
                         &state.http,
                         &provider,
+                        fallback.as_ref(),
                         &cap.b64,
                         cap.cursor_x,
                         cap.cursor_y,
@@ -256,9 +349,10 @@ pub async fn capture_and_answer(
                     }),
                 });
             }
-            let answers = match crate::ai::request_answers(
+            let answers = match answers_with_fallback(
                 &state.http,
                 &provider,
+                fallback.as_ref(),
                 &cap.b64,
                 cap.cursor_x,
                 cap.cursor_y,
@@ -278,9 +372,10 @@ pub async fn capture_and_answer(
                 verification: None,
             })
         }
-        "text" => match crate::ai::request_text(
+        "text" => match text_with_fallback(
             &state.http,
             &provider,
+            fallback.as_ref(),
             &cap,
             paraphrase,
             &language,
@@ -289,9 +384,7 @@ pub async fn capture_and_answer(
         .await
         {
             Ok(text) => Ok(AnswerPayload::Text { text }),
-            Err(error) if error == "empty_text" => Ok(AnswerPayload::None {
-                reason: error,
-            }),
+            Err(error) if error == "empty_text" => Ok(AnswerPayload::None { reason: error }),
             Err(error) => Err(error),
         },
         _ => Err("config".into()),
