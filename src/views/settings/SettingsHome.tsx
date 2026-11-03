@@ -120,7 +120,21 @@ export default function SettingsHome() {
               {t(...DESCRIPTIONS[activeTab])}
             </p>
           </header>
-          <Suspense fallback={<div className="h-24" />}>
+          <Suspense
+            fallback={
+              <div className="space-y-3" aria-hidden="true">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="rounded-[14px] bg-surface p-4 ring-1 ring-separator/70"
+                  >
+                    <div className="h-3 w-24 rounded bg-surface-3" />
+                    <div className="mt-4 h-10 rounded bg-surface-2" />
+                  </div>
+                ))}
+              </div>
+            }
+          >
             {tab === 'general' && <GeneralTab />}
             {tab === 'mode' && <ModeTab />}
             {tab === 'ai' && <AiTab />}
