@@ -1,7 +1,7 @@
 {
   "name": "cue",
   "private": true,
-  "version": "0.1.19",
+  "version": "0.1.20",
   "author": "kalpha (최재영)",
   "type": "module",
   "scripts": {
