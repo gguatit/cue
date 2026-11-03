@@ -11,9 +11,10 @@ const fieldClass =
 type ButtonVariant = 'primary' | 'secondary' | 'danger'
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  primary: 'bg-accent text-black hover:bg-accent-strong active:scale-[0.98]',
+  primary:
+    'bg-accent text-[var(--color-accent-contrast)] hover:bg-accent-strong active:scale-[0.98]',
   secondary:
-    'bg-surface-2 text-ink ring-1 ring-white/[0.06] hover:bg-surface-3 active:scale-[0.98]',
+    'bg-surface-2 text-ink ring-1 ring-separator/70 hover:bg-surface-3 active:scale-[0.98]',
   danger:
     'bg-danger/10 text-danger ring-1 ring-danger/20 hover:bg-danger/15 active:scale-[0.98]',
 }
@@ -33,7 +34,7 @@ export function Button({
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-[14px] bg-surface p-4 ring-1 ring-white/[0.05] ${className}`}>
+    <section className={`rounded-[14px] bg-surface p-4 ring-1 ring-separator/60 ${className}`}>
       {children}
     </section>
   )
@@ -42,7 +43,7 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 export function Group({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <section
-      className={`overflow-hidden rounded-[14px] bg-surface ring-1 ring-white/[0.05] ${className}`}
+      className={`overflow-hidden rounded-[14px] bg-surface ring-1 ring-separator/60 ${className}`}
     >
       {children}
     </section>
@@ -77,7 +78,7 @@ export function Row({
         type="button"
         aria-label={ariaLabel}
         onClick={onClick}
-        className={`${classes} transition-colors hover:bg-white/[0.03] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent`}
+        className={`${classes} transition-colors hover:bg-surface-3/60 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent`}
       >
         {children}
       </button>
@@ -105,12 +106,12 @@ export function Switch({
       aria-label={label}
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
-      className="relative h-[26px] w-[44px] shrink-0 rounded-full border border-white/10 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex h-[26px] w-[44px] shrink-0 items-center rounded-full border border-separator/70 p-[3px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
       style={{ backgroundColor: checked ? 'var(--color-accent)' : 'var(--color-surface-3)' }}
     >
       <span
-        className={`absolute top-[3px] h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-150 ${
-          checked ? 'translate-x-[21px]' : 'translate-x-[3px]'
+        className={`h-5 w-5 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform duration-150 ${
+          checked ? 'translate-x-[16px]' : ''
         }`}
       />
     </button>
@@ -132,7 +133,7 @@ export function SegmentedControl<T extends string>({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex rounded-[9px] bg-surface-2 p-0.5 ring-1 ring-white/[0.06]"
+      className="inline-flex rounded-[9px] bg-surface-2 p-0.5 ring-1 ring-separator/70"
     >
       {options.map((option) => (
         <button
@@ -181,7 +182,7 @@ export function Toggle({
       aria-checked={checked}
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
-      className="flex w-full items-center justify-between gap-4 rounded-[10px] px-2 py-2.5 text-left transition-colors hover:bg-white/[0.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+      className="flex w-full items-center justify-between gap-4 rounded-[10px] px-2 py-2.5 text-left transition-colors hover:bg-surface-3/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
     >
       <span className="min-w-0">
         <span className="block text-[13px] font-medium text-ink">{label}</span>
@@ -190,13 +191,13 @@ export function Toggle({
         )}
       </span>
       <span
-        className={`relative h-[26px] w-[44px] shrink-0 rounded-full border transition-colors duration-150 ${
-          checked ? 'border-accent bg-accent' : 'border-white/10 bg-surface-3'
+        className={`flex h-[26px] w-[44px] shrink-0 items-center rounded-full border p-[3px] transition-colors duration-150 ${
+          checked ? 'border-accent bg-accent' : 'border-separator/70 bg-surface-3'
         }`}
       >
         <span
-          className={`absolute top-[3px] h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-150 ${
-            checked ? 'translate-x-[21px]' : 'translate-x-[3px]'
+          className={`h-5 w-5 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform duration-150 ${
+            checked ? 'translate-x-[16px]' : ''
           }`}
         />
       </span>

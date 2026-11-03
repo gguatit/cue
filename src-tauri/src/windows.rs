@@ -57,6 +57,28 @@ pub fn set_capture_protection(win: &WebviewWindow, enabled: bool) -> Result<(), 
     }
 }
 
+pub fn set_titlebar_theme(win: &WebviewWindow, dark: bool) -> Result<(), String> {
+    use ::windows::Win32::Foundation::HWND;
+    use ::windows::Win32::Graphics::Dwm::{
+        DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE,
+    };
+    let hwnd = HWND(
+        win.hwnd()
+            .map_err(|_| "stealth".to_string())?
+            .0,
+    );
+    let value: i32 = if dark { 1 } else { 0 };
+    unsafe {
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_USE_IMMERSIVE_DARK_MODE,
+            &value as *const i32 as *const core::ffi::c_void,
+            std::mem::size_of::<i32>() as u32,
+        )
+        .map_err(|_| "stealth".to_string())
+    }
+}
+
 pub fn capture_affinity(win: &WebviewWindow) -> Result<u32, String> {
     use ::windows::Win32::Foundation::HWND;
     use ::windows::Win32::UI::WindowsAndMessaging::GetWindowDisplayAffinity;

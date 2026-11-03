@@ -1,6 +1,6 @@
 [package]
 name = "cue"
-version = "0.1.20"
+version = "0.1.21"
 authors = ["kalpha (최재영)"]
 edition = "2021"
 
@@ -27,6 +27,7 @@ windows = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Devices_Display",
   "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dwm",
   "Win32_UI_WindowsAndMessaging",
   "Win32_UI_HiDpi",
   "Win32_UI_Input_KeyboardAndMouse",

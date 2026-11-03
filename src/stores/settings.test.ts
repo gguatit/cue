@@ -316,6 +316,13 @@ describe('appearance settings', () => {
     expect(mergeSettings({ appearance: { accent: 'blue' } }).appearance.accent).toBe('blue')
     expect(mergeSettings({ appearance: { accent: 'pink' } }).appearance.accent).toBe('system')
   })
+
+  it('defaults to dark theme and merges theme choices', () => {
+    expect(mergeSettings({}).appearance.theme).toBe('dark')
+    expect(mergeSettings({ appearance: { theme: 'light' } }).appearance.theme).toBe('light')
+    expect(mergeSettings({ appearance: { theme: 'system' } }).appearance.theme).toBe('system')
+    expect(mergeSettings({ appearance: { theme: 'sepia' } }).appearance.theme).toBe('dark')
+  })
 })
 
 describe('consensus and free mode settings', () => {

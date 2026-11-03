@@ -27,7 +27,12 @@ import { isModifierOnly, shortcutConflicts, type MouseButton } from '../../lib/s
 import { applyTrayMenuLabels } from '../../lib/startup'
 import { getAutostart, setAutostart, setContentProtection, setFreeShortcut, setGuard, setHideFromTaskbar, setMouseTrigger, setPanicShortcut, setShortcut } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
-import { mergeSettings, useSettings, type AccentChoice } from '../../stores/settings'
+import {
+  mergeSettings,
+  useSettings,
+  type AccentChoice,
+  type ThemeChoice,
+} from '../../stores/settings'
 
 export default function GeneralTab() {
   const t = useT()
@@ -359,6 +364,27 @@ export default function GeneralTab() {
       </Card>
       <Group>
         <GroupHeader>{t('Appearance', '모양')}</GroupHeader>
+        <Row>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-ink">{t('Theme', '테마')}</p>
+            <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-3">
+              {t(
+                'Follow Windows or keep a fixed theme. The overlay stays dark.',
+                'Windows 설정을 따르거나 고정 테마를 사용합니다. 오버레이는 항상 어둡게 유지됩니다.',
+              )}
+            </p>
+          </div>
+          <SegmentedControl<ThemeChoice>
+            value={appearance.theme}
+            label={t('Theme', '테마')}
+            onChange={(theme) => setAppearance({ theme })}
+            options={[
+              { value: 'dark', label: t('Dark', '어둡게') },
+              { value: 'light', label: t('Light', '밝게') },
+              { value: 'system', label: t('System', '시스템') },
+            ]}
+          />
+        </Row>
         <Row>
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-ink">{t('Accent color', '강조 색')}</p>

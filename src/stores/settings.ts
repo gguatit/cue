@@ -27,6 +27,7 @@ export type AnswerLanguage = 'auto' | 'ko' | 'en'
 export type AnswerLevel = 'concise' | 'normal' | 'detailed'
 export type MeetingPolicy = 'both' | 'window' | 'process'
 export type AccentChoice = 'system' | 'amber' | 'blue' | 'violet'
+export type ThemeChoice = 'dark' | 'light' | 'system'
 export type MouseTriggerMode = 'off' | 'hold' | 'shake'
 export type MouseTrigger = {
   mode: MouseTriggerMode
@@ -45,7 +46,7 @@ export interface Settings {
   mouse: MouseTrigger
   panic: { accelerator: string; display: string }
   language: 'ko' | 'en'
-  appearance: { accent: AccentChoice }
+  appearance: { accent: AccentChoice; theme: ThemeChoice }
   display: {
     tray: boolean
     overlay: boolean
@@ -128,7 +129,7 @@ export const defaults: Settings = {
   },
   panic: { accelerator: 'Control+Alt+Shift+X', display: 'Ctrl + Alt + Shift + X' },
   language: 'ko',
-  appearance: { accent: 'system' },
+  appearance: { accent: 'system', theme: 'dark' },
   display: {
     tray: true,
     overlay: false,
@@ -221,6 +222,11 @@ export function mergeSettings(persisted: unknown): Settings {
         p.appearance?.accent,
         ['system', 'amber', 'blue', 'violet'] as const,
         defaults.appearance.accent,
+      ),
+      theme: oneOf(
+        p.appearance?.theme,
+        ['dark', 'light', 'system'] as const,
+        defaults.appearance.theme,
       ),
     },
     display: {
@@ -367,7 +373,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 18,
+      version: 19,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

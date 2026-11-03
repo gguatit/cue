@@ -67,9 +67,9 @@ export default function SettingsHome() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg text-ink">
-      <aside className="flex w-[200px] shrink-0 flex-col border-r border-white/[0.06] bg-surface/40 px-2.5 py-4 max-[760px]:w-[64px] max-[760px]:px-2">
+      <aside className="flex w-[200px] shrink-0 flex-col border-r border-separator/70 bg-surface/40 px-2.5 py-4 max-[760px]:w-[64px] max-[760px]:px-2">
         <div className="mb-5 flex items-center gap-2.5 px-2 max-[760px]:justify-center max-[760px]:px-0">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-accent text-[13px] font-bold text-black">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-accent text-[13px] font-bold text-[var(--color-accent-contrast)]">
             C
           </div>
           <div className="min-w-0 max-[760px]:hidden">
@@ -92,8 +92,8 @@ export default function SettingsHome() {
                 onClick={() => setTab(id)}
                 className={`flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-[760px]:justify-center max-[760px]:px-0 ${
                   active
-                    ? 'bg-white/[0.07] font-medium text-ink'
-                    : 'text-ink-2 hover:bg-white/[0.04] hover:text-ink'
+                    ? 'bg-surface-3/80 font-medium text-ink'
+                    : 'text-ink-2 hover:bg-surface-3/60 hover:text-ink'
                 }`}
               >
                 <Icon

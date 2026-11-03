@@ -185,6 +185,7 @@ fn main() {
             commands::tray_icon_shown,
             commands::open_external,
             commands::system_accent,
+            commands::set_titlebar_theme,
             commands::set_autostart,
             commands::get_autostart,
             commands::set_guard,

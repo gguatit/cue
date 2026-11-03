@@ -793,6 +793,13 @@ pub fn system_accent() -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn set_titlebar_theme(app: tauri::AppHandle, dark: bool) -> Result<(), String> {
+    use tauri::Manager;
+    let win = app.get_webview_window("main").ok_or("stealth")?;
+    crate::windows::set_titlebar_theme(&win, dark)
+}
+
+#[tauri::command]
 pub fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
     let m = app.autolaunch();
