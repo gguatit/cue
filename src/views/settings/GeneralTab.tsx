@@ -24,6 +24,7 @@ import {
   type Profile,
 } from '../../lib/settingsBackup'
 import { isModifierOnly, shortcutConflicts, type MouseButton } from '../../lib/shortcutKeys'
+import { beginBlurGuard } from '../../lib/blurGuard'
 import { applyTrayMenuLabels } from '../../lib/startup'
 import { getAutostart, setAutostart, setContentProtection, setFreeShortcut, setGuard, setHideFromTaskbar, setMouseTrigger, setPanicShortcut, setShortcut } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
@@ -441,7 +442,14 @@ export default function GeneralTab() {
         <SectionTitle>{t('Settings backup', '설정 백업')}</SectionTitle>
         <div className="flex flex-wrap gap-2">
           <Button onClick={exportJson}>{t('Export JSON', 'JSON 내보내기')}</Button>
-          <Button onClick={() => fileRef.current?.click()}>{t('Import JSON', 'JSON 가져오기')}</Button>
+          <Button
+            onClick={() => {
+              beginBlurGuard()
+              fileRef.current?.click()
+            }}
+          >
+            {t('Import JSON', 'JSON 가져오기')}
+          </Button>
           <input
             ref={fileRef}
             type="file"

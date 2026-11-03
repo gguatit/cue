@@ -75,6 +75,7 @@ export interface Settings {
   stealth: {
     contentProtection: boolean
     skipTaskbar: boolean
+    hideOnBlur: boolean
     guard: boolean
     meetingSafe: boolean
     meetingPolicy: MeetingPolicy
@@ -156,7 +157,7 @@ export const defaults: Settings = {
   },
   answer: { language: 'auto', level: 'normal' },
   privacy: { crop: false },
-  stealth: { contentProtection: true, skipTaskbar: true, guard: false, meetingSafe: true, meetingPolicy: 'both', admin: false },
+  stealth: { contentProtection: true, skipTaskbar: true, hideOnBlur: true, guard: false, meetingSafe: true, meetingPolicy: 'both', admin: false },
   storage: { history: true, errors: true },
   updates: { autoCheck: true },
   onboarded: false,
@@ -260,6 +261,7 @@ export function mergeSettings(persisted: unknown): Settings {
     stealth: {
       contentProtection: bool(p.stealth?.contentProtection, defaults.stealth.contentProtection),
       skipTaskbar: bool(p.stealth?.skipTaskbar, defaults.stealth.skipTaskbar),
+      hideOnBlur: bool(p.stealth?.hideOnBlur, defaults.stealth.hideOnBlur),
       guard: bool(p.stealth?.guard, defaults.stealth.guard),
       meetingSafe: bool(p.stealth?.meetingSafe, defaults.stealth.meetingSafe),
       meetingPolicy: oneOf(
@@ -376,7 +378,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 20,
+      version: 21,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

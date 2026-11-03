@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use commands::AppState;
+use tauri::Emitter;
 use tauri_plugin_autostart::ManagerExt;
 
 fn arg_value(name: &str) -> Option<PathBuf> {
@@ -257,9 +258,15 @@ fn main() {
             let main = windows::create_main(&handle, !background)?;
             let w = main.clone();
             main.on_window_event(move |e| {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = e {
-                    api.prevent_close();
-                    let _ = w.hide();
+                match e {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
+                        api.prevent_close();
+                        let _ = w.hide();
+                    }
+                    tauri::WindowEvent::Focused(false) => {
+                        let _ = w.emit("main-blurred", ());
+                    }
+                    _ => {}
                 }
             });
             if let Ok(exe) = std::env::current_exe() {

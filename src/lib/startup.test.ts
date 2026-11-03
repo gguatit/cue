@@ -145,6 +145,30 @@ describe('runStartup tray menu', () => {
     expect(useAnswer.getState().panicHidden).toBe(false)
   })
 
+  it('hides the main window on blur when the setting is on', async () => {
+    let handler: ((...args: unknown[]) => void) | undefined
+    mocks.listenEvent.mockImplementation(async (event: string, cb?: (...args: unknown[]) => void) => {
+      if (event === 'main-blurred') handler = cb
+      return () => {}
+    })
+    useSettings.setState({ stealth: { ...useSettings.getState().stealth, hideOnBlur: true } })
+    await runStartup()
+    handler!()
+    expect(mocks.hideMain).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the main window on blur when the setting is off', async () => {
+    let handler: ((...args: unknown[]) => void) | undefined
+    mocks.listenEvent.mockImplementation(async (event: string, cb?: (...args: unknown[]) => void) => {
+      if (event === 'main-blurred') handler = cb
+      return () => {}
+    })
+    useSettings.setState({ stealth: { ...useSettings.getState().stealth, hideOnBlur: false } })
+    await runStartup()
+    handler!()
+    expect(mocks.hideMain).not.toHaveBeenCalled()
+  })
+
   it('copies the last answer on copy-last', async () => {
     let copyHandler: ((...args: unknown[]) => void) | undefined
     mocks.listenEvent.mockImplementation(async (event: string, cb?: (...args: unknown[]) => void) => {

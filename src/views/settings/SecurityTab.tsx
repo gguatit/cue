@@ -323,6 +323,15 @@ export default function SecurityTab() {
           onChange={(v) => void apply({ skipTaskbar: v }, () => setHideFromTaskbar(v))}
           label={t('Hide from taskbar', '작업표시줄에서 숨기기')}
         />
+        <Toggle
+          checked={stealth.hideOnBlur}
+          onChange={(v) => setStealth({ hideOnBlur: v })}
+          label={t('Hide when focus is lost', '포커스 잃으면 숨기기')}
+          hint={t(
+            'Alt+Tab or clicking another app hides this window. Reopen it from the tray.',
+            'Alt+Tab을 누르거나 다른 앱을 클릭하면 이 창을 숨깁니다. 트레이에서 다시 열 수 있습니다.',
+          )}
+        />
       </Card>
       <Card>
         <SectionTitle>{t('Screen capture protection', '화면 캡처 보호')}</SectionTitle>

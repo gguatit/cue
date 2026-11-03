@@ -15,6 +15,7 @@ import {
 } from './tauri'
 import { trayMenuLabels } from '../i18n'
 import { setTrayIdle } from './trayDisplay'
+import { isBlurGuarded } from './blurGuard'
 import { useAnswer } from '../stores/answer'
 import { useSettings } from '../stores/settings'
 import { useUi } from '../stores/ui'
@@ -53,6 +54,10 @@ export async function runStartup(): Promise<void> {
     }).catch(() => {}),
     listenEvent('main-shown', () => {
       useAnswer.setState({ panicHidden: false })
+    }).catch(() => {}),
+    listenEvent('main-blurred', () => {
+      if (isBlurGuarded() || !useSettings.getState().stealth.hideOnBlur) return
+      void hideMain().catch(() => {})
     }).catch(() => {}),
   ])
 

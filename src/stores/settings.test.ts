@@ -153,6 +153,12 @@ describe('mergeSettings', () => {
     expect(mergeSettings({ stealth: { meetingPolicy: 'bad' } }).stealth.meetingPolicy).toBe('both')
   })
 
+  it('defaults hide-on-blur on and merges it', () => {
+    expect(defaults.stealth.hideOnBlur).toBe(true)
+    expect(mergeSettings({ stealth: { hideOnBlur: false } }).stealth.hideOnBlur).toBe(false)
+    expect(mergeSettings({ stealth: { hideOnBlur: true } }).stealth.hideOnBlur).toBe(true)
+  })
+
   it('merges a stored panic shortcut', () => {
     const merged = mergeSettings({
       panic: { accelerator: 'Control+Alt+P', display: 'Ctrl + Alt + P' },
