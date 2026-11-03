@@ -420,7 +420,10 @@ pub async fn show_overlay(
     use tauri::Emitter;
     let overlay = ensure_overlay(&app)?;
     let protect = state.content_protection.load(Ordering::SeqCst);
-    let _ = crate::windows::set_capture_protection(&overlay, protect);
+    if crate::windows::set_capture_protection(&overlay, protect).is_err() {
+        let _ = overlay.hide();
+        return Err("stealth".into());
+    }
     let last = *state
         .last_capture
         .lock()
@@ -457,6 +460,11 @@ pub async fn show_overlay(
     let _ = crate::windows::set_tool_window(&overlay, true);
     overlay.show().map_err(|_| "capture")?;
     let _ = crate::windows::set_tool_window(&overlay, true);
+    // Fail closed: never show an answer on a window the OS will capture.
+    if protect && crate::windows::capture_affinity(&overlay).ok() != Some(0x11) {
+        let _ = overlay.hide();
+        return Err("stealth".into());
+    }
     let payload = if style == "text" {
         serde_json::json!({
             "answer": answer.clone(),
