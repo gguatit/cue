@@ -52,6 +52,8 @@ type Worker = {
   trail: Array<{ x: number; y: number }>
 }
 
+type SparkShape = 'circle' | 'square' | 'diamond' | 'triangle' | 'line' | 'cross' | 'star'
+
 type Spark = {
   x: number
   y: number
@@ -61,7 +63,20 @@ type Spark = {
   life: number
   color: string
   size: number
+  shape: SparkShape
+  rotation: number
+  spin: number
 }
+
+const SPARK_SHAPES: SparkShape[] = [
+  'circle',
+  'square',
+  'diamond',
+  'triangle',
+  'line',
+  'cross',
+  'star',
+]
 
 type Token = {
   x: number
@@ -216,9 +231,9 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
         color,
       })
       if (rings.length > 4) rings.shift()
-      for (let index = 0; index < 14; index++) {
+      for (let index = 0; index < 20; index++) {
         const angle = Math.random() * Math.PI * 2
-        const speed = 0.7 + Math.random() * 2.2
+        const speed = 0.8 + Math.random() * 2.6
         sparks.push({
           x: event.clientX,
           y: event.clientY,
@@ -227,10 +242,13 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           born: performance.now(),
           life: 520 + Math.random() * 420,
           color: CURSOR_COLORS[index % CURSOR_COLORS.length],
-          size: 1.2 + Math.random() * 2.2,
+          size: 1.4 + Math.random() * 2.4,
+          shape: SPARK_SHAPES[index % SPARK_SHAPES.length],
+          rotation: Math.random() * Math.PI * 2,
+          spin: (Math.random() - 0.5) * 0.24,
         })
       }
-      if (sparks.length > 90) sparks.splice(0, sparks.length - 90)
+      if (sparks.length > 110) sparks.splice(0, sparks.length - 110)
       startleUntil = performance.now() + 460
     }
     window.addEventListener('pointerdown', onPointerDown, { passive: true })
@@ -546,6 +564,9 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
                 life: 420,
                 color: token.color,
                 size: 1.6,
+                shape: SPARK_SHAPES[(spark + first + second) % SPARK_SHAPES.length],
+                rotation: Math.random() * Math.PI * 2,
+                spin: (Math.random() - 0.5) * 0.2,
               })
             }
           }
@@ -577,11 +598,50 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           spark.x += spark.vx
           spark.y += spark.vy
           spark.vy += 0.018
+          spark.rotation += spark.spin
+          ctx.save()
+          ctx.translate(spark.x, spark.y)
+          ctx.rotate(spark.rotation)
           ctx.fillStyle = spark.color
           ctx.globalAlpha = 1 - age / spark.life
+          const size = spark.size
           ctx.beginPath()
-          ctx.arc(spark.x, spark.y, spark.size, 0, Math.PI * 2)
-          ctx.fill()
+          if (spark.shape === 'square') {
+            ctx.fillRect(-size, -size, size * 2, size * 2)
+          } else if (spark.shape === 'diamond') {
+            ctx.moveTo(0, -size * 1.5)
+            ctx.lineTo(size * 1.3, 0)
+            ctx.lineTo(0, size * 1.5)
+            ctx.lineTo(-size * 1.3, 0)
+            ctx.closePath()
+            ctx.fill()
+          } else if (spark.shape === 'triangle') {
+            ctx.moveTo(0, -size * 1.6)
+            ctx.lineTo(size * 1.4, size * 1.1)
+            ctx.lineTo(-size * 1.4, size * 1.1)
+            ctx.closePath()
+            ctx.fill()
+          } else if (spark.shape === 'line') {
+            ctx.fillRect(-size * 2.4, -size * 0.35, size * 4.8, size * 0.7)
+          } else if (spark.shape === 'cross') {
+            ctx.fillRect(-size * 2, -size * 0.4, size * 4, size * 0.8)
+            ctx.fillRect(-size * 0.4, -size * 2, size * 0.8, size * 4)
+          } else if (spark.shape === 'star') {
+            for (let point = 0; point < 10; point++) {
+              const radius = point % 2 === 0 ? size * 1.8 : size * 0.72
+              const angle = -Math.PI / 2 + (point * Math.PI) / 5
+              const px = Math.cos(angle) * radius
+              const py = Math.sin(angle) * radius
+              if (point === 0) ctx.moveTo(px, py)
+              else ctx.lineTo(px, py)
+            }
+            ctx.closePath()
+            ctx.fill()
+          } else {
+            ctx.arc(0, 0, size, 0, Math.PI * 2)
+            ctx.fill()
+          }
+          ctx.restore()
         }
 
         for (let index = tokens.length - 1; index >= 0; index--) {
