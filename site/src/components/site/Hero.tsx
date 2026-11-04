@@ -148,24 +148,6 @@ export default function Hero() {
               />
             </div>
 
-            <div
-              aria-hidden="true"
-              className="absolute -bottom-5 -left-4 animate-float rounded-xl border border-amber-400/25 bg-[#14130d]/95 px-4 py-3 shadow-xl shadow-black/50 backdrop-blur"
-            >
-              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-amber-400/70">
-                answer
-              </p>
-              <p className="mt-0.5 text-3xl font-semibold leading-none text-amber-300">B</p>
-            </div>
-            <div
-              aria-hidden="true"
-              className="absolute -right-3 top-14 animate-float-delayed rounded-lg border border-emerald-400/20 bg-[#0c1511]/95 px-3 py-2 shadow-xl shadow-black/50 backdrop-blur"
-            >
-              <p className="flex items-center gap-1.5 font-mono text-[10px] text-emerald-300">
-                <span className="size-1.5 rounded-full bg-emerald-400" />
-                모델 일치
-              </p>
-            </div>
           </div>
         </Reveal>
       </div>

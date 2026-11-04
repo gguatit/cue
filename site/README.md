@@ -38,12 +38,12 @@ npm run deploy
 ```powershell
 cd C:\home\00_project\00_my\cursor-replay
 npm run build
-Copy-Item dist\index.js,dist\chunk-replay.js,dist\index.d.ts,dist\replay.d.ts,dist\timeline.d.ts ..\cue\site\src\vendor\cursor-replay\ -Force
+Copy-Item dist\index.js,dist\chunk-replay.js,dist\chunk-replay.js.map,dist\index.d.ts,dist\replay.d.ts,dist\timeline.d.ts ..\cue\site\src\vendor\cursor-replay\ -Force
 ```
 
 라이브러리는 Swarm/Swarm Rebuild의 코드나 에셋을 쓰지 않은 독립 구현입니다. 자세한 내용은 `src/vendor/cursor-replay/NOTICE.md`를 참고하세요.
 
-`src/components/site/SiteReplay.tsx`가 첫 방문(세션)에 `document.body` 전체를 커서로 다시 그리고, 우하단 **페이지 다시 그리기** 버튼으로 언제든 재실행합니다. `prefers-reduced-motion`에서는 자동 재생과 버튼을 비활성화합니다. 사이트는 밝은 페이퍼 배경과 핑크·오렌지·틸·바이올렛 포인트를 사용합니다.
+`src/components/site/SiteReplay.tsx`가 첫 방문(세션)에 현재 뷰포트만 커서로 다시 그리고, 우하단 **페이지 다시 그리기** 버튼으로 언제든 재실행합니다. 오버레이는 시작 스크롤 위치에 고정되어 스크롤을 막지 않으며, 아래 섹션은 `Reveal`이 화면에 들어올 때 부드럽게 나타납니다. `prefers-reduced-motion`에서는 자동 재생과 버튼을 비활성화합니다. 사이트는 밝은 페이퍼 배경과 핑크·오렌지·틸·바이올렛 포인트를 사용합니다.
 
 ## 자산
 

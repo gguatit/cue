@@ -10,14 +10,12 @@ export default function SiteReplay() {
   const [playing, setPlaying] = useState(false)
   const controller = useRef<ReplayController | null>(null)
   const playingRef = useRef(false)
-  const previousOverflow = useRef('')
   const reducedMotion = useReducedMotion()
 
   useEffect(
     () => () => {
       controller.current?.destroy()
       controller.current = null
-      document.body.style.overflow = previousOverflow.current
     },
     [],
   )
@@ -26,16 +24,16 @@ export default function SiteReplay() {
     if (playingRef.current || reducedMotion) return
     const wide = window.innerWidth >= 768
     controller.current?.destroy()
-    previousOverflow.current = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
     const next = createCursorReplay(document.body, {
-      duration: wide ? 5200 : 3600,
-      cursors: wide ? 10 : 5,
-      maxTargets: wide ? 160 : 60,
+      duration: wide ? 7000 : 5200,
+      cursors: wide ? 8 : 6,
+      maxTargets: wide ? 180 : 100,
       colors: palette,
       ink: '#1c1917',
       surface: '#fffaf0',
       fullscreen: true,
+      anchor: 'viewport',
+      lockScroll: false,
       reducedMotion: 'play',
     })
     controller.current = next
@@ -44,7 +42,6 @@ export default function SiteReplay() {
     void next.play().finally(() => {
       playingRef.current = false
       setPlaying(false)
-      document.body.style.overflow = previousOverflow.current
       if (controller.current === next) controller.current = null
     })
   }
@@ -76,7 +73,7 @@ export default function SiteReplay() {
         onClick={replay}
         disabled={playing || reducedMotion}
         title={
-          reducedMotion ? '동작 줄이기 설정이 켜져 있습니다' : '사이트 전체를 커서로 다시 그립니다'
+          reducedMotion ? '동작 줄이기 설정이 켜져 있습니다' : '보이는 화면을 커서로 다시 그립니다'
         }
         className="fixed bottom-5 right-5 z-[80] inline-flex h-11 items-center gap-2 rounded-xl border-2 border-[#1c1917] bg-[#1c1917] px-4 text-sm font-semibold text-[#fffaf0] shadow-[4px_4px_0_#ffb703] transition-[transform,box-shadow,background-color] hover:-translate-y-0.5 hover:bg-[#292524] hover:shadow-[6px_6px_0_#ff4d6d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff4d6d] disabled:cursor-not-allowed disabled:opacity-55 sm:bottom-6 sm:right-6"
       >
@@ -91,7 +88,7 @@ export default function SiteReplay() {
         <span className="sm:hidden">Replay</span>
       </button>
       <p className="sr-only" role="status" aria-live="polite">
-        {playing ? '사이트 전체를 다시 그리는 중입니다.' : ''}
+        {playing ? '보이는 화면을 다시 그리는 중입니다.' : ''}
       </p>
     </>
   )

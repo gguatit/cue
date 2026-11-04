@@ -26,6 +26,8 @@ export interface ReplayOptions {
     ink?: string;
     surface?: string;
     fullscreen?: boolean;
+    anchor?: 'fixed' | 'viewport';
+    lockScroll?: boolean;
     reducedMotion?: 'auto' | 'skip' | 'play';
     onStart?: () => void;
     onComplete?: () => void;

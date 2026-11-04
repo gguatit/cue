@@ -1,10 +1,11 @@
 import { AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { README_URL } from '@/lib/site'
+import Reveal from './Reveal'
 
 export default function WarningBand() {
   return (
     <section aria-labelledby="warning-title" className="border-t border-white/5">
-      <div className="mx-auto max-w-7xl px-5 py-10 md:px-8">
+      <Reveal className="mx-auto max-w-7xl px-5 py-10 md:px-8">
         <div className="flex flex-col gap-4 rounded-2xl border-2 border-[#e03e5c]/25 bg-[linear-gradient(120deg,#ffe8ec,#fff4e6)] p-5 shadow-[4px_4px_0_#ffb703] sm:flex-row sm:items-start sm:gap-5 sm:p-6">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[#e03e5c]/30 bg-white/70 text-[#e03e5c]">
             <AlertTriangle aria-hidden="true" className="size-5" />
@@ -30,7 +31,7 @@ export default function WarningBand() {
             </a>
           </div>
         </div>
-      </div>
+      </Reveal>
     </section>
   )
 }
