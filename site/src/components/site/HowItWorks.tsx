@@ -43,19 +43,19 @@ export default function HowItWorks() {
         <div className="mt-12 grid gap-4 md:grid-cols-3">
           {steps.map(({ number, icon: Icon, title, body, detail }, index) => (
             <Reveal key={number} delay={index * 80}>
-              <Card className="group h-full border-white/5 bg-white/[0.018] ring-white/10 transition-[transform,border-color,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-amber-400/20 hover:bg-white/[0.03] hover:shadow-[0_18px_50px_-28px_rgba(251,191,36,0.4)]">
+              <Card className="group h-full border-2 border-[#1c1917]/15 bg-[#fffdf8] ring-0 shadow-[4px_4px_0_#ffb703] transition-[transform,border-color,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-[#ff4d6d]/40 hover:shadow-[6px_6px_0_#ff4d6d]">
                 <CardContent className="flex h-full flex-col p-5">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[10px] tracking-[0.24em] text-zinc-600">
                       {number}
                     </span>
-                    <span className="flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-amber-400">
+                    <span className="flex size-9 items-center justify-center rounded-lg border border-[#1c1917]/15 bg-[#fff4e6] text-[#e03e5c]">
                       <Icon aria-hidden="true" className="size-4" />
                     </span>
                   </div>
                   <h3 className="mt-8 text-lg font-medium tracking-tight text-zinc-100">{title}</h3>
                   <p className="mt-2 flex-1 text-sm leading-6 text-zinc-400">{body}</p>
-                  <p className="mt-5 border-t border-white/5 pt-3 font-mono text-[10px] leading-5 text-zinc-600">
+                  <p className="mt-5 border-t border-[#1c1917]/10 pt-3 font-mono text-[10px] leading-5 text-[#8b7355]">
                     {detail}
                   </p>
                 </CardContent>

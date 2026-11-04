@@ -58,7 +58,7 @@ export default function SecuritySection() {
           <div className="mt-8 grid gap-x-6 gap-y-5 sm:grid-cols-2">
             {controls.map(({ icon: Icon, title, body }) => (
               <div key={title} className="flex gap-3">
-                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-amber-400">
+                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-[#1c1917]/15 bg-[#fff4e6] text-[#e03e5c]">
                   <Icon aria-hidden="true" className="size-4" />
                 </span>
                 <div>
@@ -71,7 +71,7 @@ export default function SecuritySection() {
         </Reveal>
 
         <Reveal delay={120}>
-          <Card className="border-white/10 bg-[#0b0d0c] ring-white/10">
+          <Card className="border-2 border-[#1c1917]/20 bg-[#fffdf8] ring-0 shadow-[6px_6px_0_#ffb703]">
             <CardContent className="p-5">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <div className="flex items-center gap-2">

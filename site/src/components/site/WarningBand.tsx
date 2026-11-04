@@ -5,12 +5,12 @@ export default function WarningBand() {
   return (
     <section aria-labelledby="warning-title" className="border-t border-white/5">
       <div className="mx-auto max-w-7xl px-5 py-10 md:px-8">
-        <div className="flex flex-col gap-4 rounded-2xl border border-amber-400/20 bg-amber-400/[0.045] p-5 sm:flex-row sm:items-start sm:gap-5 sm:p-6">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/25 bg-amber-400/10 text-amber-300">
+        <div className="flex flex-col gap-4 rounded-2xl border-2 border-[#e03e5c]/25 bg-[linear-gradient(120deg,#ffe8ec,#fff4e6)] p-5 shadow-[4px_4px_0_#ffb703] sm:flex-row sm:items-start sm:gap-5 sm:p-6">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[#e03e5c]/30 bg-white/70 text-[#e03e5c]">
             <AlertTriangle aria-hidden="true" className="size-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 id="warning-title" className="text-base font-semibold text-amber-100">
+            <h2 id="warning-title" className="text-base font-semibold text-[#9d174d]">
               시험 규정을 먼저 확인하세요.
             </h2>
             <p className="mt-1.5 max-w-4xl text-pretty text-sm leading-6 text-zinc-400">
@@ -23,7 +23,7 @@ export default function WarningBand() {
               href={README_URL}
               target="_blank"
               rel="noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-amber-300 underline-offset-4 hover:underline"
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[#9d174d] underline-offset-4 hover:underline"
             >
               전체 경고와 사용 규정 읽기
               <ArrowUpRight aria-hidden="true" className="size-3" />

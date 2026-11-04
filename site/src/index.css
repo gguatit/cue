@@ -5,38 +5,63 @@
 
 :root,
 .dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --card: #111114;
-  --card-foreground: #fafafa;
-  --popover: #111114;
-  --popover-foreground: #fafafa;
-  --primary: #fbbf24;
-  --primary-foreground: #1c1917;
-  --secondary: #1c1c21;
-  --secondary-foreground: #fafafa;
-  --muted: #18181b;
-  --muted-foreground: #a1a1aa;
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
-  --destructive: #ef4444;
-  --border: #2e2e33;
-  --input: #3f3f46;
-  --ring: #fbbf24;
-  --radius: 0.75rem;
-  --chart-1: #fbbf24;
-  --chart-2: #34d399;
-  --chart-3: #60a5fa;
-  --chart-4: #f472b6;
-  --chart-5: #a78bfa;
-  --sidebar: #111114;
-  --sidebar-foreground: #fafafa;
-  --sidebar-primary: #fbbf24;
-  --sidebar-primary-foreground: #1c1917;
-  --sidebar-accent: #27272a;
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #2e2e33;
-  --sidebar-ring: #fbbf24;
+  --background: #fffaf0;
+  --foreground: #1c1917;
+  --card: #fffdf8;
+  --card-foreground: #1c1917;
+  --popover: #fffdf8;
+  --popover-foreground: #1c1917;
+  --primary: #1c1917;
+  --primary-foreground: #fffaf0;
+  --secondary: #ffe8ec;
+  --secondary-foreground: #7f1d35;
+  --muted: #f7f3e8;
+  --muted-foreground: #6b5b4a;
+  --accent: #e6fbf8;
+  --accent-foreground: #115e59;
+  --destructive: #dc2626;
+  --border: #e3d6c3;
+  --input: #d6c7b0;
+  --ring: #ff4d6d;
+  --radius: 0.9rem;
+  --chart-1: #ff4d6d;
+  --chart-2: #ffb703;
+  --chart-3: #2ec4b6;
+  --chart-4: #7b61ff;
+  --chart-5: #00a8e8;
+  --sidebar: #fffdf8;
+  --sidebar-foreground: #1c1917;
+  --sidebar-primary: #ff4d6d;
+  --sidebar-primary-foreground: #fffaf0;
+  --sidebar-accent: #ffe8ec;
+  --sidebar-accent-foreground: #7f1d35;
+  --sidebar-border: #e3d6c3;
+  --sidebar-ring: #ff4d6d;
+}
+
+@theme {
+  /* The original site used white-alpha borders and dark zinc surfaces.
+     Remapping these scales keeps every legacy section readable in the
+     bright paper theme without duplicating class names. */
+  --color-white: #1c1917;
+  --color-zinc-950: #fffaf0;
+  --color-zinc-900: #fff4e6;
+  --color-zinc-800: #f5e7d0;
+  --color-zinc-700: #d6b892;
+  --color-zinc-600: #8b7355;
+  --color-zinc-500: #6b5b4a;
+  --color-zinc-400: #57534e;
+  --color-zinc-300: #3f3a35;
+  --color-zinc-200: #292524;
+  --color-zinc-100: #1c1917;
+  --color-zinc-50: #1c1917;
+  --color-amber-100: #7c2d12;
+  --color-amber-200: #92400e;
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+  --color-emerald-300: #0f766e;
+  --color-emerald-400: #0d9488;
+  --color-violet-300: #6d28d9;
 }
 
 @theme inline {
@@ -88,16 +113,20 @@
 
   html {
     scroll-behavior: smooth;
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
     @apply bg-background font-sans text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at 8% 0%, rgb(255 77 109 / 0.12), transparent 30rem),
+      radial-gradient(circle at 92% 12%, rgb(46 196 182 / 0.14), transparent 28rem),
+      radial-gradient(circle at 50% 100%, rgb(255 183 3 / 0.1), transparent 36rem);
   }
 
   ::selection {
-    background: var(--primary);
-    color: var(--primary-foreground);
+    background: #ff4d6d;
+    color: #fffaf0;
   }
 }
 
@@ -158,15 +187,16 @@ section[id] {
 
 .bg-grid {
   background-image:
-    linear-gradient(to right, rgb(255 255 255 / 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+    linear-gradient(to right, rgb(28 25 23 / 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(28 25 23 / 0.055) 1px, transparent 1px);
   background-size: 72px 72px;
 }
 
 .bg-glow {
   background:
-    radial-gradient(circle at 20% 10%, rgb(251 191 36 / 0.14), transparent 32rem),
-    radial-gradient(circle at 85% 30%, rgb(52 211 153 / 0.08), transparent 26rem);
+    radial-gradient(circle at 16% 8%, rgb(255 77 109 / 0.18), transparent 30rem),
+    radial-gradient(circle at 82% 22%, rgb(46 196 182 / 0.16), transparent 26rem),
+    radial-gradient(circle at 55% 88%, rgb(123 97 255 / 0.1), transparent 30rem);
 }
 
 .text-balance {

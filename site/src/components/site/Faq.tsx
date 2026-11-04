@@ -57,7 +57,7 @@ export default function Faq() {
             href={README_URL}
             target="_blank"
             rel="noreferrer"
-            className="mt-6 inline-flex text-sm font-medium text-amber-300 underline-offset-4 hover:underline"
+            className="mt-6 inline-flex text-sm font-medium text-[#e03e5c] underline-offset-4 hover:underline"
           >
             README에서 전체 문서 보기
           </a>
@@ -66,7 +66,7 @@ export default function Faq() {
         <Reveal delay={100}>
           <Accordion
             defaultValue={[]}
-            className="rounded-xl border border-white/10 bg-white/[0.018] px-5"
+            className="rounded-xl border-2 border-[#1c1917]/15 bg-[#fffdf8] px-5 shadow-[4px_4px_0_#e6fbf8]"
           >
             {faqs.map((item, index) => (
               <AccordionItem
@@ -74,7 +74,7 @@ export default function Faq() {
                 value={`faq-${index}`}
                 className={index === faqs.length - 1 ? 'border-b-0' : ''}
               >
-                <AccordionTrigger className="py-4 text-left text-sm text-zinc-200 hover:text-zinc-50 hover:no-underline">
+                <AccordionTrigger className="py-4 text-left text-sm text-[#1c1917] hover:text-[#e03e5c] hover:no-underline">
                   {item.q}
                 </AccordionTrigger>
                 <AccordionContent className="pb-4 text-sm leading-6 text-zinc-400">

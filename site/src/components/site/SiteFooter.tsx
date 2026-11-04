@@ -19,7 +19,7 @@ const links = [
 
 export default function SiteFooter() {
   return (
-    <footer className="border-t border-white/5 bg-black/20">
+    <footer className="border-t border-[#1c1917]/10 bg-[#f7f3e8]/80">
       <div className="mx-auto max-w-7xl px-5 py-12 md:px-8">
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div className="max-w-sm">
@@ -29,7 +29,7 @@ export default function SiteFooter() {
                 alt=""
                 width={32}
                 height={32}
-                className="size-8 rounded-lg ring-1 ring-white/10"
+                className="size-8 rounded-lg ring-1 ring-[#1c1917]/15"
               />
               <span className="text-sm font-semibold text-zinc-100">Cue</span>
             </a>

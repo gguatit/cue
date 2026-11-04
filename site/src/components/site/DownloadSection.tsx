@@ -24,8 +24,9 @@ export default function DownloadSection() {
     <section id="download" className="border-t border-white/5">
       <div className="mx-auto max-w-7xl px-5 py-20 md:px-8 md:py-28">
         <Reveal>
-          <Card className="relative overflow-hidden border-amber-400/15 bg-[#0c0c0a] ring-white/10">
-            <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-amber-400/10 blur-3xl" />
+          <Card className="relative overflow-hidden border-2 border-[#1c1917]/20 bg-[#fffdf8] ring-0 shadow-[8px_8px_0_#ff4d6d]">
+            <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[#ff4d6d]/15 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-20 size-72 rounded-full bg-[#2ec4b6]/15 blur-3xl" />
             <CardContent className="relative grid gap-10 p-6 md:p-10 lg:grid-cols-[1fr_0.9fr] lg:items-center lg:gap-16">
               <div>
                 <Badge
@@ -84,7 +85,7 @@ export default function DownloadSection() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-black/30 p-5">
+              <div className="rounded-xl border border-[#1c1917]/15 bg-[#f7f3e8] p-5">
                 <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-600">
                   install checklist
                 </p>

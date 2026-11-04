@@ -35,7 +35,7 @@ function DisplayPreview({ mode }: { mode: DisplayMode }) {
   const current = displayModes.find((item) => item.id === mode) ?? displayModes[0]
   return (
     <div className="mt-5">
-      <div className="relative h-32 overflow-hidden rounded-xl border border-white/10 bg-[#09090b]">
+      <div className="relative h-32 overflow-hidden rounded-xl border-2 border-[#1c1917]/20 bg-[#fffaf0]">
         <div aria-hidden="true" className="absolute inset-0 bg-grid opacity-30" />
         <span className="absolute left-3 top-3 z-10 font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-600">
           {current.label} preview
@@ -58,7 +58,7 @@ function DisplayPreview({ mode }: { mode: DisplayMode }) {
             aria-hidden="true"
             className="absolute left-[56%] top-[58%] size-4 text-zinc-400"
           />
-          <span className="animate-float rounded-lg border border-white/15 bg-[#17171b]/95 px-5 py-2 text-3xl font-bold text-zinc-100 shadow-xl">
+          <span className="animate-float rounded-lg border-2 border-[#1c1917] bg-[#fffdf8] px-5 py-2 text-3xl font-bold text-[#1c1917] shadow-[4px_4px_0_#ff4d6d]">
             B
           </span>
         </div>
@@ -66,7 +66,7 @@ function DisplayPreview({ mode }: { mode: DisplayMode }) {
 
       {mode === 'flash' && (
         <div className="flex h-full items-center justify-center bg-black/55">
-          <span className="animate-pulse text-6xl font-black leading-none text-white">B</span>
+          <span className="animate-pulse text-6xl font-black leading-none text-[#fffaf0]">B</span>
         </div>
       )}
 
@@ -75,7 +75,7 @@ function DisplayPreview({ mode }: { mode: DisplayMode }) {
           {['S', 'C', 'N'].map((key) => (
             <span
               key={key}
-              className="flex size-8 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] font-mono text-[10px] text-zinc-500"
+              className="flex size-8 items-center justify-center rounded-md border border-[#1c1917]/15 bg-[#f7f3e8] font-mono text-[10px] text-[#6b5b4a]"
             >
               {key}
             </span>
@@ -111,9 +111,9 @@ function FeatureCard({
 }) {
   return (
     <Reveal className={className}>
-      <Card className="group h-full border-white/5 bg-white/[0.018] ring-white/10 transition-[transform,border-color,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-amber-400/20 hover:bg-white/[0.03] hover:shadow-[0_18px_50px_-28px_rgba(251,191,36,0.4)]">
+      <Card className="group h-full border-2 border-[#1c1917]/15 bg-[#fffdf8] ring-0 shadow-[4px_4px_0_#e6fbf8] transition-[transform,border-color,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-[#7b61ff]/35 hover:shadow-[6px_6px_0_#7b61ff]">
         <CardContent className="flex h-full flex-col p-5">
-          <span className="flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-amber-400">
+          <span className="flex size-9 items-center justify-center rounded-lg border border-[#1c1917]/15 bg-[#fff4e6] text-[#e03e5c]">
             <Icon aria-hidden="true" className="size-4" />
           </span>
           <h3 className="mt-5 text-base font-medium tracking-tight text-zinc-100">{title}</h3>
@@ -158,8 +158,8 @@ export default function FeatureGrid() {
                   onClick={() => setDisplayMode(id)}
                   className={`inline-flex min-h-8 items-center gap-1.5 rounded-md border px-2.5 py-1 font-mono text-[10px] transition-[color,background-color,border-color] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 ${
                     displayMode === id
-                      ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
-                      : 'border-white/10 bg-white/[0.025] text-zinc-400 hover:border-white/20 hover:text-zinc-200'
+                          ? 'border-[#e03e5c]/40 bg-[#ffe8ec] text-[#9d174d]'
+                          : 'border-[#1c1917]/15 bg-[#f7f3e8] text-[#57534e] hover:border-[#1c1917]/30 hover:text-[#1c1917]'
                   }`}
                 >
                   <Icon aria-hidden="true" className="size-3" />

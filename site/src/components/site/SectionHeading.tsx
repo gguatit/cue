@@ -11,7 +11,7 @@ export default function SectionHeading({
 }) {
   return (
     <div className={align === 'center' ? 'mx-auto max-w-2xl text-center' : 'max-w-2xl'}>
-      <p className="font-mono text-xs uppercase tracking-[0.24em] text-amber-400/80">
+      <p className="bg-gradient-to-r from-[#e03e5c] via-[#c2410c] to-[#0f766e] bg-clip-text font-mono text-xs uppercase tracking-[0.24em] text-transparent">
         {eyebrow}
       </p>
       <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-zinc-50 md:text-4xl">

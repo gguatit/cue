@@ -55,7 +55,7 @@ export default function SiteHeader() {
         className="fixed inset-x-0 top-0 z-50 h-0.5 bg-white/5"
       >
         <div
-          className="h-full origin-left bg-gradient-to-r from-amber-400 to-amber-200 transition-transform duration-150"
+          className="h-full origin-left bg-gradient-to-r from-[#ff4d6d] via-[#ffb703] to-[#2ec4b6] transition-transform duration-150"
           style={{ transform: `scaleX(${progress})` }}
         />
       </div>
@@ -77,7 +77,7 @@ export default function SiteHeader() {
               alt=""
               width={32}
               height={32}
-              className="size-8 rounded-lg ring-1 ring-white/10"
+              className="size-8 rounded-lg ring-1 ring-[#1c1917]/15"
             />
             <span className="text-sm font-semibold tracking-tight text-zinc-100">Cue</span>
             <span className="hidden rounded-full border border-white/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500 sm:inline">
@@ -100,7 +100,7 @@ export default function SiteHeader() {
                   {item.label}
                   <span
                     aria-hidden="true"
-                    className={`absolute -bottom-0.5 left-0 h-px w-full origin-left bg-amber-400 transition-transform duration-300 ${
+                    className={`absolute -bottom-0.5 left-0 h-0.5 w-full origin-left rounded-full bg-gradient-to-r from-[#ff4d6d] to-[#7b61ff] transition-transform duration-300 ${
                       current ? 'scale-x-100' : 'scale-x-0'
                     }`}
                   />

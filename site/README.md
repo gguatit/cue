@@ -43,6 +43,8 @@ Copy-Item dist\index.js,dist\chunk-replay.js,dist\index.d.ts,dist\replay.d.ts,di
 
 라이브러리는 Swarm/Swarm Rebuild의 코드나 에셋을 쓰지 않은 독립 구현입니다. 자세한 내용은 `src/vendor/cursor-replay/NOTICE.md`를 참고하세요.
 
+`src/components/site/SiteReplay.tsx`가 첫 방문(세션)에 `document.body` 전체를 커서로 다시 그리고, 우하단 **페이지 다시 그리기** 버튼으로 언제든 재실행합니다. `prefers-reduced-motion`에서는 자동 재생과 버튼을 비활성화합니다. 사이트는 밝은 페이퍼 배경과 핑크·오렌지·틸·바이올렛 포인트를 사용합니다.
+
 ## 자산
 
 `public/brand/icon.png`, `public/media/poster.png`, `public/media/cue-promo.gif`, `public/media/cue-promo.mp4`는 앱 저장소의 아이콘과 `docs/promo/` 자산을 복사한 것입니다. 앱 프로모 자산이 바뀌면 다시 복사합니다.

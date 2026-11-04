@@ -41,21 +41,26 @@ export default function Hero() {
     <section id="top" className="relative isolate overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-glow" />
       <div className="pointer-events-none absolute inset-0 -z-10 bg-grid [mask-image:linear-gradient(to_bottom,black,transparent_82%)]" />
+      <div className="pointer-events-none absolute -left-32 top-24 -z-10 size-72 rounded-full bg-[#ff4d6d]/20 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 top-1/3 -z-10 size-80 rounded-full bg-[#2ec4b6]/20 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-1/3 -z-10 size-72 rounded-full bg-[#ffb703]/20 blur-3xl" />
 
       <div className="mx-auto grid max-w-7xl gap-14 px-5 pb-24 pt-20 md:px-8 md:pb-32 md:pt-28 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-16">
         <Reveal>
           <Badge
             variant="outline"
-            className="gap-2 border-amber-400/25 bg-amber-400/5 px-2.5 py-1 text-[11px] text-amber-200/90"
+            className="gap-2 border-[#ff4d6d]/30 bg-[#ffe8ec] px-2.5 py-1 text-[11px] text-[#9d174d]"
           >
-            <span className="size-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+            <span className="size-1.5 rounded-full bg-[#ff4d6d]" />
             WINDOWS 10/11 x64 · LOCAL-FIRST
           </Badge>
 
           <h1 className="mt-6 text-balance text-5xl font-semibold leading-[1.02] tracking-[-0.045em] text-zinc-50 sm:text-6xl lg:text-7xl">
             시험지 위에서,
             <br />
-            <span className="text-amber-400">답을 조용히.</span>
+            <span className="bg-gradient-to-r from-[#ff4d6d] via-[#e85d04] to-[#0f766e] bg-clip-text text-transparent">
+              답을 조용히.
+            </span>
           </h1>
 
           <p className="mt-6 max-w-xl text-pretty text-base leading-7 text-zinc-400 sm:text-lg">
@@ -114,7 +119,7 @@ export default function Hero() {
             }}
           >
             <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-amber-400/5 blur-3xl transition-colors duration-300 group-hover:bg-amber-400/10" />
-            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl shadow-black/60">
+            <div className="relative overflow-hidden rounded-2xl border-2 border-[#1c1917]/20 bg-zinc-950 shadow-[8px_8px_0_#7b61ff]">
               <div className="flex h-9 items-center gap-2 border-b border-white/5 bg-white/[0.025] px-3.5">
                 <span className="size-2 rounded-full bg-zinc-700" />
                 <span className="size-2 rounded-full bg-zinc-700" />

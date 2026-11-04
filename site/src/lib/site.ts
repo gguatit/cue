@@ -8,7 +8,6 @@ export const ISSUES_URL = `${REPO_URL}/issues`
 export const NAV = [
   { label: '기능', href: '#features' },
   { label: '사용법', href: '#how' },
-  { label: '리플레이', href: '#replay' },
   { label: '보안', href: '#security' },
   { label: '다운로드', href: '#download' },
   { label: 'FAQ', href: '#faq' },

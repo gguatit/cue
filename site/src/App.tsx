@@ -4,10 +4,10 @@ import FeatureGrid from '@/components/site/FeatureGrid'
 import FreeModeSection from '@/components/site/FreeModeSection'
 import Hero from '@/components/site/Hero'
 import HowItWorks from '@/components/site/HowItWorks'
-import ReplaySection from '@/components/site/ReplaySection'
 import SecuritySection from '@/components/site/SecuritySection'
 import SiteFooter from '@/components/site/SiteFooter'
 import SiteHeader from '@/components/site/SiteHeader'
+import SiteReplay from '@/components/site/SiteReplay'
 import TrustStrip from '@/components/site/TrustStrip'
 import WarningBand from '@/components/site/WarningBand'
 
@@ -25,7 +25,6 @@ export default function App() {
         <Hero />
         <TrustStrip />
         <HowItWorks />
-        <ReplaySection />
         <FeatureGrid />
         <FreeModeSection />
         <SecuritySection />
@@ -34,6 +33,7 @@ export default function App() {
         <Faq />
       </main>
       <SiteFooter />
+      <SiteReplay />
     </div>
   )
 }

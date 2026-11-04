@@ -39,7 +39,7 @@ export default function FreeModeSection() {
   const current = modes.find((item) => item.id === mode) ?? modes[0]
 
   return (
-    <section className="border-t border-white/5 bg-white/[0.012]">
+    <section className="border-t border-[#1c1917]/10 bg-[#f7f3e8]/70">
       <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 md:px-8 md:py-28 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-16">
         <Reveal>
           <SectionHeading
@@ -50,8 +50,8 @@ export default function FreeModeSection() {
 
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
             {capabilities.map(({ icon: Icon, title, body }) => (
-              <div key={title} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
-                <Icon aria-hidden="true" className="size-4 text-amber-400" />
+              <div key={title} className="rounded-lg border border-[#1c1917]/15 bg-[#fffdf8] p-3">
+                <Icon aria-hidden="true" className="size-4 text-[#e03e5c]" />
                 <p className="mt-2 text-sm font-medium text-zinc-200">{title}</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-500">{body}</p>
               </div>
@@ -73,7 +73,7 @@ export default function FreeModeSection() {
         <Reveal delay={120}>
           <div className="relative">
             <div className="absolute -inset-8 -z-10 rounded-[2rem] bg-emerald-400/5 blur-3xl" />
-            <Card className="border-white/10 bg-[#0b0d0c] ring-white/10">
+            <Card className="border-2 border-[#1c1917]/20 bg-[#fffdf8] ring-0 shadow-[6px_6px_0_#2ec4b6]">
               <CardContent className="p-0">
                 <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3">
                   <span className="size-2 rounded-full bg-zinc-700" />
@@ -116,8 +116,8 @@ export default function FreeModeSection() {
                       onClick={() => setMode(item.id)}
                       className={`min-h-8 rounded-md border px-2.5 py-1 font-mono text-[10px] transition-[color,background-color,border-color] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
                         mode === item.id
-                          ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
-                          : 'border-white/10 bg-white/[0.02] text-zinc-500 hover:border-white/20 hover:text-zinc-300'
+                        ? 'border-[#0f766e]/35 bg-[#e6fbf8] text-[#0f766e]'
+                        : 'border-[#1c1917]/15 bg-[#f7f3e8] text-[#6b5b4a] hover:border-[#1c1917]/30 hover:text-[#1c1917]'
                       }`}
                     >
                       {item.label}
@@ -139,7 +139,7 @@ export default function FreeModeSection() {
               </CardContent>
             </Card>
 
-            <div className="mt-4 rounded-xl border border-white/10 bg-background/80 p-4">
+            <div className="mt-4 rounded-xl border border-[#1c1917]/15 bg-[#fffdf8] p-4">
               <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-600">
                 recommended instruction
               </p>
