@@ -35,11 +35,45 @@ type Worker = {
   homeX: number
   homeY: number
   angle: number
+  mode: 'orbit' | 'chase'
+  modeUntil: number
+  orbitAngle: number
+  orbitRadius: number
+  orbitSpeed: number
   target: HTMLElement | null
   startX: number
   startY: number
   startedAt: number
   duration: number
+  trail: Array<{ x: number; y: number }>
+}
+
+type Spark = {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  born: number
+  life: number
+  color: string
+  size: number
+}
+
+type Token = {
+  x: number
+  y: number
+  text: string
+  color: string
+  born: number
+  life: number
+}
+
+type Ring = {
+  x: number
+  y: number
+  born: number
+  life: number
+  color: string
 }
 
 function visible(el: HTMLElement) {
@@ -60,6 +94,7 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
   const hudRef = useRef<HTMLDivElement>(null)
   const hudLabelRef = useRef<HTMLSpanElement>(null)
   const dimensionRef = useRef<HTMLDivElement>(null)
+  const effectRef = useRef<HTMLCanvasElement>(null)
 
   useLayoutEffect(() => {
     stateRef.current = state
@@ -86,17 +121,14 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
     const queued = new Set<HTMLElement>()
     const active = new Set<HTMLElement>()
     const queue: HTMLElement[] = []
-    const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2, active: false }
+    const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+    const anchor = { x: pointer.x, y: pointer.y }
+    let startleUntil = 0
     const onPointerMove = (event: PointerEvent) => {
       pointer.x = event.clientX
       pointer.y = event.clientY
-      pointer.active = true
-    }
-    const onPointerLeave = () => {
-      pointer.active = false
     }
     window.addEventListener('pointermove', onPointerMove, { passive: true })
-    document.addEventListener('pointerleave', onPointerLeave)
     const workers: Worker[] = Array.from({ length: MAX_AGENTS }, (_, index) => {
       const x = (index * 137) % Math.max(1, window.innerWidth - 40) + 20
       const y = (index * 83) % Math.max(1, window.innerHeight - 40) + 20
@@ -106,11 +138,17 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
         homeX: x,
         homeY: y,
         angle: 0,
+        mode: index % 4 === 0 ? 'chase' : 'orbit',
+        modeUntil: 0,
+        orbitAngle: (Math.PI * 2 * index) / MAX_AGENTS,
+        orbitRadius: 54 + (index % 10) * 17,
+        orbitSpeed: 0.00022 + (index % 7) * 0.000035,
         target: null,
         startX: 0,
         startY: 0,
         startedAt: 0,
         duration: 1000,
+        trail: [],
       }
     })
 
@@ -132,6 +170,51 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
 
     const builderSet = new Set<number>()
     const dimensions = new Map<HTMLElement, HTMLElement>()
+    const canvas = effectRef.current
+    const ctx = canvas?.getContext('2d')
+    const sparks: Spark[] = []
+    const tokens: Token[] = []
+    const rings: Ring[] = []
+    const pairCooldown = new Map<string, number>()
+
+    const resizeCanvas = () => {
+      if (!canvas || !ctx) return
+      const dpr = Math.min(2, window.devicePixelRatio || 1)
+      canvas.width = Math.round(window.innerWidth * dpr)
+      canvas.height = Math.round(window.innerHeight * dpr)
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    }
+    resizeCanvas()
+    window.addEventListener('resize', resizeCanvas)
+
+    const onPointerDown = (event: PointerEvent) => {
+      const color = CURSOR_COLORS[Math.floor(Math.random() * CURSOR_COLORS.length)]
+      rings.push({
+        x: event.clientX,
+        y: event.clientY,
+        born: performance.now(),
+        life: 620,
+        color,
+      })
+      if (rings.length > 4) rings.shift()
+      for (let index = 0; index < 14; index++) {
+        const angle = Math.random() * Math.PI * 2
+        const speed = 0.7 + Math.random() * 2.2
+        sparks.push({
+          x: event.clientX,
+          y: event.clientY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          born: performance.now(),
+          life: 520 + Math.random() * 420,
+          color: CURSOR_COLORS[index % CURSOR_COLORS.length],
+          size: 1.2 + Math.random() * 2.2,
+        })
+      }
+      if (sparks.length > 90) sparks.splice(0, sparks.length - 90)
+      startleUntil = performance.now() + 460
+    }
+    window.addEventListener('pointerdown', onPointerDown, { passive: true })
 
     const addDimension = (el: HTMLElement, colorIndex: number) => {
       if (dimensions.has(el) || !dimensionRef.current) return
@@ -214,6 +297,9 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
         if (!cursorEl) continue
         cursorEl.classList.toggle('is-visible', index < agentCount)
       }
+
+      anchor.x += (pointer.x - anchor.x) * 0.035
+      anchor.y += (pointer.y - anchor.y) * 0.035
 
       for (let index = 0; index < agentCount; index++) {
         const worker = workers[index]
@@ -299,26 +385,44 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           }
 
           if (!worker.target) {
-            const phase = now * 0.00045 + index * 1.7
-            let targetX = clamp(
-              worker.homeX + Math.sin(phase) * 52,
-              24,
-              window.innerWidth - 40,
-            )
-            let targetY = clamp(
-              worker.homeY + Math.cos(phase * 0.8) * 34,
-              24,
-              window.innerHeight - 40,
-            )
-            if (pointer.active) {
-              const distance = Math.hypot(pointer.x - worker.x, pointer.y - worker.y)
-              if (distance < 280) {
-                targetX = pointer.x + Math.sin(index * 1.3) * 42
-                targetY = pointer.y + Math.cos(index * 1.1) * 32
-              }
+            if (now > worker.modeUntil) {
+              worker.mode =
+                worker.mode === 'chase'
+                  ? 'orbit'
+                  : (index + Math.floor(now / 4600)) % 4 === 0
+                    ? 'chase'
+                    : 'orbit'
+              worker.modeUntil = now + 3600 + ((index * 517) % 3000)
             }
-            worker.x += (targetX - worker.x) * 0.03
-            worker.y += (targetY - worker.y) * 0.03
+
+            let targetX = worker.x
+            let targetY = worker.y
+
+            if (now < startleUntil) {
+              const dx = worker.x - pointer.x
+              const dy = worker.y - pointer.y
+              const distance = Math.hypot(dx, dy) || 1
+              targetX = pointer.x + (dx / distance) * (150 + (index % 5) * 24)
+              targetY = pointer.y + (dy / distance) * (120 + (index % 4) * 22)
+            } else if (worker.mode === 'chase' && agentCount > 2) {
+              const partner = workers[(index + 7) % agentCount]
+              const chaseAngle = now * 0.0012 + index * 1.7
+              targetX = partner.x + Math.cos(chaseAngle) * 46
+              targetY = partner.y + Math.sin(chaseAngle) * 34
+            } else {
+              const orbit = worker.orbitAngle + now * worker.orbitSpeed
+              targetX =
+                anchor.x +
+                Math.cos(orbit) * worker.orbitRadius +
+                Math.sin(now * 0.0009 + index) * 9
+              targetY =
+                anchor.y +
+                Math.sin(orbit) * worker.orbitRadius * 0.7 +
+                Math.cos(now * 0.0007 + index * 1.3) * 10
+            }
+
+            worker.x += (clamp(targetX, 24, window.innerWidth - 40) - worker.x) * 0.04
+            worker.y += (clamp(targetY, 24, window.innerHeight - 40) - worker.y) * 0.04
           }
         }
 
@@ -328,7 +432,130 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           worker.angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI + 45
         }
 
+        worker.trail.push({ x: worker.x, y: worker.y })
+        if (worker.trail.length > 7) worker.trail.shift()
         cursorEl.style.transform = `translate3d(${worker.x.toFixed(2)}px, ${worker.y.toFixed(2)}px, 0) rotate(${worker.angle.toFixed(2)}deg)`
+      }
+
+      if (ctx && canvas) {
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+
+        for (let index = 0; index < agentCount; index++) {
+          const trail = workers[index].trail
+          if (trail.length < 2) continue
+          ctx.strokeStyle = CURSOR_COLORS[index % CURSOR_COLORS.length]
+          ctx.globalAlpha = 0.16
+          ctx.lineWidth = 1.1
+          ctx.beginPath()
+          ctx.moveTo(trail[0].x, trail[0].y)
+          for (let point = 1; point < trail.length; point++) {
+            ctx.lineTo(trail[point].x, trail[point].y)
+          }
+          ctx.stroke()
+        }
+
+        for (let first = 0; first < agentCount; first++) {
+          for (let second = first + 1; second < agentCount; second++) {
+            const a = workers[first]
+            const b = workers[second]
+            const distance = Math.hypot(a.x - b.x, a.y - b.y)
+            if (distance > 66) continue
+            ctx.strokeStyle = CURSOR_COLORS[first % CURSOR_COLORS.length]
+            ctx.globalAlpha = 0.16 * (1 - distance / 66)
+            ctx.lineWidth = 0.8
+            ctx.beginPath()
+            ctx.moveTo(a.x, a.y)
+            ctx.lineTo(b.x, b.y)
+            ctx.stroke()
+
+            const key = `${first}:${second}`
+            const last = pairCooldown.get(key) ?? 0
+            if (distance < 44 && now - last > 2600) {
+              pairCooldown.set(key, now)
+              const same = (first + second) % 2 === 0
+              const token: Token = {
+                x: (a.x + b.x) / 2,
+                y: (a.y + b.y) / 2 - 20,
+                text: same ? '✓' : '?',
+                color: same ? '#0ACF83' : '#FFC700',
+                born: now,
+                life: 900,
+              }
+              tokens.push(token)
+              if (tokens.length > 8) tokens.shift()
+              for (let spark = 0; spark < 4; spark++) {
+                const angle = Math.random() * Math.PI * 2
+                sparks.push({
+                  x: token.x,
+                  y: token.y,
+                  vx: Math.cos(angle) * 1.4,
+                  vy: Math.sin(angle) * 1.4,
+                  born: now,
+                  life: 420,
+                  color: token.color,
+                  size: 1.6,
+                })
+              }
+            }
+          }
+        }
+
+        for (let index = rings.length - 1; index >= 0; index--) {
+          const ring = rings[index]
+          const age = now - ring.born
+          if (age > ring.life) {
+            rings.splice(index, 1)
+            continue
+          }
+          const progress = age / ring.life
+          ctx.strokeStyle = ring.color
+          ctx.globalAlpha = (1 - progress) * 0.7
+          ctx.lineWidth = 1.4
+          ctx.beginPath()
+          ctx.arc(ring.x, ring.y, 10 + progress * 54, 0, Math.PI * 2)
+          ctx.stroke()
+        }
+
+        for (let index = sparks.length - 1; index >= 0; index--) {
+          const spark = sparks[index]
+          const age = now - spark.born
+          if (age > spark.life) {
+            sparks.splice(index, 1)
+            continue
+          }
+          spark.x += spark.vx
+          spark.y += spark.vy
+          spark.vy += 0.018
+          ctx.fillStyle = spark.color
+          ctx.globalAlpha = 1 - age / spark.life
+          ctx.beginPath()
+          ctx.arc(spark.x, spark.y, spark.size, 0, Math.PI * 2)
+          ctx.fill()
+        }
+
+        for (let index = tokens.length - 1; index >= 0; index--) {
+          const token = tokens[index]
+          const age = now - token.born
+          if (age > token.life) {
+            tokens.splice(index, 1)
+            continue
+          }
+          const progress = age / token.life
+          ctx.globalAlpha = 1 - progress
+          ctx.fillStyle = token.color
+          ctx.beginPath()
+          ctx.arc(token.x, token.y, 9, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.fillStyle = '#fff'
+          ctx.font = '10px "JetBrains Mono", monospace'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(token.text, token.x, token.y + 0.5)
+        }
+
+        ctx.globalAlpha = 1
       }
 
       for (const [el, tag] of dimensions) {
@@ -361,8 +588,9 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
       observer.disconnect()
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
+      window.removeEventListener('resize', resizeCanvas)
       window.removeEventListener('pointermove', onPointerMove)
-      document.removeEventListener('pointerleave', onPointerLeave)
+      window.removeEventListener('pointerdown', onPointerDown)
       delete document.documentElement.dataset.buildActive
       targets.forEach((el) => {
         el.classList.remove('is-built', 'is-building')
@@ -395,6 +623,7 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           </div>
           <div className="ruler-corner" aria-hidden="true" />
           <div ref={dimensionRef} className="dimension-layer" aria-hidden="true" />
+          <canvas ref={effectRef} className="effect-canvas" aria-hidden="true" />
           <div className="cursor-layer" aria-hidden="true">
             {Array.from({ length: MAX_AGENTS }, (_, index) => (
               <div
