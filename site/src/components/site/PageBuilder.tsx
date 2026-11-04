@@ -35,6 +35,7 @@ type Worker = {
   homeX: number
   homeY: number
   angle: number
+  desiredAngle: number
   mode: 'orbit' | 'chase' | 'roam'
   modeUntil: number
   orbitAngle: number
@@ -86,6 +87,14 @@ function visible(el: HTMLElement) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
+}
+
+function turnToward(current: number, target: number, dt: number) {
+  const delta = (((target - current + 540) % 360) + 360) % 360 - 180
+  const step = clamp(delta * 0.12 * dt, -3.2 * dt, 3.2 * dt)
+  const next = current + step
+  const normalized = ((next % 360) + 360) % 360
+  return normalized > 180 ? normalized - 360 : normalized
 }
 
 export default function PageBuilder({ children }: { children: ReactNode }) {
@@ -144,6 +153,7 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
         homeX: x,
         homeY: y,
         angle: 0,
+        desiredAngle: 0,
         mode: index % 6 === 0 ? 'chase' : index % 4 === 0 ? 'roam' : 'orbit',
         modeUntil: 0,
         orbitAngle: (Math.PI * 2 * index) / MAX_AGENTS,
@@ -299,7 +309,10 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
     enqueueVisible()
 
     let raf = 0
+    let lastFrame = 0
     const loop = (now: number) => {
+      const dt = lastFrame ? Math.min(2.5, (now - lastFrame) / 16.667) : 1
+      lastFrame = now
       const agentCount = stateRef.current.agents
       for (let index = 0; index < MAX_AGENTS; index++) {
         const cursorEl = cursorRefs.current[index]
@@ -455,9 +468,10 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
 
         const deltaX = worker.x - previousX
         const deltaY = worker.y - previousY
-        if (Math.hypot(deltaX, deltaY) > 0.08) {
-          worker.angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI + 45
+        if (Math.hypot(deltaX, deltaY) > 0.12) {
+          worker.desiredAngle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI + 135
         }
+        worker.angle = turnToward(worker.angle, worker.desiredAngle, dt)
 
         worker.trail.push({ x: worker.x, y: worker.y })
         if (worker.trail.length > 7) worker.trail.shift()
