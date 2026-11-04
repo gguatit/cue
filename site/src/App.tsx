@@ -4,6 +4,7 @@ import FeatureGrid from '@/components/site/FeatureGrid'
 import FreeModeSection from '@/components/site/FreeModeSection'
 import Hero from '@/components/site/Hero'
 import HowItWorks from '@/components/site/HowItWorks'
+import ReplaySection from '@/components/site/ReplaySection'
 import SecuritySection from '@/components/site/SecuritySection'
 import SiteFooter from '@/components/site/SiteFooter'
 import SiteHeader from '@/components/site/SiteHeader'
@@ -24,6 +25,7 @@ export default function App() {
         <Hero />
         <TrustStrip />
         <HowItWorks />
+        <ReplaySection />
         <FeatureGrid />
         <FreeModeSection />
         <SecuritySection />
