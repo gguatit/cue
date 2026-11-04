@@ -21,7 +21,7 @@ const resources = [
 ]
 
 export default function SiteFooter() {
-  const { agents } = useBuilderState()
+  const { builders } = useBuilderState()
 
   return (
     <footer className="border-t border-[#dfe3e8] bg-[#f4f6f8]">
@@ -87,8 +87,8 @@ export default function SiteFooter() {
             © 2026 kalpha · MIT License · Made for Windows
           </p>
           <p className="font-mono text-[9px] leading-4 text-[#8a9098]">
-            {agents > 0
-              ? `이 페이지는 스크롤하는 동안 ${agents}개의 커서가 만들었습니다.`
+            {builders > 0
+              ? `이 페이지는 스크롤하는 동안 ${builders}개의 커서가 만들었습니다.`
               : '동작 줄이기 설정에 맞춰 페이지를 바로 표시했습니다.'}
           </p>
           <a

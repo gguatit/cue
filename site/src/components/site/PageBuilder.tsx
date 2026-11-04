@@ -7,14 +7,23 @@ import {
   type ReactNode,
 } from 'react'
 import { useReducedMotion } from '@/lib/useReducedMotion'
-import { CURSOR_COLORS, CursorArrow } from './cursor'
+import { CURSOR_COLORS, CursorGlyph, type CursorVariant } from './cursor'
 
-const MIN_AGENTS = 6
-const MAX_AGENTS = 35
-const MAX_CONCURRENT = 6
+const MIN_AGENTS = 19
+const MAX_AGENTS = 44
+const MIN_MOBILE = 10
+const MAX_MOBILE = 26
+const MAX_CONCURRENT = 8
 
-type BuilderState = { agents: number; built: number }
-const BuilderContext = createContext<BuilderState>({ agents: 0, built: 0 })
+function cursorVariant(index: number): CursorVariant {
+  if (index % 7 === 0) return 'beam'
+  if (index % 11 === 0) return 'cross'
+  if (index % 5 === 0) return 'resize'
+  return 'arrow'
+}
+
+type BuilderState = { agents: number; built: number; builders: number }
+const BuilderContext = createContext<BuilderState>({ agents: 0, built: 0, builders: 0 })
 
 export function useBuilderState() {
   return useContext(BuilderContext)
@@ -44,12 +53,13 @@ function clamp(value: number, min: number, max: number) {
 
 export default function PageBuilder({ children }: { children: ReactNode }) {
   const reduced = useReducedMotion()
-  const [state, setState] = useState<BuilderState>({ agents: 0, built: 0 })
+  const [state, setState] = useState<BuilderState>({ agents: 0, built: 0, builders: 0 })
   const stateRef = useRef(state)
   const rootRef = useRef<HTMLDivElement>(null)
   const cursorRefs = useRef<Array<HTMLDivElement | null>>([])
   const hudRef = useRef<HTMLDivElement>(null)
   const hudLabelRef = useRef<HTMLSpanElement>(null)
+  const dimensionRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
     stateRef.current = state
@@ -64,7 +74,7 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
 
     if (reduced) {
       targets.forEach((el) => el.classList.add('is-built'))
-      setState({ agents: 0, built: targets.length })
+      setState({ agents: 0, built: targets.length, builders: 0 })
       return () => {
         targets.forEach((el) => el.classList.remove('is-built'))
       }
@@ -105,11 +115,14 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
     })
 
     const updateAgents = () => {
+      const desktop = window.innerWidth >= 768
+      const minAgents = desktop ? MIN_AGENTS : MIN_MOBILE
+      const maxAgents = desktop ? MAX_AGENTS : MAX_MOBILE
       const max = document.documentElement.scrollHeight - window.innerHeight
       const progress = max > 0 ? clamp(window.scrollY / max, 0, 1) : 0
       const next = Math.min(
-        MAX_AGENTS,
-        MIN_AGENTS + Math.round(progress * (MAX_AGENTS - MIN_AGENTS)),
+        maxAgents,
+        minAgents + Math.round(progress * (maxAgents - minAgents)),
       )
       if (next !== stateRef.current.agents) {
         stateRef.current = { ...stateRef.current, agents: next }
@@ -117,15 +130,42 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
       }
     }
 
-    const reveal = (el: HTMLElement) => {
+    const builderSet = new Set<number>()
+    const dimensions = new Map<HTMLElement, HTMLElement>()
+
+    const addDimension = (el: HTMLElement, colorIndex: number) => {
+      if (dimensions.has(el) || !dimensionRef.current) return
+      const rect = el.getBoundingClientRect()
+      if (rect.width < 12 || rect.height < 8) return
+      const tag = document.createElement('span')
+      tag.className = 'dimension-tag'
+      tag.textContent = `${Math.round(rect.width)} × ${Math.round(rect.height)}`
+      tag.style.background = CURSOR_COLORS[colorIndex % CURSOR_COLORS.length]
+      dimensionRef.current.appendChild(tag)
+      dimensions.set(el, tag)
+      while (dimensions.size > 28) {
+        const oldest = dimensions.keys().next().value as HTMLElement | undefined
+        if (!oldest) break
+        dimensions.get(oldest)?.remove()
+        dimensions.delete(oldest)
+      }
+    }
+
+    const reveal = (el: HTMLElement, builderIndex = -1) => {
       if (built.has(el)) return
       built.add(el)
       active.delete(el)
       queued.delete(el)
+      if (builderIndex >= 0) builderSet.add(builderIndex)
       el.classList.remove('is-building')
       el.classList.add('is-built')
       el.style.clipPath = ''
-      stateRef.current = { ...stateRef.current, built: built.size }
+      addDimension(el, builderIndex >= 0 ? builderIndex : built.size)
+      stateRef.current = {
+        ...stateRef.current,
+        built: built.size,
+        builders: Math.min(MAX_AGENTS, Math.max(builderSet.size, built.size)),
+      }
       setState(stateRef.current)
     }
 
@@ -188,7 +228,7 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           const rect = el.getBoundingClientRect()
           if (!visible(el)) {
             if (rect.bottom <= 0) {
-              reveal(el)
+              reveal(el, index)
               worker.target = null
             } else {
               cancel(worker)
@@ -232,7 +272,7 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
             }
 
             if (t >= 1) {
-              reveal(el)
+              reveal(el, index)
               worker.target = null
             }
           }
@@ -291,6 +331,16 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
         cursorEl.style.transform = `translate3d(${worker.x.toFixed(2)}px, ${worker.y.toFixed(2)}px, 0) rotate(${worker.angle.toFixed(2)}deg)`
       }
 
+      for (const [el, tag] of dimensions) {
+        const rect = el.getBoundingClientRect()
+        const shown = rect.bottom > 28 && rect.top < window.innerHeight - 28
+        tag.style.display = shown ? 'inline-flex' : 'none'
+        if (shown) {
+          tag.style.left = `${clamp(rect.left, 24, window.innerWidth - 96)}px`
+          tag.style.top = `${clamp(rect.top - 20, 30, window.innerHeight - 28)}px`
+        }
+      }
+
       if (!active.size && !queue.length && hudRef.current?.classList.contains('is-visible')) {
         hudRef.current.classList.remove('is-visible')
       }
@@ -318,6 +368,8 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
         el.classList.remove('is-built', 'is-building')
         el.style.clipPath = ''
       })
+      dimensions.forEach((tag) => tag.remove())
+      dimensions.clear()
       hudRef.current?.classList.remove('is-visible')
     }
   }, [reduced])
@@ -327,6 +379,22 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
       <div ref={rootRef}>{children}</div>
       {!reduced && (
         <>
+          <div className="ruler ruler-top" aria-hidden="true">
+            {Array.from({ length: 13 }, (_, index) => (
+              <span key={index} style={{ left: `${index * 100}px` }}>
+                {index * 100}
+              </span>
+            ))}
+          </div>
+          <div className="ruler ruler-left" aria-hidden="true">
+            {Array.from({ length: 9 }, (_, index) => (
+              <span key={index} style={{ top: `${index * 100}px` }}>
+                {index * 100}
+              </span>
+            ))}
+          </div>
+          <div className="ruler-corner" aria-hidden="true" />
+          <div ref={dimensionRef} className="dimension-layer" aria-hidden="true" />
           <div className="cursor-layer" aria-hidden="true">
             {Array.from({ length: MAX_AGENTS }, (_, index) => (
               <div
@@ -336,7 +404,10 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
                 }}
                 className="cursor-pointer"
               >
-                <CursorArrow color={CURSOR_COLORS[index % CURSOR_COLORS.length]} />
+                <CursorGlyph
+                  color={CURSOR_COLORS[index % CURSOR_COLORS.length]}
+                  variant={cursorVariant(index)}
+                />
               </div>
             ))}
             <div ref={hudRef} className="measure-hud">
@@ -347,9 +418,8 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           </div>
           <div className="agent-counter" aria-hidden="true">
             <span className="agent-dot" />
-            {state.agents} agents
+            {state.agents} cursors
           </div>
-          <div className="ruler" aria-hidden="true" />
         </>
       )}
     </BuilderContext.Provider>

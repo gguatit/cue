@@ -270,24 +270,101 @@ body,
 
 .ruler {
   position: fixed;
-  left: 0;
+  z-index: 21;
+  pointer-events: none;
+  background-color: rgba(248, 249, 250, 0.88);
+  color: #8a9098;
+  font-family: var(--font-mono);
+  font-size: 7px;
+  opacity: 0.82;
+}
+
+.ruler-top {
+  top: 0;
+  left: 20px;
   right: 0;
+  height: 20px;
+  border-bottom: 1px solid rgba(18, 20, 23, 0.12);
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(18, 20, 23, 0.22) 0 1px,
+    transparent 1px 10px
+  );
+  background-size: auto 5px;
+  background-repeat: repeat-x;
+  background-position: left bottom;
+}
+
+.ruler-top span {
+  position: absolute;
+  top: 2px;
+  transform: translateX(3px);
+}
+
+.ruler-left {
+  top: 20px;
+  left: 0;
   bottom: 0;
-  z-index: 20;
+  width: 20px;
+  border-right: 1px solid rgba(18, 20, 23, 0.12);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(18, 20, 23, 0.22) 0 1px,
+    transparent 1px 10px
+  );
+  background-size: 5px auto;
+  background-repeat: repeat-y;
+  background-position: right top;
+}
+
+.ruler-left span {
+  position: absolute;
+  left: 2px;
+  writing-mode: vertical-rl;
+  transform: translateY(3px);
+}
+
+.ruler-corner {
+  position: fixed;
+  z-index: 22;
+  left: 0;
+  top: 0;
+  width: 20px;
   height: 20px;
   pointer-events: none;
-  border-top: 1px solid rgba(18, 20, 23, 0.09);
-  background:
-    repeating-linear-gradient(
-      to right,
-      rgba(18, 20, 23, 0.22) 0 1px,
-      transparent 1px 25px
-    ),
-    rgba(248, 249, 250, 0.82);
-  background-size: auto 6px, auto;
-  background-repeat: repeat-x, no-repeat;
-  background-position: left bottom, left top;
-  opacity: 0.75;
+  border-right: 1px solid rgba(18, 20, 23, 0.12);
+  border-bottom: 1px solid rgba(18, 20, 23, 0.12);
+  background: #f8f9fa;
+}
+
+.dimension-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 36;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.dimension-tag {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding-inline: 4px;
+  transform: translateY(-100%);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 640px) {
+  .ruler,
+  .ruler-corner {
+    display: none;
+  }
 }
 
 html[data-build-active] [data-build]:not(.is-built) {
