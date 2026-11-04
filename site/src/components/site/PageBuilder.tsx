@@ -271,6 +271,13 @@ export default function PageBuilder({
     }
     window.addEventListener('pointerdown', onPointerDown, { passive: true })
 
+    const removeDimension = (el: HTMLElement) => {
+      const tag = dimensions.get(el)
+      if (!tag) return
+      tag.remove()
+      dimensions.delete(el)
+    }
+
     const addDimension = (el: HTMLElement, colorIndex: number) => {
       if (!cursorsRef.current || dimensions.has(el) || !dimensionRef.current) return
       const rect = el.getBoundingClientRect()
@@ -287,13 +294,18 @@ export default function PageBuilder({
         dimensions.get(oldest)?.remove()
         dimensions.delete(oldest)
       }
+    }
+
+    const fadeDimension = (el: HTMLElement) => {
+      const tag = dimensions.get(el)
+      if (!tag) return
       window.setTimeout(() => {
         tag.style.opacity = '0'
         window.setTimeout(() => {
           tag.remove()
           if (dimensions.get(el) === tag) dimensions.delete(el)
         }, 140)
-      }, 420)
+      }, 1400)
     }
 
     const reveal = (el: HTMLElement, builderIndex = -1) => {
@@ -305,7 +317,8 @@ export default function PageBuilder({
       el.classList.remove('is-building')
       el.classList.add('is-built')
       el.style.clipPath = ''
-      addDimension(el, builderIndex >= 0 ? builderIndex : built.size)
+      if (builderIndex >= 0) fadeDimension(el)
+      else removeDimension(el)
       stateRef.current = {
         ...stateRef.current,
         built: built.size,
@@ -319,6 +332,7 @@ export default function PageBuilder({
         active.delete(worker.target)
         worker.target.classList.remove('is-building')
         worker.target.style.clipPath = ''
+        removeDimension(worker.target)
       }
       worker.target = null
     }
@@ -373,6 +387,8 @@ export default function PageBuilder({
           active.clear()
           queue.length = 0
           queued.clear()
+          dimensions.forEach((tag) => tag.remove())
+          dimensions.clear()
           targets.forEach((el) => reveal(el))
           staticRevealed = true
         }
@@ -455,6 +471,7 @@ export default function PageBuilder({
               queued.delete(next)
               active.add(next)
               next.classList.add('is-building')
+              addDimension(next, index)
               worker.target = next
               worker.startX = worker.x
               worker.startY = worker.y
