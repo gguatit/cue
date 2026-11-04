@@ -6,7 +6,7 @@ import { useReducedMotion } from '@/lib/useReducedMotion'
 const palette = ['#ff4d6d', '#ffb703', '#2ec4b6', '#7b61ff', '#00a8e8', '#f97316']
 
 const sectionOptions = {
-  duration: 2600,
+  duration: 4200,
   cursors: 4,
   maxTargets: 80,
   colors: palette,
@@ -21,7 +21,6 @@ export default function SiteReplay() {
   const reducedMotion = useReducedMotion()
   const queue = useRef<Promise<void>>(Promise.resolve())
   const queued = useRef(new Set<HTMLElement>())
-  const initialVisible = useRef(new Set<HTMLElement>())
   const active = useRef(0)
 
   const enqueue = (run: () => Promise<void>) => {
@@ -41,7 +40,13 @@ export default function SiteReplay() {
     queued.current.add(section)
     enqueue(async () => {
       const rect = section.getBoundingClientRect()
-      if (reducedMotion || rect.bottom <= 0 || rect.top >= window.innerHeight) {
+      const visible = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0)
+      if (
+        reducedMotion ||
+        rect.bottom <= 0 ||
+        rect.top >= window.innerHeight ||
+        visible < Math.min(rect.height, window.innerHeight) * 0.2
+      ) {
         queued.current.delete(section)
         return
       }
@@ -59,7 +64,7 @@ export default function SiteReplay() {
     })
   }
 
-  const replayViewport = (cancelOnScroll = false) => {
+  const replayViewport = () => {
     if (reducedMotion) return
     enqueue(async () => {
       const replay: ReplayController = createCursorReplay(document.body, {
@@ -74,20 +79,7 @@ export default function SiteReplay() {
         lockScroll: false,
         reducedMotion: 'play',
       })
-      const cancelIfScrolled = () => {
-        if (window.scrollY <= 4) return
-        replay.cancel()
-        for (const section of document.querySelectorAll<HTMLElement>('main > section')) {
-          const rect = section.getBoundingClientRect()
-          if (rect.bottom > 0 && rect.top < window.innerHeight) playSection(section)
-        }
-      }
-      if (cancelOnScroll) window.addEventListener('scroll', cancelIfScrolled, { passive: true })
-      try {
-        await replay.play()
-      } finally {
-        window.removeEventListener('scroll', cancelIfScrolled)
-      }
+      await replay.play()
     })
   }
 
@@ -100,24 +92,19 @@ export default function SiteReplay() {
       const rect = section.getBoundingClientRect()
       return rect.bottom > 0 && rect.top < window.innerHeight
     })
-    visible.forEach((section) => initialVisible.current.add(section))
-
-    // Start on the first paint; the overlay scrolls away if the user moves on.
-    replayViewport(true)
+    visible.forEach((section) => playSection(section))
 
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (!entry.isIntersecting) continue
-          const section = entry.target as HTMLElement
-          if (!initialVisible.current.has(section)) playSection(section)
+          if (entry.isIntersecting) playSection(entry.target as HTMLElement)
         }
       },
-      { rootMargin: '0px 0px 12% 0px', threshold: 0.01 },
+      { threshold: 0.25 },
     )
     sections.forEach((section) => observer.observe(section))
     return () => observer.disconnect()
-    // ponytail: the intro runs once per page load; section replays run as they enter.
+    // ponytail: each section replays once; scrolling must not restart the intro.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reducedMotion])
 
@@ -125,7 +112,7 @@ export default function SiteReplay() {
     <>
       <button
         type="button"
-        onClick={() => replayViewport()}
+        onClick={replayViewport}
         disabled={playing || reducedMotion}
         title={
           reducedMotion ? '동작 줄이기 설정이 켜져 있습니다' : '지금 보이는 화면을 커서로 다시 그립니다'
