@@ -1,112 +1,76 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Play, Sparkles } from 'lucide-react'
 import { createCursorReplay, type ReplayController } from '@/vendor/cursor-replay'
 import { useReducedMotion } from '@/lib/useReducedMotion'
 
 const palette = ['#ff4d6d', '#ffb703', '#2ec4b6', '#7b61ff', '#00a8e8', '#f97316']
 
-const sectionOptions = {
-  duration: 4200,
-  cursors: 4,
-  maxTargets: 80,
-  colors: palette,
-  ink: '#1c1917',
-  surface: '#fffaf0',
-  fullscreen: false,
-  reducedMotion: 'play' as const,
+const viewportOptions = () => {
+  const wide = window.innerWidth >= 768
+  return {
+    duration: wide ? 8000 : 6500,
+    cursors: wide ? 8 : 6,
+    maxTargets: wide ? 180 : 100,
+    colors: palette,
+    ink: '#1c1917',
+    surface: '#fffaf0',
+    fullscreen: true,
+    anchor: 'viewport' as const,
+    lockScroll: false,
+    reducedMotion: 'play' as const,
+  }
 }
+
+// One replay per page load. A module flag survives StrictMode's effect replay
+// and React's re-renders, but resets on a real refresh.
+let bootIntroStarted = false
 
 export default function SiteReplay() {
   const [playing, setPlaying] = useState(false)
   const reducedMotion = useReducedMotion()
-  const queue = useRef<Promise<void>>(Promise.resolve())
-  const queued = useRef(new Set<HTMLElement>())
-  const active = useRef(0)
+  const controller = useRef<ReplayController | null>(null)
+  const playingRef = useRef(false)
 
-  const enqueue = (run: () => Promise<void>) => {
-    active.current += 1
+  const replayViewport = useCallback(() => {
+    if (reducedMotion || playingRef.current) return
+    controller.current?.destroy()
+    let next: ReplayController
+    try {
+      next = createCursorReplay(document.body, viewportOptions())
+    } catch {
+      return
+    }
+    controller.current = next
+    playingRef.current = true
     setPlaying(true)
-    queue.current = queue.current
-      .then(run)
+    void next
+      .play()
       .catch(() => undefined)
       .finally(() => {
-        active.current -= 1
-        if (active.current === 0) setPlaying(false)
+        if (controller.current === next) controller.current = null
+        playingRef.current = false
+        setPlaying(false)
       })
-  }
-
-  const playSection = (section: HTMLElement) => {
-    if (reducedMotion || queued.current.has(section)) return
-    queued.current.add(section)
-    enqueue(async () => {
-      const rect = section.getBoundingClientRect()
-      const visible = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0)
-      if (
-        reducedMotion ||
-        rect.bottom <= 0 ||
-        rect.top >= window.innerHeight ||
-        visible < Math.min(rect.height, window.innerHeight) * 0.2
-      ) {
-        queued.current.delete(section)
-        return
-      }
-      const replay = createCursorReplay(section, sectionOptions)
-      const stopIfOffscreen = () => {
-        const current = section.getBoundingClientRect()
-        if (current.bottom <= 0 || current.top >= window.innerHeight) replay.cancel()
-      }
-      window.addEventListener('scroll', stopIfOffscreen, { passive: true })
-      try {
-        await replay.play()
-      } finally {
-        window.removeEventListener('scroll', stopIfOffscreen)
-      }
-    })
-  }
-
-  const replayViewport = () => {
-    if (reducedMotion) return
-    enqueue(async () => {
-      const replay: ReplayController = createCursorReplay(document.body, {
-        duration: window.innerWidth >= 768 ? 7000 : 5200,
-        cursors: window.innerWidth >= 768 ? 8 : 6,
-        maxTargets: window.innerWidth >= 768 ? 180 : 100,
-        colors: palette,
-        ink: '#1c1917',
-        surface: '#fffaf0',
-        fullscreen: true,
-        anchor: 'viewport',
-        lockScroll: false,
-        reducedMotion: 'play',
-      })
-      await replay.play()
-    })
-  }
+  }, [reducedMotion])
 
   useEffect(() => {
-    if (reducedMotion) return
-    const sections = Array.from(
-      document.querySelectorAll<HTMLElement>('main > section'),
-    )
-    const visible = sections.filter((section) => {
-      const rect = section.getBoundingClientRect()
-      return rect.bottom > 0 && rect.top < window.innerHeight
-    })
-    visible.forEach((section) => playSection(section))
+    if (bootIntroStarted) return
+    const timer = window.setTimeout(() => {
+      if (bootIntroStarted) return
+      bootIntroStarted = true
+      replayViewport()
+    }, 50)
+    return () => window.clearTimeout(timer)
+  }, [replayViewport])
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) playSection(entry.target as HTMLElement)
-        }
-      },
-      { threshold: 0.25 },
-    )
-    sections.forEach((section) => observer.observe(section))
-    return () => observer.disconnect()
-    // ponytail: each section replays once; scrolling must not restart the intro.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reducedMotion])
+  useEffect(
+    () => () => {
+      controller.current?.destroy()
+      controller.current = null
+      playingRef.current = false
+    },
+    [],
+  )
 
   return (
     <>

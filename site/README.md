@@ -43,7 +43,7 @@ Copy-Item dist\index.js,dist\chunk-replay.js,dist\chunk-replay.js.map,dist\index
 
 라이브러리는 Swarm/Swarm Rebuild의 코드나 에셋을 쓰지 않은 독립 구현입니다. 자세한 내용은 `src/vendor/cursor-replay/NOTICE.md`를 참고하세요.
 
-`src/components/site/SiteReplay.tsx`가 페이지 로드 즉시 현재 뷰포트를 커서로 다시 그리고, 우하단 **화면 다시 그리기** 버튼으로 언제든 재실행합니다. 오버레이는 시작 스크롤 위치에 고정되어 스크롤을 막지 않으며, 스크롤하면 초기 오버레이를 취소하고 현재 보이는 섹션을 순서대로 다시 그립니다. `prefers-reduced-motion`에서는 자동 재생과 버튼을 비활성화합니다. 사이트는 밝은 페이퍼 배경과 핑크·오렌지·틸·바이올렛 포인트를 사용합니다.
+`src/components/site/SiteReplay.tsx`가 새로고침마다 첫 뷰포트 전체를 커서로 **한 번만** 다시 그립니다. 스크롤은 어떤 재생도 새로 시작하지 않으며, 초기 오버레이는 시작 스크롤 위치에 anchored되어 페이지와 함께 사라집니다. 우하단 **화면 다시 그리기** 버튼은 현재 뷰포트를 수동으로 재실행합니다. `prefers-reduced-motion`에서는 자동 재생과 버튼을 비활성화합니다. 사이트는 밝은 페이퍼 배경과 핑크·오렌지·틸·바이올렛 포인트를 사용합니다.
 
 ## 자산
 
