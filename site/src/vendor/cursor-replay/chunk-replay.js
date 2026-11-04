@@ -108,7 +108,7 @@ function d(t, n = 80, r = t === document.body) {
 		let n = window.getComputedStyle(e);
 		if (n.display === "none" || n.visibility === "hidden" || n.opacity === "0") continue;
 		let r = u(e);
-		if (!r || r.right < i.left - 20 || r.bottom < i.top - 20 || r.left > a.right + 20 || r.top > a.bottom + 20) continue;
+		if (!r || r.width >= (a.right - a.left) * .96 && r.height >= (a.bottom - a.top) * .96 || r.right < i.left - 20 || r.bottom < i.top - 20 || r.left > a.right + 20 || r.top > a.bottom + 20) continue;
 		let s = r.left - a.left, d = r.top - a.top;
 		if (s < -8 || d < -8 || s > a.right - a.left || d > a.bottom - a.top) continue;
 		let f = c(n.backgroundColor)?.a ?? 0, p = parseFloat(n.borderTopWidth) > 0 || parseFloat(n.borderRightWidth) > 0 || parseFloat(n.borderBottomWidth) > 0 || parseFloat(n.borderLeftWidth) > 0, m = n.boxShadow !== "none", h = l(e), g = t === "img" || t === "svg" || t === "button" || t === "input";
@@ -213,16 +213,8 @@ function m(t = document.body, a = {}) {
 				x: B.width / 2,
 				y: B.height / 2
 			};
-			let U = (e) => {
-				let t = [...e].sort((e, t) => e.y - t.y || e.x - t.x), n = Math.max(1, Math.ceil(t.length / m)), r = Array.from({ length: m }, () => []);
-				t.forEach((e, t) => {
-					r[Math.min(m - 1, Math.floor(t / n))].push(e);
-				});
-				let i = [];
-				for (let e = 0; i.length < t.length; e++) for (let t of r) t[e] && i.push(t[e]);
-				return i;
-			}, W = o.filter((e) => e.kind === "rect" || e.kind === "image"), G = o.filter((e) => e.kind === "text"), K = [...U(W), ...U(G)];
-			N = K.map((e, t) => {
+			let U = [...o].sort((e, t) => t.width * t.height - e.width * e.height);
+			N = U.map((e, t) => {
 				let n = document.createElement("div");
 				if (n.className = `replay-layer ${e.kind}`, n.style.left = `${e.x}px`, n.style.top = `${e.y}px`, n.style.width = `${e.width}px`, n.style.height = `${e.height}px`, n.style.setProperty("--cr-color", g[t % g.length]), e.radius && (n.style.borderRadius = e.radius), e.kind === "rect") n.style.setProperty("--cr-fill", e.fill ?? "transparent"), e.border && (n.style.border = e.border), n.style.outline = `1.5px solid ${g[t % g.length]}`, n.style.outlineOffset = "0", n.style.clipPath = "inset(0 100% 100% 0)";
 				else if (e.kind === "image") {
@@ -241,21 +233,21 @@ function m(t = document.body, a = {}) {
 				let e = document.createElement("div");
 				return e.className = "replay-badge", x?.appendChild(e), e;
 			});
-			let q = Math.ceil(K.length / m), J = e((u - 800 - 600) / Math.max(1, q), 180, 900);
-			L = 700, M = K.map((e, t) => {
-				let n = t % m, r = Math.floor(t / m), i = n / m * J * .7, a = L + r * J + i;
+			let W = Math.ceil(U.length / m), G = e((u - 800 - 600) / Math.max(1, W), 180, 900);
+			L = 700, M = U.map((e, t) => {
+				let n = t % m, r = Math.floor(t / m), i = n / m * G * .7, a = L + r * G + i;
 				return {
 					layer: e,
 					cursor: n,
 					start: a,
-					moveEnd: a + J * .7,
-					actionStart: a + J * .22,
-					actionEnd: a + J * .88
+					moveEnd: a + G * .7,
+					actionStart: a + G * .22,
+					actionEnd: a + G * .88
 				};
 			}), I = M.reduce((e, t) => Math.max(e, t.actionEnd), L) + 900, z = (e) => {
 				e.key === "Escape" && H();
 			}, window.addEventListener("keydown", z, !0);
-			let Y = (t, n) => {
+			let K = (t, n) => {
 				let a = t / m * Math.PI * 2, o = {
 					x: R.x + Math.cos(a) * 54,
 					y: R.y + Math.sin(a) * 40
@@ -278,7 +270,7 @@ function m(t = document.body, a = {}) {
 					}, n < a.moveEnd) break;
 				}
 				return s;
-			}, X = (e, t) => {
+			}, q = (e, t) => {
 				let n = null;
 				for (let r of M) if (r.cursor === e) {
 					if (t < r.actionStart) break;
@@ -288,18 +280,18 @@ function m(t = document.body, a = {}) {
 					}
 				}
 				return n;
-			}, Z = performance.now();
+			}, J = performance.now();
 			x.style.opacity = "0", a.onStart?.(), C = !0;
-			let Q = (t) => {
+			let Y = (t) => {
 				if (!x) return;
-				let r = e(t - Z, 0, I), i = e(r / 350, 0, 1), a = 1 - e((r - (I - 600)) / 600, 0, 1);
+				let r = e(t - J, 0, I), i = e(r / 350, 0, 1), a = 1 - e((r - (I - 600)) / 600, 0, 1);
 				x.style.opacity = String(Math.min(i, a)), M.forEach((t, i) => {
 					let a = N[i], o = t.layer, s = e((r - t.actionStart) / Math.max(1, t.actionEnd - t.actionStart), 0, 1);
 					if (r < t.actionStart) return;
 					let c = n(s);
 					o.kind === "text" ? (a.style.opacity = s > 0 ? "1" : "0", a.style.clipPath = `inset(0 ${100 - c * 100}% 0 0)`, a.style.transform = `translateY(${(1 - c) * 4}px)`) : o.kind === "image" ? (a.style.opacity = String(c), a.style.clipPath = `inset(0 0 ${100 - c * 100}% 0)`) : (a.style.clipPath = `inset(0 ${100 - c * 100}% ${100 - c * 100}% 0)`, s >= 1 && (a.style.outline = "none"));
 				}), P.forEach((t, n) => {
-					let i = Y(n, r), a = X(n, r);
+					let i = K(n, r), a = q(n, r);
 					if (!a) {
 						let e = Math.sin(r / 520 + n * 1.7) * 2.4;
 						i.x += Math.cos(r / 470 + n) * e, i.y += Math.sin(r / 610 + n * 1.3) * e;
@@ -308,10 +300,10 @@ function m(t = document.body, a = {}) {
 					t.dataset.shape !== o && (t.dataset.shape = o, t.innerHTML = f(o)), t.style.transform = `translate3d(${i.x}px, ${i.y}px, 0)`, t.style.opacity = r < L ? String(e(r / 180, 0, 1)) : "1";
 					let s = F[n];
 					a && a.layer.kind !== "text" ? (s.textContent = `${Math.round(a.layer.width)} × ${Math.round(a.layer.height)}`, s.style.transform = `translate(${i.x + 18}px, ${i.y + 18}px)`, s.style.opacity = "1") : s.style.opacity = "0";
-				}), r >= I ? V() : S = requestAnimationFrame(Q);
+				}), r >= I ? V() : S = requestAnimationFrame(Y);
 			};
 			return E = new Promise((e) => {
-				T = e, S = requestAnimationFrame(Q);
+				T = e, S = requestAnimationFrame(Y);
 			}), E;
 		},
 		cancel: H,

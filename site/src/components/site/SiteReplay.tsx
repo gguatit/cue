@@ -4,65 +4,120 @@ import { createCursorReplay, type ReplayController } from '@/vendor/cursor-repla
 import { useReducedMotion } from '@/lib/useReducedMotion'
 
 const palette = ['#ff4d6d', '#ffb703', '#2ec4b6', '#7b61ff', '#00a8e8', '#f97316']
-const INTRO_KEY = 'cue-replay-intro'
+
+const sectionOptions = {
+  duration: 2600,
+  cursors: 4,
+  maxTargets: 80,
+  colors: palette,
+  ink: '#1c1917',
+  surface: '#fffaf0',
+  fullscreen: false,
+  reducedMotion: 'play' as const,
+}
 
 export default function SiteReplay() {
   const [playing, setPlaying] = useState(false)
-  const controller = useRef<ReplayController | null>(null)
-  const playingRef = useRef(false)
   const reducedMotion = useReducedMotion()
+  const queue = useRef<Promise<void>>(Promise.resolve())
+  const queued = useRef(new Set<HTMLElement>())
+  const initialVisible = useRef(new Set<HTMLElement>())
+  const active = useRef(0)
 
-  useEffect(
-    () => () => {
-      controller.current?.destroy()
-      controller.current = null
-    },
-    [],
-  )
-
-  const replay = () => {
-    if (playingRef.current || reducedMotion) return
-    const wide = window.innerWidth >= 768
-    controller.current?.destroy()
-    const next = createCursorReplay(document.body, {
-      duration: wide ? 7000 : 5200,
-      cursors: wide ? 8 : 6,
-      maxTargets: wide ? 180 : 100,
-      colors: palette,
-      ink: '#1c1917',
-      surface: '#fffaf0',
-      fullscreen: true,
-      anchor: 'viewport',
-      lockScroll: false,
-      reducedMotion: 'play',
-    })
-    controller.current = next
-    playingRef.current = true
+  const enqueue = (run: () => Promise<void>) => {
+    active.current += 1
     setPlaying(true)
-    void next.play().finally(() => {
-      playingRef.current = false
-      setPlaying(false)
-      if (controller.current === next) controller.current = null
+    queue.current = queue.current
+      .then(run)
+      .catch(() => undefined)
+      .finally(() => {
+        active.current -= 1
+        if (active.current === 0) setPlaying(false)
+      })
+  }
+
+  const playSection = (section: HTMLElement) => {
+    if (reducedMotion || queued.current.has(section)) return
+    queued.current.add(section)
+    enqueue(async () => {
+      const rect = section.getBoundingClientRect()
+      if (reducedMotion || rect.bottom <= 0 || rect.top >= window.innerHeight) {
+        queued.current.delete(section)
+        return
+      }
+      const replay = createCursorReplay(section, sectionOptions)
+      const stopIfOffscreen = () => {
+        const current = section.getBoundingClientRect()
+        if (current.bottom <= 0 || current.top >= window.innerHeight) replay.cancel()
+      }
+      window.addEventListener('scroll', stopIfOffscreen, { passive: true })
+      try {
+        await replay.play()
+      } finally {
+        window.removeEventListener('scroll', stopIfOffscreen)
+      }
+    })
+  }
+
+  const replayViewport = (cancelOnScroll = false) => {
+    if (reducedMotion) return
+    enqueue(async () => {
+      const replay: ReplayController = createCursorReplay(document.body, {
+        duration: window.innerWidth >= 768 ? 7000 : 5200,
+        cursors: window.innerWidth >= 768 ? 8 : 6,
+        maxTargets: window.innerWidth >= 768 ? 180 : 100,
+        colors: palette,
+        ink: '#1c1917',
+        surface: '#fffaf0',
+        fullscreen: true,
+        anchor: 'viewport',
+        lockScroll: false,
+        reducedMotion: 'play',
+      })
+      const cancelIfScrolled = () => {
+        if (window.scrollY <= 4) return
+        replay.cancel()
+        for (const section of document.querySelectorAll<HTMLElement>('main > section')) {
+          const rect = section.getBoundingClientRect()
+          if (rect.bottom > 0 && rect.top < window.innerHeight) playSection(section)
+        }
+      }
+      if (cancelOnScroll) window.addEventListener('scroll', cancelIfScrolled, { passive: true })
+      try {
+        await replay.play()
+      } finally {
+        window.removeEventListener('scroll', cancelIfScrolled)
+      }
     })
   }
 
   useEffect(() => {
     if (reducedMotion) return
-    try {
-      if (sessionStorage.getItem(INTRO_KEY) === '1') return
-    } catch {
-      // Storage may be unavailable in private mode; still show the effect once.
-    }
-    const timer = window.setTimeout(() => {
-      try {
-        sessionStorage.setItem(INTRO_KEY, '1')
-      } catch {
-        // Ignore storage failures.
-      }
-      replay()
-    }, 1100)
-    return () => window.clearTimeout(timer)
-    // ponytail: the intro runs once per session; the fixed button replays it later.
+    const sections = Array.from(
+      document.querySelectorAll<HTMLElement>('main > section'),
+    )
+    const visible = sections.filter((section) => {
+      const rect = section.getBoundingClientRect()
+      return rect.bottom > 0 && rect.top < window.innerHeight
+    })
+    visible.forEach((section) => initialVisible.current.add(section))
+
+    // Start on the first paint; the overlay scrolls away if the user moves on.
+    replayViewport(true)
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          const section = entry.target as HTMLElement
+          if (!initialVisible.current.has(section)) playSection(section)
+        }
+      },
+      { rootMargin: '0px 0px 12% 0px', threshold: 0.01 },
+    )
+    sections.forEach((section) => observer.observe(section))
+    return () => observer.disconnect()
+    // ponytail: the intro runs once per page load; section replays run as they enter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reducedMotion])
 
@@ -70,10 +125,10 @@ export default function SiteReplay() {
     <>
       <button
         type="button"
-        onClick={replay}
+        onClick={() => replayViewport()}
         disabled={playing || reducedMotion}
         title={
-          reducedMotion ? '동작 줄이기 설정이 켜져 있습니다' : '보이는 화면을 커서로 다시 그립니다'
+          reducedMotion ? '동작 줄이기 설정이 켜져 있습니다' : '지금 보이는 화면을 커서로 다시 그립니다'
         }
         className="fixed bottom-5 right-5 z-[80] inline-flex h-11 items-center gap-2 rounded-xl border-2 border-[#1c1917] bg-[#1c1917] px-4 text-sm font-semibold text-[#fffaf0] shadow-[4px_4px_0_#ffb703] transition-[transform,box-shadow,background-color] hover:-translate-y-0.5 hover:bg-[#292524] hover:shadow-[6px_6px_0_#ff4d6d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff4d6d] disabled:cursor-not-allowed disabled:opacity-55 sm:bottom-6 sm:right-6"
       >
@@ -83,7 +138,7 @@ export default function SiteReplay() {
           <Play aria-hidden="true" className="size-4" />
         )}
         <span className="hidden sm:inline">
-          {reducedMotion ? '동작 줄이기 켜짐' : playing ? '다시 그리는 중…' : '페이지 다시 그리기'}
+          {reducedMotion ? '동작 줄이기 켜짐' : playing ? '다시 그리는 중…' : '화면 다시 그리기'}
         </span>
         <span className="sm:hidden">Replay</span>
       </button>
