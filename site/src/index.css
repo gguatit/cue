@@ -313,6 +313,12 @@ html[data-build-active] [data-build]:focus-within {
   cursor: default;
 }
 
+.intro-cursors {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
 .intro-cursor {
   position: absolute;
   left: 0;
@@ -321,6 +327,27 @@ html[data-build-active] [data-build]:focus-within {
   height: 28px;
   will-change: transform;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.14));
+}
+
+.intro-skip {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 5;
+  height: 32px;
+  padding-inline: 12px;
+  border: 1px solid #cfd5db;
+  background: #f8f9fa;
+  color: #121417;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.intro-skip:hover {
+  background: #121417;
+  border-color: #121417;
+  color: #f8f9fa;
 }
 
 .intro-logo {

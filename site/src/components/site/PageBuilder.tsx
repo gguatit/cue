@@ -11,6 +11,7 @@ import { CURSOR_COLORS, CursorArrow } from './cursor'
 
 const MIN_AGENTS = 6
 const MAX_AGENTS = 35
+const MAX_CONCURRENT = 6
 
 type BuilderState = { agents: number; built: number }
 const BuilderContext = createContext<BuilderState>({ agents: 0, built: 0 })
@@ -22,6 +23,9 @@ export function useBuilderState() {
 type Worker = {
   x: number
   y: number
+  homeX: number
+  homeY: number
+  angle: number
   target: HTMLElement | null
   startX: number
   startY: number
@@ -72,15 +76,33 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
     const queued = new Set<HTMLElement>()
     const active = new Set<HTMLElement>()
     const queue: HTMLElement[] = []
-    const workers: Worker[] = Array.from({ length: MAX_AGENTS }, (_, index) => ({
-      x: (index * 137) % Math.max(1, window.innerWidth - 40) + 20,
-      y: (index * 83) % Math.max(1, window.innerHeight - 40) + 20,
-      target: null,
-      startX: 0,
-      startY: 0,
-      startedAt: 0,
-      duration: 500,
-    }))
+    const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2, active: false }
+    const onPointerMove = (event: PointerEvent) => {
+      pointer.x = event.clientX
+      pointer.y = event.clientY
+      pointer.active = true
+    }
+    const onPointerLeave = () => {
+      pointer.active = false
+    }
+    window.addEventListener('pointermove', onPointerMove, { passive: true })
+    document.addEventListener('pointerleave', onPointerLeave)
+    const workers: Worker[] = Array.from({ length: MAX_AGENTS }, (_, index) => {
+      const x = (index * 137) % Math.max(1, window.innerWidth - 40) + 20
+      const y = (index * 83) % Math.max(1, window.innerHeight - 40) + 20
+      return {
+        x,
+        y,
+        homeX: x,
+        homeY: y,
+        angle: 0,
+        target: null,
+        startX: 0,
+        startY: 0,
+        startedAt: 0,
+        duration: 1000,
+      }
+    })
 
     const updateAgents = () => {
       const max = document.documentElement.scrollHeight - window.innerHeight
@@ -126,13 +148,10 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
       for (const el of targets) {
         if (built.has(el)) continue
         const rect = el.getBoundingClientRect()
-        // A target the reader has already scrolled past should never stay
-        // invisible above the viewport. Finish it without an on-screen cursor.
-        if (rect.bottom <= 0) {
-          reveal(el)
-        } else if (visible(el)) {
-          enqueue(el)
-        }
+        // Fast scrolling skips the visible window; finish above-the-fold targets
+        // silently so the page is complete when the reader scrolls back.
+        if (rect.bottom <= 0) reveal(el)
+        else if (visible(el)) enqueue(el)
       }
     }
 
@@ -161,6 +180,9 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
         const cursorEl = cursorRefs.current[index]
         if (!cursorEl) continue
 
+        const previousX = worker.x
+        const previousY = worker.y
+
         if (worker.target) {
           const el = worker.target
           const rect = el.getBoundingClientRect()
@@ -174,17 +196,21 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           } else {
             const elapsed = now - worker.startedAt
             const t = clamp(elapsed / worker.duration, 0, 1)
-            const move = clamp(t / 0.3, 0, 1)
-            const draw = clamp((t - 0.3) / 0.7, 0, 1)
+            const move = clamp(t / 0.36, 0, 1)
+            const draw = clamp((t - 0.36) / 0.64, 0, 1)
             const moveEase = move * move * (3 - 2 * move)
             const drawEase = draw * draw * (3 - 2 * draw)
             const targetX = clamp(rect.left + 10, 12, window.innerWidth - 38)
             const targetY = clamp(rect.top + 10, 12, window.innerHeight - 38)
-            if (t < 0.3) {
+            if (t < 0.36) {
               worker.x = worker.startX + (targetX - worker.startX) * moveEase
               worker.y = worker.startY + (targetY - worker.startY) * moveEase
             } else {
-              worker.x = targetX + Math.max(0, rect.width - 20) * drawEase
+              worker.x = clamp(
+                targetX + Math.max(0, rect.width - 20) * drawEase,
+                12,
+                window.innerWidth - 38,
+              )
               worker.y = targetY
             }
             el.style.clipPath = `inset(0 ${((1 - draw) * 100).toFixed(2)}% 0 0)`
@@ -211,31 +237,58 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
             }
           }
         } else {
-          queue.sort((a, b) => {
-            const ar = a.getBoundingClientRect()
-            const br = b.getBoundingClientRect()
-            return ar.top - br.top || ar.left - br.left
-          })
-          const next = queue.find((candidate) => visible(candidate))
-          if (next) {
-            const position = queue.indexOf(next)
-            if (position >= 0) queue.splice(position, 1)
-            queued.delete(next)
-            active.add(next)
-            next.classList.add('is-building')
-            worker.target = next
-            worker.startX = worker.x
-            worker.startY = worker.y
-            worker.startedAt = now
-            worker.duration = 470 + ((index * 53) % 180)
-          } else {
-            const drift = Math.sin(now * 0.0008 + index) * 0.08
-            worker.x = clamp(worker.x + drift, 12, window.innerWidth - 38)
-            worker.y = clamp(worker.y + Math.cos(now * 0.0006 + index) * 0.04, 12, window.innerHeight - 38)
+          if (active.size < MAX_CONCURRENT && queue.length) {
+            queue.sort((a, b) => {
+              const ar = a.getBoundingClientRect()
+              const br = b.getBoundingClientRect()
+              return ar.top - br.top || ar.left - br.left
+            })
+            const next = queue.find((candidate) => visible(candidate))
+            if (next) {
+              const position = queue.indexOf(next)
+              if (position >= 0) queue.splice(position, 1)
+              queued.delete(next)
+              active.add(next)
+              next.classList.add('is-building')
+              worker.target = next
+              worker.startX = worker.x
+              worker.startY = worker.y
+              worker.startedAt = now
+              worker.duration = 1000 + ((index * 67) % 260)
+            }
+          }
+
+          if (!worker.target) {
+            const phase = now * 0.00045 + index * 1.7
+            let targetX = clamp(
+              worker.homeX + Math.sin(phase) * 52,
+              24,
+              window.innerWidth - 40,
+            )
+            let targetY = clamp(
+              worker.homeY + Math.cos(phase * 0.8) * 34,
+              24,
+              window.innerHeight - 40,
+            )
+            if (pointer.active) {
+              const distance = Math.hypot(pointer.x - worker.x, pointer.y - worker.y)
+              if (distance < 280) {
+                targetX = pointer.x + Math.sin(index * 1.3) * 42
+                targetY = pointer.y + Math.cos(index * 1.1) * 32
+              }
+            }
+            worker.x += (targetX - worker.x) * 0.03
+            worker.y += (targetY - worker.y) * 0.03
           }
         }
 
-        cursorEl.style.transform = `translate3d(${worker.x.toFixed(2)}px, ${worker.y.toFixed(2)}px, 0)`
+        const deltaX = worker.x - previousX
+        const deltaY = worker.y - previousY
+        if (Math.hypot(deltaX, deltaY) > 0.08) {
+          worker.angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI + 45
+        }
+
+        cursorEl.style.transform = `translate3d(${worker.x.toFixed(2)}px, ${worker.y.toFixed(2)}px, 0) rotate(${worker.angle.toFixed(2)}deg)`
       }
 
       if (!active.size && !queue.length && hudRef.current?.classList.contains('is-visible')) {
@@ -258,6 +311,8 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
       observer.disconnect()
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
+      window.removeEventListener('pointermove', onPointerMove)
+      document.removeEventListener('pointerleave', onPointerLeave)
       delete document.documentElement.dataset.buildActive
       targets.forEach((el) => {
         el.classList.remove('is-built', 'is-building')
