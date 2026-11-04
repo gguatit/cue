@@ -112,7 +112,15 @@ function turnToward(current: number, target: number, dt: number) {
   return normalized > 180 ? normalized - 360 : normalized
 }
 
-export default function PageBuilder({ children }: { children: ReactNode }) {
+export default function PageBuilder({
+  children,
+  cursorsEnabled = true,
+  particlesEnabled = true,
+}: {
+  children: ReactNode
+  cursorsEnabled?: boolean
+  particlesEnabled?: boolean
+}) {
   const reduced = useReducedMotion()
   const [state, setState] = useState<BuilderState>({ agents: 0, built: 0, builders: 0 })
   const stateRef = useRef(state)
@@ -122,10 +130,17 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
   const hudLabelRef = useRef<HTMLSpanElement>(null)
   const dimensionRef = useRef<HTMLDivElement>(null)
   const effectRef = useRef<HTMLCanvasElement>(null)
+  const cursorsRef = useRef(cursorsEnabled)
+  const particlesRef = useRef(particlesEnabled)
 
   useLayoutEffect(() => {
     stateRef.current = state
   }, [state])
+
+  useLayoutEffect(() => {
+    cursorsRef.current = cursorsEnabled
+    particlesRef.current = particlesEnabled
+  }, [cursorsEnabled, particlesEnabled])
 
   useLayoutEffect(() => {
     const root = rootRef.current
@@ -222,6 +237,10 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
     window.addEventListener('resize', resizeCanvas)
 
     const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null
+      if (target?.closest('.effects-panel')) return
+      if (cursorsRef.current) startleUntil = performance.now() + 460
+      if (!particlesRef.current) return
       const color = CURSOR_COLORS[Math.floor(Math.random() * CURSOR_COLORS.length)]
       rings.push({
         x: event.clientX,
@@ -249,7 +268,6 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
         })
       }
       if (sparks.length > 110) sparks.splice(0, sparks.length - 110)
-      startleUntil = performance.now() + 460
     }
     window.addEventListener('pointerdown', onPointerDown, { passive: true })
 
@@ -328,18 +346,32 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
 
     let raf = 0
     let lastFrame = 0
+    let staticRevealed = false
     const loop = (now: number) => {
       const dt = lastFrame ? Math.min(2.5, (now - lastFrame) / 16.667) : 1
       lastFrame = now
       const agentCount = stateRef.current.agents
+      const cursorsOn = cursorsRef.current
       for (let index = 0; index < MAX_AGENTS; index++) {
         const cursorEl = cursorRefs.current[index]
         if (!cursorEl) continue
         cursorEl.classList.toggle('is-visible', index < agentCount)
       }
 
-      anchor.x += (pointer.x - anchor.x) * 0.035
-      anchor.y += (pointer.y - anchor.y) * 0.035
+      if (!cursorsOn) {
+        if (!staticRevealed) {
+          workers.forEach((worker) => {
+            worker.target = null
+          })
+          active.clear()
+          queue.length = 0
+          queued.clear()
+          targets.forEach((el) => reveal(el))
+          staticRevealed = true
+        }
+      } else {
+        anchor.x += (pointer.x - anchor.x) * 0.035
+        anchor.y += (pointer.y - anchor.y) * 0.035
 
       for (let index = 0; index < agentCount; index++) {
         const worker = workers[index]
@@ -495,12 +527,15 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
         if (worker.trail.length > 7) worker.trail.shift()
         cursorEl.style.transform = `translate3d(${worker.x.toFixed(2)}px, ${worker.y.toFixed(2)}px, 0) rotate(${worker.angle.toFixed(2)}deg)`
       }
+      }
 
       if (ctx && canvas) {
         ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
+        if (particlesRef.current) {
         ctx.lineCap = 'round'
         ctx.lineJoin = 'round'
 
+        if (cursorsOn) {
         for (let index = 0; index < agentCount; index++) {
           const trail = workers[index].trail
           if (trail.length < 2) continue
@@ -570,6 +605,7 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
               })
             }
           }
+        }
         }
 
         for (let index = rings.length - 1; index >= 0; index--) {
@@ -644,6 +680,7 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           ctx.restore()
         }
 
+        if (cursorsOn) {
         for (let index = tokens.length - 1; index >= 0; index--) {
           const token = tokens[index]
           const age = now - token.born
@@ -663,8 +700,10 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           ctx.textBaseline = 'middle'
           ctx.fillText(token.text, token.x, token.y + 0.5)
         }
+        }
 
         ctx.globalAlpha = 1
+        }
       }
 
       for (const [el, tag] of dimensions) {
@@ -716,47 +755,53 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
       <div ref={rootRef}>{children}</div>
       {!reduced && (
         <>
-          <div className="ruler ruler-top" aria-hidden="true">
-            {Array.from({ length: 13 }, (_, index) => (
-              <span key={index} style={{ left: `${index * 100}px` }}>
-                {index * 100}
-              </span>
-            ))}
-          </div>
-          <div className="ruler ruler-left" aria-hidden="true">
-            {Array.from({ length: 9 }, (_, index) => (
-              <span key={index} style={{ top: `${index * 100}px` }}>
-                {index * 100}
-              </span>
-            ))}
-          </div>
-          <div className="ruler-corner" aria-hidden="true" />
-          <div ref={dimensionRef} className="dimension-layer" aria-hidden="true" />
-          <canvas ref={effectRef} className="effect-canvas" aria-hidden="true" />
-          <div className="cursor-layer" aria-hidden="true">
-            {Array.from({ length: MAX_AGENTS }, (_, index) => (
-              <div
-                key={index}
-                ref={(node) => {
-                  cursorRefs.current[index] = node
-                }}
-                className="cursor-pointer"
-              >
-                <CursorGlyph
-                  color={CURSOR_COLORS[index % CURSOR_COLORS.length]}
-                  variant={cursorVariant(index)}
-                />
-              </div>
-            ))}
-            <div ref={hudRef} className="measure-hud">
-              <span ref={hudLabelRef} className="measure-label">
-                0 × 0
-              </span>
+          <canvas
+            ref={effectRef}
+            className={`effect-canvas${particlesEnabled ? '' : ' effects-hidden'}`}
+            aria-hidden="true"
+          />
+          <div className={`effect-overlays${cursorsEnabled ? '' : ' effects-hidden'}`}>
+            <div className="ruler ruler-top" aria-hidden="true">
+              {Array.from({ length: 13 }, (_, index) => (
+                <span key={index} style={{ left: `${index * 100}px` }}>
+                  {index * 100}
+                </span>
+              ))}
             </div>
-          </div>
-          <div className="agent-counter" aria-hidden="true">
-            <span className="agent-dot" />
-            {state.agents} cursors
+            <div className="ruler ruler-left" aria-hidden="true">
+              {Array.from({ length: 9 }, (_, index) => (
+                <span key={index} style={{ top: `${index * 100}px` }}>
+                  {index * 100}
+                </span>
+              ))}
+            </div>
+            <div className="ruler-corner" aria-hidden="true" />
+            <div ref={dimensionRef} className="dimension-layer" aria-hidden="true" />
+            <div className="cursor-layer" aria-hidden="true">
+              {Array.from({ length: MAX_AGENTS }, (_, index) => (
+                <div
+                  key={index}
+                  ref={(node) => {
+                    cursorRefs.current[index] = node
+                  }}
+                  className="cursor-pointer"
+                >
+                  <CursorGlyph
+                    color={CURSOR_COLORS[index % CURSOR_COLORS.length]}
+                    variant={cursorVariant(index)}
+                  />
+                </div>
+              ))}
+              <div ref={hudRef} className="measure-hud">
+                <span ref={hudLabelRef} className="measure-label">
+                  0 × 0
+                </span>
+              </div>
+            </div>
+            <div className="agent-counter" aria-hidden="true">
+              <span className="agent-dot" />
+              {state.agents} cursors
+            </div>
           </div>
         </>
       )}

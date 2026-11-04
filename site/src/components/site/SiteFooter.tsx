@@ -20,7 +20,7 @@ const resources = [
   { label: 'Issues', href: ISSUES_URL },
 ]
 
-export default function SiteFooter() {
+export default function SiteFooter({ cursorsEnabled = true }: { cursorsEnabled?: boolean }) {
   const { builders } = useBuilderState()
 
   return (
@@ -87,9 +87,11 @@ export default function SiteFooter() {
             © 2026 kalpha · MIT License · Made for Windows
           </p>
           <p className="font-mono text-[9px] leading-4 text-[#8a9098]">
-            {builders > 0
-              ? `이 페이지는 스크롤하는 동안 ${builders}개의 커서가 만들었습니다.`
-              : '동작 줄이기 설정에 맞춰 페이지를 바로 표시했습니다.'}
+            {!cursorsEnabled
+              ? '커서 효과가 꺼져 있어 페이지를 바로 표시했습니다.'
+              : builders > 0
+                ? `이 페이지는 스크롤하는 동안 ${builders}개의 커서가 만들었습니다.`
+                : '동작 줄이기 설정에 맞춰 페이지를 바로 표시했습니다.'}
           </p>
           <a
             href={REPO_URL}

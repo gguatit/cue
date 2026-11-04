@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import CursorIntro from '@/components/site/CursorIntro'
 import DownloadSection from '@/components/site/DownloadSection'
+import EffectsPanel from '@/components/site/EffectsPanel'
 import Faq from '@/components/site/Faq'
 import FeatureGrid from '@/components/site/FeatureGrid'
 import FreeModeSection from '@/components/site/FreeModeSection'
@@ -12,14 +13,20 @@ import SiteFooter from '@/components/site/SiteFooter'
 import SiteHeader from '@/components/site/SiteHeader'
 import TrustStrip from '@/components/site/TrustStrip'
 import WarningBand from '@/components/site/WarningBand'
+import { useSiteEffects } from '@/lib/useSiteEffects'
 
 export default function App() {
-  const [introDone, setIntroDone] = useState(false)
+  const [effects, setEffects] = useSiteEffects()
+  const [introDone, setIntroDone] = useState(!effects.cursors)
+
+  useEffect(() => {
+    if (!effects.cursors) setIntroDone(true)
+  }, [effects.cursors])
 
   if (!introDone) return <CursorIntro onDone={() => setIntroDone(true)} />
 
   return (
-    <PageBuilder>
+    <PageBuilder cursorsEnabled={effects.cursors} particlesEnabled={effects.particles}>
       <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
         <a
           href="#main"
@@ -39,8 +46,9 @@ export default function App() {
           <DownloadSection />
           <Faq />
         </main>
-        <SiteFooter />
+        <SiteFooter cursorsEnabled={effects.cursors} />
       </div>
+      <EffectsPanel effects={effects} setEffects={setEffects} />
     </PageBuilder>
   )
 }
