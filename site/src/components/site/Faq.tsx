@@ -45,8 +45,8 @@ const faqs = [
 
 export default function Faq() {
   return (
-    <section id="faq" className="border-t border-white/5">
-      <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 md:px-8 md:py-28 lg:grid-cols-[0.7fr_1.3fr] lg:gap-16">
+    <section id="faq" className="border-b border-[#e3e7eb]">
+      <div className="page-shell grid gap-12 py-16 md:py-24 lg:grid-cols-[0.7fr_1.3fr] lg:gap-16">
         <Reveal>
           <SectionHeading
             eyebrow="FAQ"
@@ -57,27 +57,24 @@ export default function Faq() {
             href={README_URL}
             target="_blank"
             rel="noreferrer"
-            className="mt-6 inline-flex text-sm font-medium text-[#e03e5c] underline-offset-4 hover:underline"
+            className="mt-6 inline-flex font-mono text-[10px] uppercase tracking-[0.1em] text-[#5f6670] underline-offset-4 hover:text-[#121417] hover:underline"
           >
             README에서 전체 문서 보기
           </a>
         </Reveal>
 
-        <Reveal delay={100}>
-          <Accordion
-            defaultValue={[]}
-            className="rounded-xl border-2 border-[#1c1917]/15 bg-[#fffdf8] px-5 shadow-[4px_4px_0_#e6fbf8]"
-          >
+        <Reveal>
+          <Accordion defaultValue={[]} className="border-t border-[#e3e7eb]">
             {faqs.map((item, index) => (
               <AccordionItem
                 key={item.q}
                 value={`faq-${index}`}
-                className={index === faqs.length - 1 ? 'border-b-0' : ''}
+                className="border-b border-[#e3e7eb]"
               >
-                <AccordionTrigger className="py-4 text-left text-sm text-[#1c1917] hover:text-[#e03e5c] hover:no-underline">
+                <AccordionTrigger className="py-5 text-left text-[13px] font-medium hover:no-underline">
                   {item.q}
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 text-sm leading-6 text-zinc-400">
+                <AccordionContent className="pb-5 pr-4 text-[12px] leading-6 text-[#6b7280]">
                   {item.a}
                 </AccordionContent>
               </AccordionItem>

@@ -1,25 +1,31 @@
-import { Check, KeyRound, Monitor, ShieldCheck, WifiOff } from 'lucide-react'
 import Reveal from './Reveal'
 
-const items = [
-  { icon: Monitor, label: 'Windows 10/11 x64', tone: 'text-[#e03e5c]' },
-  { icon: WifiOff, label: '계정·서버·텔레메트리 없음', tone: 'text-[#0f766e]' },
-  { icon: KeyRound, label: '내 API 키는 로컬에', tone: 'text-[#6d28d9]' },
-  { icon: ShieldCheck, label: '서명된 자동 업데이트', tone: 'text-[#b45309]' },
-  { icon: Check, label: 'MIT 라이선스', tone: 'text-[#0369a1]' },
+const stats = [
+  { value: '5', label: '표시 방식', detail: 'tray · overlay · flash · LED · brightness' },
+  { value: '2', label: '교차 검증 모델', detail: '같은 공급자, 병렬 요청' },
+  { value: '0', label: '서버 · 계정 · 텔레메트리', detail: 'API 키는 Windows 자격증명 관리자에만' },
+  { value: 'MIT', label: '오픈 소스', detail: 'Windows 10/11 x64' },
 ]
 
 export default function TrustStrip() {
   return (
-    <section aria-label="주요 특징" className="border-y border-[#1c1917]/10 bg-[#fffdf8]/80">
-      <Reveal className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-5 py-5 text-xs text-[#6b5b4a] md:px-8">
-        {items.map(({ icon: Icon, label, tone }) => (
-          <span key={label} className="inline-flex items-center gap-2">
-            <Icon aria-hidden="true" className={`size-3.5 ${tone}`} />
-            {label}
-          </span>
+    <section aria-label="주요 특징" className="border-b border-[#e3e7eb]">
+      <div className="page-shell grid grid-cols-2 md:grid-cols-4">
+        {stats.map((item, index) => (
+          <Reveal
+            key={item.label}
+            className={`border-[#e3e7eb] py-7 md:py-9 ${
+              index % 2 === 1 ? 'border-l pl-5 md:pl-7' : 'md:border-l md:pl-7'
+            } ${index > 1 ? 'border-t md:border-t-0' : ''} ${index === 0 ? 'md:border-l-0 md:pl-0' : ''}`}
+          >
+            <p className="text-[34px] font-semibold leading-none tracking-[-0.055em] text-[#121417]">
+              {item.value}
+            </p>
+            <p className="mt-2 text-[12px] font-medium text-[#121417]">{item.label}</p>
+            <p className="mt-1 font-mono text-[9px] leading-4 text-[#8a9098]">{item.detail}</p>
+          </Reveal>
         ))}
-      </Reveal>
+      </div>
     </section>
   )
 }

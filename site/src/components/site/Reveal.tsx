@@ -8,5 +8,9 @@ export default function Reveal({
   className?: string
   delay?: number
 }) {
-  return <div className={className}>{children}</div>
+  return (
+    <div data-build className={className}>
+      {children}
+    </div>
+  )
 }

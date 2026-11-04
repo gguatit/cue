@@ -1,20 +1,20 @@
-import { AlertTriangle, ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { README_URL } from '@/lib/site'
 import Reveal from './Reveal'
 
 export default function WarningBand() {
   return (
-    <section aria-labelledby="warning-title" className="border-t border-white/5">
-      <Reveal className="mx-auto max-w-7xl px-5 py-10 md:px-8">
-        <div className="flex flex-col gap-4 rounded-2xl border-2 border-[#e03e5c]/25 bg-[linear-gradient(120deg,#ffe8ec,#fff4e6)] p-5 shadow-[4px_4px_0_#ffb703] sm:flex-row sm:items-start sm:gap-5 sm:p-6">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[#e03e5c]/30 bg-white/70 text-[#e03e5c]">
-            <AlertTriangle aria-hidden="true" className="size-5" />
+    <section aria-labelledby="warning-title" className="border-b border-[#e3e7eb] bg-white/35">
+      <div className="page-shell py-10 md:py-12">
+        <Reveal className="grid gap-5 border-l-2 border-[#f24e1e] pl-5 sm:grid-cols-[auto_1fr] sm:gap-7 sm:pl-7">
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#d92d20]">
+            warning
           </span>
-          <div className="min-w-0 flex-1">
-            <h2 id="warning-title" className="text-base font-semibold text-[#9d174d]">
+          <div>
+            <h2 id="warning-title" className="text-[17px] font-medium tracking-[-0.02em]">
               시험 규정을 먼저 확인하세요.
             </h2>
-            <p className="mt-1.5 max-w-4xl text-pretty text-sm leading-6 text-zinc-400">
+            <p className="mt-2 max-w-4xl text-[13px] leading-6 text-[#5f6670]">
               Cue는 허용된 환경에서만 사용해야 합니다. 주최 기관의 규정에 따라 시험
               무효·퇴장·성적 취소·자격 박탈 같은 제재가 발생할 수 있습니다. 스텔스
               기능은 탐지 불가를 보장하지 않으며, 사용과 결과에 대한 책임은 사용자에게
@@ -24,14 +24,14 @@ export default function WarningBand() {
               href={README_URL}
               target="_blank"
               rel="noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[#9d174d] underline-offset-4 hover:underline"
+              className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-medium underline-offset-4 hover:underline"
             >
               전체 경고와 사용 규정 읽기
               <ArrowUpRight aria-hidden="true" className="size-3" />
             </a>
           </div>
-        </div>
-      </Reveal>
+        </Reveal>
+      </div>
     </section>
   )
 }

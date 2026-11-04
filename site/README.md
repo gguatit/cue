@@ -33,13 +33,15 @@ npm run deploy
 
 ## 커서 페이지 빌드
 
-`src/components/site/SiteReplay.tsx`가 새로고침마다 첫 뷰포트를 커서로 새로 그립니다. 실제 페이지는 불투명 커버로 가려지고, 고정 오버레이에서 박스·이미지·텍스트·W×H 배지가 구성된 뒤 페이지가 드러납니다. 스크롤은 재생을 새로 시작하지 않으며 고정 리플레이 버튼은 없습니다. `prefers-reduced-motion`에서는 즉시 페이지를 표시합니다. 사이트는 밝은 페이퍼 배경과 핑크·오렌지·틸·바이올렛 포인트를 사용합니다.
+`src/components/site/CursorIntro.tsx`가 12초(모바일 8초) 동안 중앙 로고 주변에서 18개 커서를 움직입니다. 1.8초 후부터 클릭 또는 `Esc`로 건너뛸 수 있습니다. `prefers-reduced-motion`에서는 인트로를 생략합니다.
 
-`src/vendor/cursor-replay/`는 비공개 라이브러리 [`gguatit/cursor-replay`](https://github.com/gguatit/cursor-replay)의 빌드 산출물입니다. 라이브러리를 바꾸면 해당 저장소에서 `npm run build` 후 `index.js`, `chunk-replay.js`, `.d.ts`를 다시 복사합니다. Swarm/Swarm Rebuild의 코드·에셋을 쓰지 않은 독립 구현입니다.
+`src/components/site/PageBuilder.tsx`는 실제 DOM의 `[data-build]` 요소를 커서로 생성합니다. 스냅샷 복제나 페이지 전체 커버를 쓰지 않습니다. 첫 화면은 6개 커서로 시작하고, 스크롤 진행에 따라 최대 35개까지 늘어납니다. 화면에 들어온 요소는 실제 `getBoundingClientRect()` 위치로 커서가 이동한 뒤 `clip-path`로 드러나며, 한 번 생성된 요소는 다시 스크롤해도 반복하지 않습니다. 스크롤은 잠그지 않습니다.
+
+Swarm 사이트의 코드·에셋·문구는 복사하지 않고 공개 동작만 참고해 독립 구현했습니다. 밝은 페이퍼 그리드와 검정 타이포, 컬러 커서를 사용합니다.
 
 ## 자산
 
-`public/brand/icon.png`, `public/media/poster.png`, `public/media/cue-promo.gif`, `public/media/cue-promo.mp4`는 앱 저장소의 아이콘과 `docs/promo/` 자산을 복사한 것입니다. 앱 프로모 자산이 바뀌면 다시 복사합니다.
+`public/brand/icon.png`는 앱 아이콘입니다. `public/media/poster.png`는 현재 사이트의 1200×630 OG 스크린샷입니다. `public/media/cue-promo.gif`와 `cue-promo.mp4`는 앱 저장소 `docs/promo/` 자산을 복사한 것이며 사이트 본문에서는 사용하지 않습니다.
 
 ## 참고
 

@@ -1,36 +1,34 @@
-import { EyeOff, LockKeyhole, MonitorOff, ServerOff, ShieldCheck, Siren, Users } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
 import Reveal from './Reveal'
 import SectionHeading from './SectionHeading'
 
 const controls = [
   {
-    icon: MonitorOff,
+    number: '01',
     title: '화면 캡처 제외',
     body: '지원되는 Windows 버전에서 Cue 창을 화면 캡처·녹화에서 제외합니다. 오래된 OS에서는 창이 빈 영역으로 보일 수 있습니다.',
   },
   {
-    icon: EyeOff,
+    number: '02',
     title: '창 흔적 최소화',
     body: '작업표시줄 버튼과 트레이 툴팁을 중립화하고, 메인 창 제목도 설정 화면처럼 바꿉니다.',
   },
   {
-    icon: Users,
+    number: '03',
     title: '회의 안전 모드',
     body: 'Zoom·Teams·Webex·Meet 계열 프로세스나 창 제목을 감지하면 화면 기반 표시를 숨기고 LED·밝기만 사용합니다.',
   },
   {
-    icon: Siren,
+    number: '04',
     title: '패닉 클리어',
     body: '답변·기록·오류 로그·클립보드를 지우고 Cue 창을 숨깁니다. 단축키는 설정에서 바꿀 수 있습니다.',
   },
   {
-    icon: LockKeyhole,
+    number: '05',
     title: '선택적 생존 보호',
     body: '예약 작업이 Cue를 다시 실행합니다. 관리자 모드에서는 CueWatchdog SYSTEM 서비스와 보호 복사본으로 한 단계 더 유지합니다.',
   },
   {
-    icon: ServerOff,
+    number: '06',
     title: '로컬 우선',
     body: 'Cue 서버, 계정, 텔레메트리가 없습니다. API 키는 Windows 자격증명 관리자에만 저장하고, 화면은 내가 지정한 공급자로만 전송합니다.',
   },
@@ -46,8 +44,8 @@ const status = [
 
 export default function SecuritySection() {
   return (
-    <section id="security" className="border-t border-white/5">
-      <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 md:px-8 md:py-28 lg:grid-cols-[1fr_0.82fr] lg:items-center lg:gap-16">
+    <section id="security" className="border-b border-[#e3e7eb]">
+      <div className="page-shell grid gap-12 py-16 md:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:items-start lg:gap-16">
         <Reveal>
           <SectionHeading
             eyebrow="STEALTH & PRIVACY"
@@ -55,60 +53,63 @@ export default function SecuritySection() {
             description="Cue는 답을 띄우는 것보다, 띄우지 않아야 할 순간을 더 신경 씁니다. 표시 방식과 보호 장치는 각각 분리되어 있습니다."
           />
 
-          <div className="mt-8 grid gap-x-6 gap-y-5 sm:grid-cols-2">
-            {controls.map(({ icon: Icon, title, body }) => (
-              <div key={title} className="flex gap-3">
-                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-[#1c1917]/15 bg-[#fff4e6] text-[#e03e5c]">
-                  <Icon aria-hidden="true" className="size-4" />
+          <div className="mt-9 divide-y divide-[#e3e7eb] border-y border-[#e3e7eb]">
+            {controls.map((item) => (
+              <div key={item.number} className="grid gap-3 py-4 sm:grid-cols-[36px_1fr]">
+                <span className="font-mono text-[9px] tracking-[0.12em] text-[#9aa0a8]">
+                  {item.number}
                 </span>
                 <div>
-                  <p className="text-sm font-medium text-zinc-200">{title}</p>
-                  <p className="mt-1 text-xs leading-5 text-zinc-500">{body}</p>
+                  <p className="text-[13px] font-medium">{item.title}</p>
+                  <p className="mt-1 text-[12px] leading-5 text-[#6b7280]">{item.body}</p>
                 </div>
               </div>
             ))}
           </div>
         </Reveal>
 
-        <Reveal delay={120}>
-          <Card className="border-2 border-[#1c1917]/20 bg-[#fffdf8] ring-0 shadow-[6px_6px_0_#ffb703]">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck aria-hidden="true" className="size-4 text-emerald-400" />
-                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                    protection status
+        <Reveal>
+          <div className="border border-[#dfe3e8] bg-white/60">
+            <div className="flex items-center justify-between border-b border-[#e3e7eb] px-4 py-3">
+              <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#6b7280]">
+                protection status
+              </span>
+              <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-[#9aa0a8]">
+                example
+              </span>
+            </div>
+            <div className="divide-y divide-[#e3e7eb]">
+              {status.map((row) => (
+                <div key={row.label} className="flex items-center justify-between px-4 py-3.5">
+                  <span className="text-[12px] text-[#5f6670]">{row.label}</span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 font-mono text-[9px] tracking-[0.08em] ${
+                      row.tone === 'ok' ? 'text-[#0a8f5c]' : 'text-[#b45309]'
+                    }`}
+                  >
+                    <span
+                      className={`size-1.5 rounded-full ${
+                        row.tone === 'ok' ? 'bg-[#0acf83]' : 'animate-pulse bg-[#f59e0b]'
+                      }`}
+                    />
+                    {row.value}
                   </span>
                 </div>
-                <span className="font-mono text-[9px] text-zinc-600">EXAMPLE</span>
-              </div>
-              <div className="mt-2 divide-y divide-white/5">
-                {status.map((row) => (
-                  <div key={row.label} className="flex items-center justify-between py-3.5">
-                    <span className="text-sm text-zinc-400">{row.label}</span>
-                    <span
-                      className={`inline-flex items-center gap-1.5 font-mono text-[10px] ${
-                        row.tone === 'ok' ? 'text-emerald-400' : 'text-amber-400'
-                      }`}
-                    >
-                      <span
-                        className={`size-1.5 rounded-full ${
-                          row.tone === 'ok'
-                            ? 'bg-emerald-400'
-                            : 'animate-pulse bg-amber-400'
-                        }`}
-                      />
-                      {row.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 border-t border-white/5 pt-3 text-[10px] leading-5 text-zinc-600">
-                실제 상태는 앱의 보안 탭에서 확인합니다. 관리자 권한이 없으면 일부 항목은
-                확인할 수 없습니다.
-              </p>
-            </CardContent>
-          </Card>
+              ))}
+            </div>
+            <p className="border-t border-[#e3e7eb] px-4 py-3 font-mono text-[9px] leading-4 text-[#8a9098]">
+              실제 상태는 앱의 보안 탭에서 확인합니다. 관리자 권한이 없으면 일부 항목은
+              확인할 수 없습니다.
+            </p>
+          </div>
+
+          <div className="mt-4 border border-[#dfe3e8] bg-[#fbfcfd] p-4">
+            <p className="mono-label">caveat</p>
+            <p className="mt-2 text-[12px] leading-5 text-[#5f6670]">
+              캡처 제외는 지원되는 Windows와 캡처 API에서만 동작합니다. 카메라 촬영,
+              커널 드라이버, 외부 HDMI 레코더까지 막을 수는 없습니다.
+            </p>
+          </div>
         </Reveal>
       </div>
     </section>

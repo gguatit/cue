@@ -1,5 +1,3 @@
-import { EyeOff, MousePointer2, ScanSearch } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
 import { SHORTCUT } from '@/lib/site'
 import Reveal from './Reveal'
 import SectionHeading from './SectionHeading'
@@ -7,31 +5,28 @@ import SectionHeading from './SectionHeading'
 const steps = [
   {
     number: '01',
-    icon: MousePointer2,
     title: '단축키를 누른 채 클릭',
-    body: `${SHORTCUT}을 누른 상태에서 마우스 버튼을 클릭합니다. 커서가 있는 모니터의 화면을 읽습니다.`,
+    body: `${SHORTCUT}을 누른 상태에서 마우스 버튼을 클릭합니다. 커서가 있는 모니터만 읽습니다.`,
     detail: '단축키·버튼·클릭 여부는 설정에서 바꿀 수 있습니다.',
   },
   {
     number: '02',
-    icon: ScanSearch,
     title: '내 AI가 읽고 답함',
     body: 'OpenCode, OpenAI, Google, Anthropic 또는 내 OpenAI 호환 모델이 문제를 읽고 답합니다.',
     detail: '키는 Windows 자격증명 관리자에만 저장됩니다.',
   },
   {
     number: '03',
-    icon: EyeOff,
     title: '가장 조용한 방식으로 표시',
-    body: '트레이 아이콘, 커서 오버레이, 플래시, 키보드 LED, 화면 밝기 중 원하는 방식으로 표시합니다.',
+    body: '트레이, 커서 오버레이, 플래시, 키보드 LED, 화면 밝기 중 원하는 방식으로 표시합니다.',
     detail: '회의 감지 중에는 화면 기반 표시를 숨깁니다.',
   },
 ]
 
 export default function HowItWorks() {
   return (
-    <section id="how" className="border-t border-white/5">
-      <div className="mx-auto max-w-7xl px-5 py-20 md:px-8 md:py-28">
+    <section id="how" className="border-b border-[#e3e7eb]">
+      <div className="page-shell py-16 md:py-24">
         <Reveal>
           <SectionHeading
             eyebrow="HOW IT WORKS"
@@ -40,26 +35,25 @@ export default function HowItWorks() {
           />
         </Reveal>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
-          {steps.map(({ number, icon: Icon, title, body, detail }, index) => (
-            <Reveal key={number} delay={index * 80}>
-              <Card className="group h-full border-2 border-[#1c1917]/15 bg-[#fffdf8] ring-0 shadow-[4px_4px_0_#ffb703] transition-[transform,border-color,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-[#ff4d6d]/40 hover:shadow-[6px_6px_0_#ff4d6d]">
-                <CardContent className="flex h-full flex-col p-5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] tracking-[0.24em] text-zinc-600">
-                      {number}
-                    </span>
-                    <span className="flex size-9 items-center justify-center rounded-lg border border-[#1c1917]/15 bg-[#fff4e6] text-[#e03e5c]">
-                      <Icon aria-hidden="true" className="size-4" />
-                    </span>
-                  </div>
-                  <h3 className="mt-8 text-lg font-medium tracking-tight text-zinc-100">{title}</h3>
-                  <p className="mt-2 flex-1 text-sm leading-6 text-zinc-400">{body}</p>
-                  <p className="mt-5 border-t border-[#1c1917]/10 pt-3 font-mono text-[10px] leading-5 text-[#8b7355]">
-                    {detail}
-                  </p>
-                </CardContent>
-              </Card>
+        <div className="mt-10 grid border-l border-t border-[#e3e7eb] md:mt-14 md:grid-cols-3">
+          {steps.map((step, index) => (
+            <Reveal
+              key={step.number}
+              className={`border-b border-r border-[#e3e7eb] p-6 md:p-8 ${
+                index === 0 ? '' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] tracking-[0.16em] text-[#9aa0a8]">
+                  {step.number}
+                </span>
+                <span className="size-1.5 rounded-full bg-[#121417]" />
+              </div>
+              <h3 className="mt-9 text-[18px] font-medium tracking-[-0.03em]">{step.title}</h3>
+              <p className="mt-3 text-[13px] leading-6 text-[#5f6670]">{step.body}</p>
+              <p className="mt-6 border-t border-[#e3e7eb] pt-3 font-mono text-[9px] leading-4 text-[#8a9098]">
+                {step.detail}
+              </p>
             </Reveal>
           ))}
         </div>

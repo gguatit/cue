@@ -1,14 +1,17 @@
 import { GithubIcon } from '@/components/site/icons'
+import { useBuilderState } from '@/components/site/PageBuilder'
 import {
   CHANGELOG_URL,
   ISSUES_URL,
   LICENSE_URL,
+  NAV,
   README_URL,
   RELEASES_URL,
   REPO_URL,
 } from '@/lib/site'
+import Reveal from './Reveal'
 
-const links = [
+const resources = [
   { label: 'GitHub', href: REPO_URL },
   { label: 'Releases', href: RELEASES_URL },
   { label: 'README', href: README_URL },
@@ -18,58 +21,83 @@ const links = [
 ]
 
 export default function SiteFooter() {
+  const { agents } = useBuilderState()
+
   return (
-    <footer className="border-t border-[#1c1917]/10 bg-[#f7f3e8]/80">
-      <div className="mx-auto max-w-7xl px-5 py-12 md:px-8">
-        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
+    <footer className="border-t border-[#dfe3e8] bg-[#f4f6f8]">
+      <div className="page-shell py-12 md:py-16">
+        <Reveal className="grid gap-12 md:grid-cols-[1fr_auto_auto] md:gap-20">
           <div className="max-w-sm">
             <a href="#top" className="inline-flex items-center gap-2.5" aria-label="Cue 홈">
               <img
                 src="/brand/icon.png"
                 alt=""
-                width={32}
-                height={32}
-                className="size-8 rounded-lg ring-1 ring-[#1c1917]/15"
+                width={30}
+                height={30}
+                className="size-[30px] rounded-[7px] grayscale"
               />
-              <span className="text-sm font-semibold text-zinc-100">Cue</span>
+              <span className="text-[15px] font-semibold tracking-[-0.04em]">Cue</span>
             </a>
-            <p className="mt-4 text-sm leading-6 text-zinc-500">
+            <p className="mt-4 text-[12px] leading-5 text-[#6b7280]">
               Windows 시험 환경을 위한 조용한 AI 보조. 로컬 우선, 계정 없음, 서명된
               업데이트.
             </p>
-            <p className="mt-4 font-mono text-[10px] leading-5 text-zinc-600">
+            <p className="mt-4 font-mono text-[9px] leading-4 text-[#8a9098]">
               Cue is not affiliated with any exam provider.
               <br />
               시험 규정을 확인하고 책임 있게 사용하세요.
             </p>
           </div>
 
-          <nav aria-label="바닥글 링크" className="grid grid-cols-2 gap-x-10 gap-y-3 sm:grid-cols-3">
-            {links.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-zinc-500 transition-colors hover:text-zinc-200"
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-        </div>
+          <div>
+            <p className="mono-label">sections</p>
+            <nav aria-label="바닥글 섹션" className="mt-3 grid gap-2">
+              {NAV.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="text-[12px] text-[#5f6670] transition-colors hover:text-[#121417]"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+          </div>
 
-        <div className="mt-10 flex flex-col gap-3 border-t border-white/5 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-mono text-[10px] text-zinc-600">
+          <div>
+            <p className="mono-label">resources</p>
+            <nav aria-label="바닥글 링크" className="mt-3 grid gap-2">
+              {resources.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[12px] text-[#5f6670] transition-colors hover:text-[#121417]"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+          </div>
+        </Reveal>
+
+        <div className="mt-12 flex flex-col gap-3 border-t border-[#dfe3e8] pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-[#8a9098]">
             © 2026 kalpha · MIT License · Made for Windows
+          </p>
+          <p className="font-mono text-[9px] leading-4 text-[#8a9098]">
+            {agents > 0
+              ? `이 페이지는 스크롤하는 동안 ${agents}개의 커서가 만들었습니다.`
+              : '동작 줄이기 설정에 맞춰 페이지를 바로 표시했습니다.'}
           </p>
           <a
             href={REPO_URL}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-500 transition-colors hover:text-zinc-200"
+            className="inline-flex items-center gap-1.5 font-mono text-[9px] text-[#8a9098] transition-colors hover:text-[#121417]"
           >
-            <GithubIcon className="size-3.5" />
+            <GithubIcon className="size-3" />
             gguatit/cue
           </a>
         </div>

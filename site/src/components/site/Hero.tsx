@@ -1,69 +1,19 @@
-import { useRef, useState, type PointerEvent } from 'react'
-import { ArrowRight, Download, Play, ShieldCheck, Sparkles } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { useReducedMotion } from '@/lib/useReducedMotion'
+import { ArrowUpRight, Download } from 'lucide-react'
 import { RELEASES_URL, SHORTCUT } from '@/lib/site'
 import Reveal from './Reveal'
 
 export default function Hero() {
-  const [demoOpen, setDemoOpen] = useState(false)
-  const reducedMotion = useReducedMotion()
-  const visualRef = useRef<HTMLDivElement>(null)
-
-  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (reducedMotion || !visualRef.current) return
-    const rect = visualRef.current.getBoundingClientRect()
-    const x = (event.clientX - rect.left) / rect.width - 0.5
-    const y = (event.clientY - rect.top) / rect.height - 0.5
-    visualRef.current.style.setProperty('--rx', `${(-y * 3.5).toFixed(2)}deg`)
-    visualRef.current.style.setProperty('--ry', `${(x * 4.5).toFixed(2)}deg`)
-    visualRef.current.style.setProperty('--mx', `${(x + 0.5) * 100}%`)
-    visualRef.current.style.setProperty('--my', `${(y + 0.5) * 100}%`)
-  }
-
-  const resetTilt = () => {
-    if (!visualRef.current) return
-    visualRef.current.style.setProperty('--rx', '0deg')
-    visualRef.current.style.setProperty('--ry', '0deg')
-    visualRef.current.style.setProperty('--mx', '50%')
-    visualRef.current.style.setProperty('--my', '50%')
-  }
-
   return (
-    <section id="top" className="relative isolate overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-glow" />
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-grid [mask-image:linear-gradient(to_bottom,black,transparent_82%)]" />
-      <div className="pointer-events-none absolute -left-32 top-24 -z-10 size-72 rounded-full bg-[#ff4d6d]/20 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 top-1/3 -z-10 size-80 rounded-full bg-[#2ec4b6]/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-1/3 -z-10 size-72 rounded-full bg-[#ffb703]/20 blur-3xl" />
-
-      <div className="mx-auto grid max-w-7xl gap-14 px-5 pb-24 pt-20 md:px-8 md:pb-32 md:pt-28 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-16">
+    <section id="top" className="border-b border-[#e3e7eb]">
+      <div className="page-shell grid gap-14 py-16 md:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16 lg:py-28">
         <Reveal>
-          <Badge
-            variant="outline"
-            className="gap-2 border-[#ff4d6d]/30 bg-[#ffe8ec] px-2.5 py-1 text-[11px] text-[#9d174d]"
-          >
-            <span className="size-1.5 rounded-full bg-[#ff4d6d]" />
-            WINDOWS 10/11 x64 · LOCAL-FIRST
-          </Badge>
-
-          <h1 className="mt-6 text-balance text-5xl font-semibold leading-[1.02] tracking-[-0.045em] text-zinc-50 sm:text-6xl lg:text-7xl">
+          <p className="mono-label">Windows 10/11 x64 · local-first</p>
+          <h1 className="display-title mt-6 max-w-[11ch]">
             시험지 위에서,
             <br />
-            <span className="bg-gradient-to-r from-[#ff4d6d] via-[#e85d04] to-[#0f766e] bg-clip-text text-transparent">
-              답을 조용히.
-            </span>
+            답을 조용히.
           </h1>
-
-          <p className="mt-6 max-w-xl text-pretty text-base leading-7 text-zinc-400 sm:text-lg">
+          <p className="body-copy mt-7 max-w-[46ch]">
             단축키 하나로 화면을 읽고, 필요한 순간에만 답을 보여줍니다. 계정도,
             서버도, 텔레메트리도 없이 내 API 키로 동작하는 Windows 시험 보조
             도구입니다.
@@ -74,115 +24,82 @@ export default function Hero() {
               href={RELEASES_URL}
               target="_blank"
               rel="noreferrer"
-              className={buttonVariants({
-                size: 'lg',
-                className: 'h-11 gap-2 px-5 text-sm font-semibold',
-              })}
+              className="inline-flex h-11 items-center gap-2 bg-[#121417] px-5 text-[13px] font-medium text-[#f8f9fa] transition-colors hover:bg-[#2b2f35]"
             >
               <Download aria-hidden="true" className="size-4" />
               최신 버전 다운로드
             </a>
-            <Button
-              variant="outline"
-              size="lg"
-              className="h-11 gap-2 border-white/10 bg-white/[0.02] px-5 text-sm"
-              onClick={() => setDemoOpen(true)}
+            <a
+              href="#features"
+              className="inline-flex h-11 items-center gap-2 border border-[#d7dbe0] px-5 text-[13px] font-medium transition-colors hover:border-[#121417]"
             >
-              <Play aria-hidden="true" className="size-4" />
-              데모 보기
-            </Button>
+              기능 살펴보기
+              <ArrowUpRight aria-hidden="true" className="size-4" />
+            </a>
           </div>
 
-          <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] text-zinc-500">
-            <span className="inline-flex items-center gap-1.5">
-              <Sparkles aria-hidden="true" className="size-3 text-amber-400" />
-              {SHORTCUT} + 클릭
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck aria-hidden="true" className="size-3 text-emerald-400" />
-              서명된 자동 업데이트
-            </span>
-            <span>약 221MB · UAC 1회</span>
+          <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[#7a818a]">
+            <span>{SHORTCUT} + 클릭</span>
+            <span>약 221MB</span>
+            <span>UAC 1회</span>
+            <span>서명된 업데이트</span>
           </div>
         </Reveal>
 
-        <Reveal delay={120} className="relative">
-          <div
-            ref={visualRef}
-            onPointerMove={onPointerMove}
-            onPointerLeave={resetTilt}
-            onPointerCancel={resetTilt}
-            className="group relative mx-auto max-w-xl transition-transform duration-200 will-change-transform"
-            style={{
-              transform:
-                'perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))',
-            }}
-          >
-            <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-amber-400/5 blur-3xl transition-colors duration-300 group-hover:bg-amber-400/10" />
-            <div className="relative overflow-hidden rounded-2xl border-2 border-[#1c1917]/20 bg-zinc-950 shadow-[8px_8px_0_#7b61ff]">
-              <div className="flex h-9 items-center gap-2 border-b border-white/5 bg-white/[0.025] px-3.5">
-                <span className="size-2 rounded-full bg-zinc-700" />
-                <span className="size-2 rounded-full bg-zinc-700" />
-                <span className="size-2 rounded-full bg-zinc-700" />
-                <span className="ml-2 font-mono text-[10px] text-zinc-600">cue / overlay</span>
-                <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[10px] text-emerald-400/80">
-                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
-                  live demo
-                </span>
-              </div>
-              <img
-                src={reducedMotion ? '/media/poster.png' : '/media/cue-promo.gif'}
-                alt="Cue 앱 화면 미리보기"
-                width={1920}
-                height={1080}
-                fetchPriority="high"
-                className="aspect-[16/10] w-full object-cover object-top"
-              />
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 z-10 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                style={{
-                  background:
-                    'radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(251,191,36,0.16), transparent 65%)',
-                }}
-              />
+        <Reveal className="relative">
+          <div className="absolute -right-3 -top-3 hidden h-16 w-16 border-r border-t border-[#cfd4da] sm:block" />
+          <div className="code-panel relative overflow-hidden">
+            <div className="flex h-9 items-center gap-2 border-b border-white/10 px-3.5">
+              <span className="size-1.5 rounded-full bg-white/25" />
+              <span className="size-1.5 rounded-full bg-white/25" />
+              <span className="size-1.5 rounded-full bg-white/25" />
+              <span className="ml-2 font-mono text-[10px] text-white/40">cue / overlay</span>
+              <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#0acf83]">
+                <span className="size-1.5 rounded-full bg-[#0acf83]" />
+                capture hidden
+              </span>
             </div>
-
+            <div className="p-5 font-mono text-[11px] leading-6 text-[#c9ced6] sm:p-6 sm:text-[12px]">
+              <p className="text-white/30"># shortcut + click</p>
+              <p className="mt-2">
+                <span className="text-[#1abcfe]">cue</span>
+                <span className="text-white/50">.</span>
+                <span className="text-[#ffc700]">capture</span>
+                <span className="text-white/50">(</span>
+                <span className="text-[#0acf83]">'cursor-monitor'</span>
+                <span className="text-white/50">)</span>
+              </p>
+              <p>
+                <span className="text-[#1abcfe]">cue</span>
+                <span className="text-white/50">.</span>
+                <span className="text-[#ffc700]">ask</span>
+                <span className="text-white/50">(</span>
+                <span className="text-[#0acf83]">'vision-model'</span>
+                <span className="text-white/50">)</span>
+              </p>
+              <div className="mt-5 border-t border-white/10 pt-4">
+                <p className="text-white/30">answer</p>
+                <p className="mt-1 text-[30px] font-semibold leading-none tracking-[-0.06em] text-white">
+                  B
+                </p>
+                <p className="mt-2 text-[10px] text-white/45">overlay · 1 of 4 candidates</p>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-px border-t border-white/10 pt-4 text-[10px]">
+                <span className="text-white/35">capture</span>
+                <span className="text-[#0acf83]">EXCLUDED</span>
+                <span className="mt-2 text-white/35">cross-check</span>
+                <span className="mt-2 text-[#0acf83]">MATCH</span>
+                <span className="mt-2 text-white/35">server</span>
+                <span className="mt-2 text-white/60">NONE</span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex items-center justify-between border border-[#dfe3e8] bg-[#fbfcfd] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#7a818a]">
+            <span>overlay / badge</span>
+            <span className="text-[#121417]">local</span>
           </div>
         </Reveal>
       </div>
-
-      <div className="mx-auto max-w-7xl px-5 md:px-8">
-        <a
-          href="#features"
-          className="group inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:text-zinc-300"
-        >
-          기능 살펴보기
-          <ArrowRight
-            aria-hidden="true"
-            className="size-3 transition-transform group-hover:translate-x-0.5"
-          />
-        </a>
-      </div>
-
-      <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
-        <DialogContent className="max-w-[calc(100%-2rem)] gap-0 overflow-hidden border-white/10 bg-black p-0 sm:max-w-4xl">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Cue 사용 흐름 데모</DialogTitle>
-            <DialogDescription>
-              화면을 캡처해 질문하고 답을 표시하는 실제 사용 흐름을 보여 주는 영상입니다.
-            </DialogDescription>
-          </DialogHeader>
-          <video
-            className="aspect-video w-full bg-black"
-            src="/media/cue-promo.mp4"
-            poster="/media/poster.png"
-            controls
-            playsInline
-            preload="metadata"
-          />
-        </DialogContent>
-      </Dialog>
     </section>
   )
 }
