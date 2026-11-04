@@ -272,7 +272,7 @@ export default function PageBuilder({
     window.addEventListener('pointerdown', onPointerDown, { passive: true })
 
     const addDimension = (el: HTMLElement, colorIndex: number) => {
-      if (dimensions.has(el) || !dimensionRef.current) return
+      if (!cursorsRef.current || dimensions.has(el) || !dimensionRef.current) return
       const rect = el.getBoundingClientRect()
       if (rect.width < 12 || rect.height < 8) return
       const tag = document.createElement('span')
@@ -287,6 +287,13 @@ export default function PageBuilder({
         dimensions.get(oldest)?.remove()
         dimensions.delete(oldest)
       }
+      window.setTimeout(() => {
+        tag.style.opacity = '0'
+        window.setTimeout(() => {
+          tag.remove()
+          if (dimensions.get(el) === tag) dimensions.delete(el)
+        }, 140)
+      }, 420)
     }
 
     const reveal = (el: HTMLElement, builderIndex = -1) => {

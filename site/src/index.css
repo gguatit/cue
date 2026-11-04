@@ -423,6 +423,7 @@ body,
   line-height: 1;
   white-space: nowrap;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+  transition: opacity 140ms ease;
 }
 
 @media (max-width: 640px) {
