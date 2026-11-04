@@ -33,9 +33,9 @@ npm run deploy
 
 ## 커서 페이지 빌드
 
-`src/components/site/CursorIntro.tsx`가 12초(모바일 8초) 동안 중앙 로고 주변에서 18개 커서를 움직입니다. 1.8초 후부터 클릭 또는 `Esc`로 건너뛸 수 있습니다. `prefers-reduced-motion`에서는 인트로를 생략합니다.
+`src/components/site/CursorIntro.tsx`가 3.6초(모바일 2.8초) 동안 중앙 로고 주변에서 18개 커서를 움직입니다. 클릭·`Esc`·건너뛰기 버튼으로 즉시 스킵할 수 있습니다. `prefers-reduced-motion`에서는 인트로를 생략합니다.
 
-`src/components/site/PageBuilder.tsx`는 실제 DOM의 `[data-build]` 요소를 커서로 생성합니다. 스냅샷 복제나 페이지 전체 커버를 쓰지 않습니다. 첫 화면은 6개 커서로 시작하고, 스크롤 진행에 따라 최대 35개까지 늘어납니다. 화면에 들어온 요소는 실제 `getBoundingClientRect()` 위치로 커서가 이동한 뒤 `clip-path`로 드러나며, 한 번 생성된 요소는 다시 스크롤해도 반복하지 않습니다. 스크롤은 잠그지 않습니다.
+`src/components/site/PageBuilder.tsx`는 실제 DOM의 `[data-build]` 요소를 커서로 생성합니다. 스냅샷 복제나 페이지 전체 커버를 쓰지 않습니다. 첫 화면은 19개 커서로 시작하고, 스크롤 진행에 따라 최대 44개까지 늘어납니다. 화면에 들어온 요소는 실제 `getBoundingClientRect()` 위치로 커서가 이동한 뒤 `clip-path`로 드러나며, 한 번 생성된 요소는 다시 스크롤해도 반복하지 않습니다. 마우스가 멈춰 있어도 커서는 주변 궤도·먼 곳 탐험·가끔 만나는 놀이를 계속합니다. 스크롤은 잠그지 않습니다.
 
 Swarm 사이트의 코드·에셋·문구는 복사하지 않고 공개 동작만 참고해 독립 구현했습니다. 밝은 페이퍼 그리드와 검정 타이포, 컬러 커서를 사용합니다.
 

@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react'
 import { CURSOR_COLORS, CursorArrow } from './cursor'
 
 const COUNT = 18
-const DESKTOP_MS = 12000
-const MOBILE_MS = 8000
+const DESKTOP_MS = 3600
+const MOBILE_MS = 2800
 
 export default function CursorIntro({ onDone }: { onDone: () => void }) {
   const cursorRefs = useRef<Array<HTMLDivElement | null>>([])

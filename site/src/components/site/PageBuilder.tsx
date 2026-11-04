@@ -35,11 +35,14 @@ type Worker = {
   homeX: number
   homeY: number
   angle: number
-  mode: 'orbit' | 'chase'
+  mode: 'orbit' | 'chase' | 'roam'
   modeUntil: number
   orbitAngle: number
   orbitRadius: number
   orbitSpeed: number
+  roamX: number
+  roamY: number
+  roamUntil: number
   target: HTMLElement | null
   startX: number
   startY: number
@@ -129,6 +132,9 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
       pointer.y = event.clientY
     }
     window.addEventListener('pointermove', onPointerMove, { passive: true })
+    const desktop = window.innerWidth >= 768
+    const orbitBase = desktop ? 122 : 58
+    const orbitSpread = desktop ? 34 : 16
     const workers: Worker[] = Array.from({ length: MAX_AGENTS }, (_, index) => {
       const x = (index * 137) % Math.max(1, window.innerWidth - 40) + 20
       const y = (index * 83) % Math.max(1, window.innerHeight - 40) + 20
@@ -138,11 +144,14 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
         homeX: x,
         homeY: y,
         angle: 0,
-        mode: index % 4 === 0 ? 'chase' : 'orbit',
+        mode: index % 6 === 0 ? 'chase' : index % 4 === 0 ? 'roam' : 'orbit',
         modeUntil: 0,
         orbitAngle: (Math.PI * 2 * index) / MAX_AGENTS,
-        orbitRadius: 54 + (index % 10) * 17,
-        orbitSpeed: 0.00022 + (index % 7) * 0.000035,
+        orbitRadius: orbitBase + (index % 8) * orbitSpread,
+        orbitSpeed: 0.0002 + (index % 7) * 0.000032,
+        roamX: x,
+        roamY: y,
+        roamUntil: 0,
         target: null,
         startX: 0,
         startY: 0,
@@ -175,7 +184,7 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
     const sparks: Spark[] = []
     const tokens: Token[] = []
     const rings: Ring[] = []
-    const pairCooldown = new Map<string, number>()
+    let lastInteractionAt = 0
 
     const resizeCanvas = () => {
       if (!canvas || !ctx) return
@@ -386,13 +395,9 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
 
           if (!worker.target) {
             if (now > worker.modeUntil) {
-              worker.mode =
-                worker.mode === 'chase'
-                  ? 'orbit'
-                  : (index + Math.floor(now / 4600)) % 4 === 0
-                    ? 'chase'
-                    : 'orbit'
-              worker.modeUntil = now + 3600 + ((index * 517) % 3000)
+              const roll = (index * 7 + Math.floor(now / 1000)) % 10
+              worker.mode = roll === 0 ? 'chase' : roll < 3 ? 'roam' : 'orbit'
+              worker.modeUntil = now + 4200 + ((index * 431) % 2600)
             }
 
             let targetX = worker.x
@@ -409,6 +414,28 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
               const chaseAngle = now * 0.0012 + index * 1.7
               targetX = partner.x + Math.cos(chaseAngle) * 46
               targetY = partner.y + Math.sin(chaseAngle) * 34
+            } else if (worker.mode === 'roam') {
+              if (
+                now > worker.roamUntil ||
+                Math.hypot(worker.x - worker.roamX, worker.y - worker.roamY) < 28
+              ) {
+                const angle = Math.random() * Math.PI * 2
+                const distance =
+                  210 + Math.random() * Math.max(120, Math.min(window.innerWidth, window.innerHeight) * 0.34)
+                worker.roamX = clamp(
+                  anchor.x + Math.cos(angle) * distance,
+                  30,
+                  window.innerWidth - 40,
+                )
+                worker.roamY = clamp(
+                  anchor.y + Math.sin(angle) * distance * 0.75,
+                  30,
+                  window.innerHeight - 40,
+                )
+                worker.roamUntil = now + 2600 + Math.random() * 2400
+              }
+              targetX = worker.roamX
+              targetY = worker.roamY
             } else {
               const orbit = worker.orbitAngle + now * worker.orbitSpeed
               targetX =
@@ -417,7 +444,7 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
                 Math.sin(now * 0.0009 + index) * 9
               targetY =
                 anchor.y +
-                Math.sin(orbit) * worker.orbitRadius * 0.7 +
+                Math.sin(orbit) * worker.orbitRadius * 0.72 +
                 Math.cos(now * 0.0007 + index * 1.3) * 10
             }
 
@@ -456,48 +483,56 @@ export default function PageBuilder({ children }: { children: ReactNode }) {
           ctx.stroke()
         }
 
-        for (let first = 0; first < agentCount; first++) {
-          for (let second = first + 1; second < agentCount; second++) {
+        if (now - lastInteractionAt > 3800) {
+          let pair: [number, number] | null = null
+          let closest = 150
+          for (let first = 0; first < agentCount; first++) {
+            for (let second = first + 1; second < agentCount; second++) {
+              const distance = Math.hypot(
+                workers[first].x - workers[second].x,
+                workers[first].y - workers[second].y,
+              )
+              if (distance < closest) {
+                closest = distance
+                pair = [first, second]
+              }
+            }
+          }
+          if (pair) {
+            lastInteractionAt = now
+            const [first, second] = pair
             const a = workers[first]
             const b = workers[second]
-            const distance = Math.hypot(a.x - b.x, a.y - b.y)
-            if (distance > 66) continue
-            ctx.strokeStyle = CURSOR_COLORS[first % CURSOR_COLORS.length]
-            ctx.globalAlpha = 0.16 * (1 - distance / 66)
-            ctx.lineWidth = 0.8
-            ctx.beginPath()
-            ctx.moveTo(a.x, a.y)
-            ctx.lineTo(b.x, b.y)
-            ctx.stroke()
-
-            const key = `${first}:${second}`
-            const last = pairCooldown.get(key) ?? 0
-            if (distance < 44 && now - last > 2600) {
-              pairCooldown.set(key, now)
-              const same = (first + second) % 2 === 0
-              const token: Token = {
-                x: (a.x + b.x) / 2,
-                y: (a.y + b.y) / 2 - 20,
-                text: same ? '✓' : '?',
-                color: same ? '#0ACF83' : '#FFC700',
+            const same = (first + second) % 2 === 0
+            const token: Token = {
+              x: (a.x + b.x) / 2,
+              y: (a.y + b.y) / 2 - 20,
+              text: same ? '✓' : '?',
+              color: same ? '#0ACF83' : '#FFC700',
+              born: now,
+              life: 900,
+            }
+            tokens.push(token)
+            if (tokens.length > 2) tokens.shift()
+            rings.push({
+              x: token.x,
+              y: token.y,
+              born: now,
+              life: 620,
+              color: token.color,
+            })
+            for (let spark = 0; spark < 6; spark++) {
+              const angle = Math.random() * Math.PI * 2
+              sparks.push({
+                x: token.x,
+                y: token.y,
+                vx: Math.cos(angle) * 1.4,
+                vy: Math.sin(angle) * 1.4,
                 born: now,
-                life: 900,
-              }
-              tokens.push(token)
-              if (tokens.length > 8) tokens.shift()
-              for (let spark = 0; spark < 4; spark++) {
-                const angle = Math.random() * Math.PI * 2
-                sparks.push({
-                  x: token.x,
-                  y: token.y,
-                  vx: Math.cos(angle) * 1.4,
-                  vy: Math.sin(angle) * 1.4,
-                  born: now,
-                  life: 420,
-                  color: token.color,
-                  size: 1.6,
-                })
-              }
+                life: 420,
+                color: token.color,
+                size: 1.6,
+              })
             }
           }
         }
