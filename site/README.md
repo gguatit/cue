@@ -31,19 +31,9 @@ npm run deploy
 - 첫 배포 후 `https://cue-site.<account>.workers.dev` 주소가 출력됩니다.
 - 커스텀 도메인 `cue.neikos.kr`은 Cloudflare 대시보드의 Workers → Settings → Domains & Routes에 연결되어 있습니다.
 
-## 커서 리플레이 라이브러리
+## 페이지 빌드 애니메이션
 
-`src/vendor/cursor-replay/`는 비공개 라이브러리 [`gguatit/cursor-replay`](https://github.com/gguatit/cursor-replay)의 빌드 산출물입니다. Cue 사이트가 공개 레포지토리라서 소스를 직접 의존시키지 않고, `dist`의 JS·타입 선언만 복사해 사용합니다.
-
-```powershell
-cd C:\home\00_project\00_my\cursor-replay
-npm run build
-Copy-Item dist\index.js,dist\chunk-replay.js,dist\chunk-replay.js.map,dist\index.d.ts,dist\replay.d.ts,dist\timeline.d.ts ..\cue\site\src\vendor\cursor-replay\ -Force
-```
-
-라이브러리는 Swarm/Swarm Rebuild의 코드나 에셋을 쓰지 않은 독립 구현입니다. 자세한 내용은 `src/vendor/cursor-replay/NOTICE.md`를 참고하세요.
-
-`src/components/site/SiteReplay.tsx`가 새로고침마다 첫 뷰포트 전체를 커서로 **한 번만** 다시 그립니다. 스크롤은 어떤 재생도 새로 시작하지 않으며, 초기 오버레이는 시작 스크롤 위치에 anchored되어 페이지와 함께 사라집니다. 우하단 **화면 다시 그리기** 버튼은 현재 뷰포트를 수동으로 재실행합니다. `prefers-reduced-motion`에서는 자동 재생과 버튼을 비활성화합니다. 사이트는 밝은 페이퍼 배경과 핑크·오렌지·틸·바이올렛 포인트를 사용합니다.
+`src/components/site/Reveal.tsx`가 실제 DOM 요소를 문서 순서대로 한 번 생성합니다. 리플레이 오버레이, 고정 버튼, 스크롤 트리거는 사용하지 않습니다. 새로고침할 때마다 처음 한 번만 재생되고, `prefers-reduced-motion`에서는 즉시 표시합니다. 사이트는 밝은 페이퍼 배경과 핑크·오렌지·틸·바이올렛 포인트를 사용합니다.
 
 ## 자산
 

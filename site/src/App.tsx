@@ -7,7 +7,6 @@ import HowItWorks from '@/components/site/HowItWorks'
 import SecuritySection from '@/components/site/SecuritySection'
 import SiteFooter from '@/components/site/SiteFooter'
 import SiteHeader from '@/components/site/SiteHeader'
-import SiteReplay from '@/components/site/SiteReplay'
 import TrustStrip from '@/components/site/TrustStrip'
 import WarningBand from '@/components/site/WarningBand'
 
@@ -33,7 +32,6 @@ export default function App() {
         <Faq />
       </main>
       <SiteFooter />
-      <SiteReplay />
     </div>
   )
 }
