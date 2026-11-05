@@ -18,7 +18,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 )
 
-if (!isTauri() || getCurrentWebviewWindow().label !== 'overlay') {
+const overlayView = isTauri() && getCurrentWebviewWindow().label === 'overlay'
+if (overlayView) document.documentElement.dataset.view = 'overlay'
+
+if (!overlayView) {
   startAppearanceSync()
   void runStartup()
   if (isTauri()) {

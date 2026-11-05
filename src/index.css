@@ -76,6 +76,13 @@ body {
   color: var(--color-ink);
 }
 
+/* The overlay window is transparent; the answer surfaces provide their own tint. */
+html[data-view="overlay"],
+html[data-view="overlay"] body,
+html[data-view="overlay"] #root {
+  background: transparent;
+}
+
 html, body {
   user-select: none;
 }
