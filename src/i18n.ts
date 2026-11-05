@@ -52,6 +52,10 @@ export const ERRORS: Record<string, [string, string]> = {
   update_signature: ['The update signature is not valid', '업데이트 서명이 올바르지 않습니다'],
   update_unavailable: ['No update is available', '설치할 업데이트가 없습니다'],
   update_busy: ['An update is already in progress', '이미 업데이트가 진행 중입니다'],
+  update_disk: [
+    'Not enough free space for the update',
+    '업데이트에 필요한 저장 공간이 부족합니다',
+  ],
 }
 
 export function errorPair(code: string): [string, string] {

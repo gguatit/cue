@@ -82,6 +82,13 @@ export interface CaptureProtectionStatus {
 }
 export const captureProtectionStatus = () =>
   invoke<CaptureProtectionStatus>('capture_protection_status')
+export interface RuntimeStatus {
+  keyboardHook: boolean
+  mouseHook: boolean
+  trayVisible: boolean
+}
+export const runtimeStatus = () => invoke<RuntimeStatus>('runtime_status')
+export const refreshInput = () => invoke<void>('refresh_input')
 export const openTaskbarSettings = () => invoke<void>('open_taskbar_settings')
 export const openExternal = (url: string) => invoke<void>('open_external', { url })
 export const systemAccent = () => invoke<string>('system_accent')
@@ -90,6 +97,8 @@ export const setTitlebarTheme = (dark: boolean) =>
 export const setApiKey = (preset: string, key: string) => invoke<void>('set_api_key', { preset, key })
 export const hasApiKey = (preset: string) => invoke<boolean>('has_api_key', { preset })
 export const clearApiKey = (preset: string) => invoke<void>('clear_api_key', { preset })
+export const checkExtra = (preset: string, model: string, extraJson: string) =>
+  invoke<string[]>('check_extra', { preset, model, extraJson })
 export const testConnection = (preset: string, baseUrl: string, model: string, extraJson: string) =>
   invoke<boolean>('test_connection', { preset, baseUrl, model, extraJson })
 export const listModels = (preset: string, baseUrl: string) =>
@@ -179,12 +188,21 @@ export interface UpdateInfo {
   notes: string | null
 }
 
+export interface UpdatePreflight {
+  available: boolean
+  version: string | null
+  requiredBytes: number
+  freeBytes: number | null
+  enough: boolean
+}
+
 export interface UpdateProgress {
   downloaded: number
   total: number | null
 }
 
 export const checkUpdate = () => invoke<UpdateInfo | null>('check_update')
+export const preflightUpdate = () => invoke<UpdatePreflight>('preflight_update')
 export const installUpdate = () => invoke<void>('install_update')
 export const cleanupUpdateFiles = () =>
   invoke<{ removed: number; bytes: number }>('cleanup_update_files')

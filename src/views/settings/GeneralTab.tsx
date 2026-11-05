@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import MouseTriggerCard from '../../components/MouseTriggerCard'
+import ExamReadiness from './ExamReadiness'
 import {
   Button,
   Card,
@@ -211,6 +212,7 @@ export default function GeneralTab() {
 
   return (
     <div className="space-y-4">
+      <ExamReadiness />
       <Card className="space-y-4">
         <div>
           <SectionTitle>{t('Answer shortcut', '답변 단축키')}</SectionTitle>

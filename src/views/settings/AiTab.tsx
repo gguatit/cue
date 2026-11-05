@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { clearApiKey, hasApiKey, listModels, setApiKey, testConnection } from '../../lib/tauri'
+import {
+  checkExtra,
+  clearApiKey,
+  hasApiKey,
+  isTauri,
+  listModels,
+  setApiKey,
+  testConnection,
+} from '../../lib/tauri'
 import { errorMessage, useT } from '../../i18n'
 import { filterChatModels, nextModel, nextVerifyModel } from '../../lib/modelPick'
 import { isLoopbackUrl } from '../../lib/localEndpoint'
@@ -59,9 +67,63 @@ export default function AiTab() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [extraDraft, setExtraDraft] = useState(provider.extraJson)
   const [extraError, setExtraError] = useState('')
+  const [extraWarnings, setExtraWarnings] = useState<string[]>([])
   const loadId = useRef(0)
   const keyId = useRef(0)
   const testTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const timer = setTimeout(() => {
+      if (!isTauri()) {
+        setExtraWarnings([])
+        return
+      }
+      void checkExtra(provider.preset, provider.model, extraDraft)
+        .then((warnings) => {
+          if (!cancelled) setExtraWarnings(warnings)
+        })
+        .catch(() => {
+          if (!cancelled) setExtraWarnings([])
+        })
+    }, 250)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [provider.preset, provider.model, extraDraft])
+
+  const extraWarningText = (code: string) => {
+    switch (code) {
+      case 'extra_token_chat':
+        return t(
+          'This model uses Chat Completions. Use max_tokens or max_completion_tokens, not max_output_tokens.',
+          '이 모델은 Chat Completions를 사용합니다. max_output_tokens가 아니라 max_tokens 또는 max_completion_tokens를 쓰세요.',
+        )
+      case 'extra_token_responses':
+        return t(
+          'This model uses the Responses API. Use max_output_tokens, not max_tokens.',
+          '이 모델은 Responses API를 사용합니다. max_tokens가 아니라 max_output_tokens를 쓰세요.',
+        )
+      case 'extra_token_anthropic':
+        return t(
+          'This model uses the Anthropic API. Use max_tokens.',
+          '이 모델은 Anthropic API를 사용합니다. max_tokens를 쓰세요.',
+        )
+      case 'extra_token_google':
+        return t(
+          'This model uses the Google API. Use generationConfig.maxOutputTokens.',
+          '이 모델은 Google API를 사용합니다. generationConfig.maxOutputTokens를 쓰세요.',
+        )
+      case 'extra_parse_risk':
+        return t(
+          'tools, tool_choice, n, and stream_options can break answer parsing. Remove them for Cue.',
+          'tools, tool_choice, n, stream_options는 답변 파싱을 깨뜨릴 수 있습니다. Cue에서는 제거하세요.',
+        )
+      default:
+        return code
+    }
+  }
 
   const refreshKey = async (preset: string): Promise<'saved' | 'none' | 'unknown'> => {
     const id = ++keyId.current
@@ -622,6 +684,15 @@ export default function AiTab() {
           }}
           placeholder='{"max_tokens": 512}'
         />
+        {extraWarnings.length > 0 && (
+          <div className="mt-2 space-y-1" role="status" aria-live="polite">
+            {extraWarnings.map((code) => (
+              <p key={code} className="text-xs text-amber-400">
+                {extraWarningText(code)}
+              </p>
+            ))}
+          </div>
+        )}
         <div className="mt-2 flex items-center gap-2">
           <Button onClick={applyExtra}>{t('Apply', '적용')}</Button>
           <Button onClick={clearExtra}>{t('Clear', '비우기')}</Button>

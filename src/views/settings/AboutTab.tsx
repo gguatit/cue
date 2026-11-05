@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button, Card, SectionTitle, Toggle } from '../../components/ui'
 import UpdateConfirmDialog from '../../components/UpdateConfirmDialog'
 import { useT, errorMessage } from '../../i18n'
-import { cleanupUpdateFiles, openExternal } from '../../lib/tauri'
+import { cleanupUpdateFiles, openExternal, preflightUpdate, type UpdatePreflight } from '../../lib/tauri'
 import { formatBytes } from '../../lib/updates'
 import { useAnswer } from '../../stores/answer'
 import { useSettings } from '../../stores/settings'
@@ -31,8 +31,27 @@ export default function AboutTab() {
     null,
   )
   const [cleanupError, setCleanupError] = useState('')
+  const [preflight, setPreflight] = useState<UpdatePreflight | null>(null)
+  const [preflightError, setPreflightError] = useState('')
+  const [preflightBusy, setPreflightBusy] = useState(false)
 
-  const confirmInstall = () => setConfirming(true)
+  const confirmInstall = async () => {
+    setPreflightBusy(true)
+    setPreflightError('')
+    try {
+      const result = await preflightUpdate()
+      setPreflight(result)
+      if (!result.enough) {
+        setPreflightError(errorMessage('update_disk'))
+        return
+      }
+      setConfirming(true)
+    } catch (error) {
+      setPreflightError(errorMessage(String(error)))
+    } finally {
+      setPreflightBusy(false)
+    }
+  }
 
   const cleanUpdateFiles = async () => {
     setCleaning(true)
@@ -120,11 +139,24 @@ export default function AboutTab() {
             <Button
               className="mt-2"
               variant="primary"
-              disabled={installing}
-              onClick={confirmInstall}
+              disabled={installing || preflightBusy}
+              onClick={() => void confirmInstall()}
             >
-              {installing ? t('Installing…', '설치 중…') : t('Install update', '업데이트 설치')}
+              {preflightBusy
+                ? t('Checking space…', '공간 확인 중…')
+                : installing
+                  ? t('Installing…', '설치 중…')
+                  : t('Install update', '업데이트 설치')}
             </Button>
+            {preflight && (
+              <p className="mt-2 text-xs text-zinc-500">
+                {t(
+                  `Needs ${formatBytes(preflight.requiredBytes)} free. ${preflight.freeBytes === null ? 'Free space is unknown.' : `${formatBytes(preflight.freeBytes)} available.`}`,
+                  `필요 공간 ${formatBytes(preflight.requiredBytes)}. ${preflight.freeBytes === null ? '여유 공간을 확인할 수 없습니다.' : `여유 공간 ${formatBytes(preflight.freeBytes)}.`}`,
+                )}
+              </p>
+            )}
+            {preflightError && <p className="mt-2 text-xs text-red-400">{preflightError}</p>}
             {installing && (
               <div className="mt-3">
                 <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
