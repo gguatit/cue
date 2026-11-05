@@ -617,6 +617,14 @@ pub fn blink_brightness(answer: String) {
 }
 
 #[tauri::command]
+pub fn check_extra(preset: String, model: String, extra_json: String) -> Vec<String> {
+    crate::ai::extra_warnings(&preset, &model, &extra_json)
+        .into_iter()
+        .map(str::to_string)
+        .collect()
+}
+
+#[tauri::command]
 pub async fn test_connection(
     state: tauri::State<'_, AppState>,
     preset: String,
@@ -818,6 +826,30 @@ pub fn set_hide_from_taskbar(app: tauri::AppHandle, hidden: bool) -> Result<(), 
             .map_err(|_| "stealth".to_string())?;
     }
     Ok(())
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeStatus {
+    pub keyboard_hook: bool,
+    pub mouse_hook: bool,
+    pub tray_visible: bool,
+}
+
+#[tauri::command]
+pub fn runtime_status(state: State<'_, AppState>) -> RuntimeStatus {
+    let (keyboard_hook, mouse_hook) = crate::shortcut::hook_status();
+    RuntimeStatus {
+        keyboard_hook,
+        mouse_hook,
+        tray_visible: state.tray_visible.load(Ordering::Relaxed),
+    }
+}
+
+#[tauri::command]
+pub fn refresh_input(app: tauri::AppHandle) -> Result<(), String> {
+    app.run_on_main_thread(crate::shortcut::refresh_hooks)
+        .map_err(|_| "shortcut".to_string())
 }
 
 #[derive(serde::Serialize)]
@@ -1043,6 +1075,13 @@ pub async fn check_update(
     app: tauri::AppHandle,
 ) -> Result<Option<crate::updates::UpdateInfo>, String> {
     crate::updates::check(&app).await
+}
+
+#[tauri::command]
+pub async fn preflight_update(
+    app: tauri::AppHandle,
+) -> Result<crate::updates::UpdatePreflight, String> {
+    crate::updates::preflight(&app).await
 }
 
 #[tauri::command]

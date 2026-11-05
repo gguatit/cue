@@ -304,6 +304,53 @@ pub fn api_for(preset: &str, model: &str) -> Api {
     }
 }
 
+/// Warnings only: the UI shows these before a request without changing the
+/// user's extra JSON. Custom endpoints may speak any protocol, so token-field
+/// hints are limited to built-in presets.
+pub fn extra_warnings(preset: &str, model: &str, extra: &str) -> Vec<&'static str> {
+    if extra.trim().is_empty() {
+        return vec![];
+    }
+    let Ok(value) = serde_json::from_str::<Value>(extra) else {
+        return vec![];
+    };
+    let Some(object) = value.as_object() else {
+        return vec![];
+    };
+    let mut warnings = Vec::new();
+    if preset != "custom" {
+        let token_warning = match api_for(preset, model) {
+            Api::Chat => {
+                (object.contains_key("max_output_tokens")
+                    || object.contains_key("generationConfig"))
+                .then_some("extra_token_chat")
+            }
+            Api::Responses => (object.contains_key("max_tokens")
+                || object.contains_key("max_completion_tokens")
+                || object.contains_key("generationConfig"))
+            .then_some("extra_token_responses"),
+            Api::Anthropic => (object.contains_key("max_output_tokens")
+                || object.contains_key("max_completion_tokens")
+                || object.contains_key("generationConfig"))
+            .then_some("extra_token_anthropic"),
+            Api::Google => (object.contains_key("max_tokens")
+                || object.contains_key("max_output_tokens")
+                || object.contains_key("max_completion_tokens"))
+            .then_some("extra_token_google"),
+        };
+        if let Some(warning) = token_warning {
+            warnings.push(warning);
+        }
+    }
+    if ["tools", "tool_choice", "n", "stream_options"]
+        .iter()
+        .any(|key| object.contains_key(*key))
+    {
+        warnings.push("extra_parse_risk");
+    }
+    warnings
+}
+
 #[cfg(test)]
 pub fn endpoint(preset: &str, base_url: &str, model: &str) -> String {
     endpoint_for(base_url, model, api_for(preset, model))
@@ -1606,6 +1653,32 @@ mod tests {
         assert_eq!(api_for("opencode", "muse-spark-1.3"), Api::Responses);
         assert_eq!(api_for("opencode", "deepseek-v4-pro"), Api::Chat);
         assert_eq!(api_for("openai", "gpt-5.5"), Api::Chat);
+    }
+
+    #[test]
+    fn extra_warnings_follow_the_model_protocol() {
+        assert_eq!(
+            extra_warnings("openai", "gpt-5.5", r#"{"max_output_tokens": 512}"#),
+            vec!["extra_token_chat"]
+        );
+        assert_eq!(
+            extra_warnings("opencode", "gpt-5.5", r#"{"max_tokens": 512}"#),
+            vec!["extra_token_responses"]
+        );
+        assert_eq!(
+            extra_warnings("opencode", "claude-sonnet-4-5", r#"{"max_output_tokens": 512}"#),
+            vec!["extra_token_anthropic"]
+        );
+        assert_eq!(
+            extra_warnings("opencode", "gemini-3.8-flash", r#"{"max_tokens": 512}"#),
+            vec!["extra_token_google"]
+        );
+        assert!(extra_warnings("openai", "gpt-5.5", r#"{"max_tokens": 512}"#).is_empty());
+        assert_eq!(
+            extra_warnings("custom", "any-model", r#"{"tools":[]}"#),
+            vec!["extra_parse_risk"]
+        );
+        assert!(extra_warnings("custom", "any-model", "not json").is_empty());
     }
 
     #[test]

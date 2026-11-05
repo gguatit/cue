@@ -1,3 +1,4 @@
+use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
@@ -5,16 +6,54 @@ use std::time::{Duration, SystemTime};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_updater::{Error, UpdaterExt};
+use windows::core::PCWSTR;
+use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
 static UPDATING: AtomicBool = AtomicBool::new(false);
 
 const UPDATE_TEMP_MIN_AGE: Duration = Duration::from_secs(10 * 60);
+const UPDATE_REQUIRED_BYTES: u64 = 350 * 1024 * 1024;
 
 #[derive(Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupResult {
     pub removed: u32,
     pub bytes: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePreflight {
+    pub available: bool,
+    pub version: Option<String>,
+    pub required_bytes: u64,
+    pub free_bytes: Option<u64>,
+    pub enough: bool,
+}
+
+fn free_bytes(path: &Path) -> Option<u64> {
+    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let mut available = 0u64;
+    unsafe {
+        GetDiskFreeSpaceExW(PCWSTR(wide.as_ptr()), Some(&mut available), None, None).ok()?;
+    }
+    Some(available)
+}
+
+fn enough_space(free: Option<u64>) -> bool {
+    free.map_or(true, |bytes| bytes >= UPDATE_REQUIRED_BYTES)
+}
+
+pub async fn preflight(app: &AppHandle) -> Result<UpdatePreflight, String> {
+    let update = check(app).await?;
+    let free = free_bytes(&std::env::temp_dir());
+    Ok(UpdatePreflight {
+        available: update.is_some(),
+        version: update.map(|info| info.version),
+        required_bytes: UPDATE_REQUIRED_BYTES,
+        free_bytes: free,
+        enough: enough_space(free),
+    })
 }
 
 fn is_updater_temp_dir(name: &str) -> bool {
@@ -184,6 +223,10 @@ async fn install_inner(app: &AppHandle) -> Result<(), String> {
         .map_err(|e| error_code(&e).to_string())?
         .ok_or_else(|| "update_unavailable".to_string())?;
 
+    if !enough_space(free_bytes(&std::env::temp_dir())) {
+        return Err("update_disk".into());
+    }
+
     let mut downloaded = 0u64;
     let bytes = update
         .download(
@@ -214,6 +257,13 @@ mod tests {
     fn network_failures_use_the_network_code() {
         assert_eq!(error_code(&Error::Network("offline".into())), "network");
         assert_eq!(error_code(&Error::ReleaseNotFound), "update_check");
+    }
+
+    #[test]
+    fn disk_preflight_blocks_only_known_low_space() {
+        assert!(enough_space(None));
+        assert!(!enough_space(Some(UPDATE_REQUIRED_BYTES - 1)));
+        assert!(enough_space(Some(UPDATE_REQUIRED_BYTES)));
     }
 
     #[test]

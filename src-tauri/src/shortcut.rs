@@ -624,6 +624,19 @@ pub fn installed() -> bool {
     })
 }
 
+/// Snapshot for the exam check. It only reads hook state, so it is safe from a
+/// command thread; actual hook installation stays on the main message loop.
+pub fn hook_status() -> (bool, bool) {
+    CTX.get().map_or((false, false), |c| {
+        (
+            c.hook_installed.load(Ordering::Relaxed)
+                && c.keyboard_hook.load(Ordering::Relaxed) != 0,
+            c.mouse_hook_installed.load(Ordering::Relaxed)
+                && c.mouse_hook.load(Ordering::Relaxed) != 0,
+        )
+    })
+}
+
 fn group_of(vk: u32) -> u8 {
     match vk {
         0xA2 | 0xA3 => MOD_CTRL,
