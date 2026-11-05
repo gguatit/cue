@@ -58,7 +58,7 @@ export default function OverlayView() {
     return (
       <div className="fixed inset-0 p-2">
         <div
-          className={`h-full w-full overflow-y-auto overscroll-contain whitespace-pre-wrap break-words rounded-xl border border-black/10 bg-white/90 p-5 text-[#111] leading-relaxed shadow-[0_12px_32px_rgba(0,0,0,0.16)] backdrop-blur-sm ${
+          className={`overlay-glass h-full w-full overflow-y-auto overscroll-contain whitespace-pre-wrap break-words rounded-xl p-5 text-[#111] leading-relaxed ${
             long ? 'text-[14px]' : 'text-[18px]'
           }`}
         >
@@ -69,11 +69,11 @@ export default function OverlayView() {
   }
   return (
     <div className="fixed inset-0 flex flex-col p-2">
-      <span className="flex w-full min-w-0 flex-1 items-center justify-center break-words rounded-xl border border-black/10 bg-white/90 px-2 text-center text-4xl font-bold text-[#0b0b0e] shadow-[0_12px_32px_rgba(0,0,0,0.16)] backdrop-blur-sm">
+      <span className="overlay-glass flex w-full min-w-0 flex-1 items-center justify-center break-words rounded-xl px-2 text-center text-4xl font-bold text-[#0b0b0e]">
         {p.answer}
       </span>
       {badge && (
-        <span className="mx-auto mt-1 w-fit shrink-0 rounded-md border border-amber-700/15 bg-white/90 px-2 py-1 text-center text-[11px] font-semibold leading-tight text-amber-700">
+        <span className="mx-auto mt-1 w-fit shrink-0 rounded-md border border-amber-700/15 bg-white/75 px-2 py-1 text-center text-[11px] font-semibold leading-tight text-amber-700 shadow-sm backdrop-blur-md">
           {badge}
         </span>
       )}

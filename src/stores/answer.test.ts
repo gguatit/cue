@@ -340,7 +340,7 @@ describe('answer store', () => {
       true,
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'text', text: '광합성입니다.' })
-    expect(setTrayLoading).not.toHaveBeenCalled()
+    expect(setTrayLoading).toHaveBeenCalled()
     expect(setTrayAnswer).not.toHaveBeenCalled()
     expect(blinkAnswer).not.toHaveBeenCalled()
     expect(blinkBrightness).not.toHaveBeenCalled()
@@ -363,14 +363,15 @@ describe('answer store', () => {
     expect(setTrayAnswer).not.toHaveBeenCalled()
   })
 
-  it('descriptive run skips tray loading and error presentation', async () => {
+  it('descriptive failure shows tray loading and error', async () => {
     vi.mocked(captureAndAnswer).mockRejectedValueOnce('http_401')
     useSettings.setState({
       display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 },
       provider: { ...defaults.provider, answerType: 'text' },
     })
     await useAnswer.getState().run(false)
-    expect(setTrayLoading).not.toHaveBeenCalled()
+    expect(setTrayLoading).toHaveBeenCalled()
+    expect(setTrayError).toHaveBeenCalled()
     expect(useAnswer.getState().mode).toEqual({ kind: 'error', code: 'http_401' })
   })
 
@@ -804,6 +805,7 @@ describe('answer store', () => {
 
     await useAnswer.getState().run(false, 'free')
 
+    expect(setTrayLoading).toHaveBeenCalled()
     expect(captureAndAnswer).toHaveBeenCalledWith(
       defaults.provider.preset,
       defaults.provider.baseUrl,

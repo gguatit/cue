@@ -414,7 +414,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
           await setTrayVisible(true).catch(() => {})
           if (seq !== my) return
         }
-        if (!textMode && useSettings.getState().display.tray && !hiddenAtStart) {
+        if (useSettings.getState().display.tray && !hiddenAtStart) {
           try {
             await setTrayLoading()
           } catch {
@@ -502,7 +502,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
         }))
         const hidden = await hiddenByMeeting()
         if (seq !== my) return
-        if (!textMode && useSettings.getState().display.tray && !hidden) {
+        if (useSettings.getState().display.tray && !hidden) {
           try {
             await setTrayError()
           } catch {
