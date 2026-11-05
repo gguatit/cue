@@ -266,6 +266,9 @@ fn main() {
                     tauri::WindowEvent::Focused(false) => {
                         let _ = w.emit("main-blurred", ());
                     }
+                    tauri::WindowEvent::Focused(true) => {
+                        shortcut::refresh_hooks();
+                    }
                     _ => {}
                 }
             });
@@ -276,8 +279,14 @@ fn main() {
             let hook_handle = handle.clone();
             std::thread::spawn(move || loop {
                 std::thread::sleep(std::time::Duration::from_secs(60));
-                shortcut::refresh_hooks();
-                tray::refresh_visibility(&hook_handle);
+                let app = hook_handle.clone();
+                // Low-level hooks only receive input while their installing
+                // thread pumps messages. Reinstalling from this worker thread
+                // would silently kill both hooks after the first refresh.
+                let _ = hook_handle.run_on_main_thread(move || {
+                    shortcut::refresh_hooks();
+                    tray::refresh_visibility(&app);
+                });
             });
             Ok(())
         })

@@ -384,6 +384,9 @@ static MOUSE_LATCH: AtomicBool = AtomicBool::new(false);
 static MOUSE_SUPPRESS: AtomicU8 = AtomicU8::new(0);
 static PREWARM_LATCH: AtomicBool = AtomicBool::new(false);
 
+// Must run on the Windows message-loop thread. Low-level hooks dispatch
+// callbacks through that thread's message queue; installing elsewhere makes
+// them appear installed while silently receiving nothing.
 pub fn install(app: &AppHandle, spec: ShortcutSpec) {
     let ctx = CTX.get_or_init(|| HookCtx {
         app: app.clone(),
@@ -431,15 +434,6 @@ fn ensure_mouse_hook(ctx: &HookCtx) -> bool {
     ok
 }
 
-fn unhook(handle: &AtomicIsize) {
-    let value = handle.swap(0, Ordering::SeqCst);
-    if value != 0 {
-        unsafe {
-            let _ = UnhookWindowsHookEx(HHOOK(value as *mut std::ffi::c_void));
-        }
-    }
-}
-
 pub fn refresh_hooks() {
     let Some(ctx) = CTX.get() else {
         return;
@@ -461,18 +455,10 @@ pub fn refresh_hooks() {
         ctx.hook_installed.store(false, Ordering::Relaxed);
     }
 
-    let needs_mouse = ctx.answer_click.load(Ordering::Relaxed)
-        || ctx.free_enabled.load(Ordering::Relaxed)
-        || ctx
-            .mouse
-            .lock()
-            .map(|mouse| mouse.config.mode != crate::shortcut::MouseTriggerMode::Off)
-            .unwrap_or(false);
-    if !needs_mouse {
-        unhook(&ctx.mouse_hook);
-        ctx.mouse_hook_installed.store(false, Ordering::Relaxed);
-        return;
-    }
+    // Keep the mouse hook alive even when the mouse trigger is off. Creating
+    // hooks from an async command thread (no message loop) silently disables
+    // them, so commands only update configuration and the main-thread refresh
+    // owns every SetWindowsHookEx call.
     let hmod = unsafe { GetModuleHandleW(None) }.ok().map(Into::into);
     if let Ok(hook) = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_hook_proc), hmod, 0) } {
         let old = ctx.mouse_hook.swap(hook.0 as isize, Ordering::SeqCst);
@@ -506,7 +492,7 @@ pub fn set_spec(accel: &str, click: bool, button: &str) -> Result<(), String> {
             }
         }
     }
-    if click && !ensure_mouse_hook(ctx) {
+    if click && !ctx.mouse_hook_installed.load(Ordering::Relaxed) {
         return Err("shortcut".into());
     }
     let mut g = ctx.spec.lock().map_err(|_| "shortcut")?;
@@ -534,7 +520,9 @@ pub fn set_prewarm(enabled: bool) -> Result<(), String> {
 pub fn set_mouse_trigger(config: MouseTriggerConfig) -> Result<(), String> {
     let ctx = CTX.get().ok_or("shortcut")?;
     let _settings = ctx.settings.lock().map_err(|_| "shortcut")?;
-    if config.mode != MouseTriggerMode::Off && !ensure_mouse_hook(ctx) {
+    if config.mode != MouseTriggerMode::Off
+        && !ctx.mouse_hook_installed.load(Ordering::Relaxed)
+    {
         return Err("gesture".into());
     }
     let mut runtime = ctx.mouse.lock().map_err(|_| "shortcut")?;
@@ -578,7 +566,7 @@ pub fn set_free(enabled: bool, button: &str) -> Result<(), String> {
         ) {
             return Err("shortcut".into());
         }
-        if !ensure_mouse_hook(ctx) {
+        if !ctx.mouse_hook_installed.load(Ordering::Relaxed) {
             return Err("shortcut".into());
         }
     }
