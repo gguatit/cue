@@ -19,7 +19,7 @@ import {
 } from '../../stores/settings'
 import { useAnswer } from '../../stores/answer'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import { Button, Card, Field, Input, SectionTitle, Select, Toggle } from '../../components/ui'
+import { Button, Field, Group, GroupHeader, Input, Select, Toggle } from '../../components/ui'
 
 function ModelChips({
   models,
@@ -348,7 +348,10 @@ export default function AiTab() {
 
   return (
     <div className="space-y-4">
-      <Card className="space-y-4">
+      <Group className="space-y-4 p-4">
+        <GroupHeader className="px-0 pb-0 pt-0">
+          {t('AI provider', 'AI 프로바이더')}
+        </GroupHeader>
         <Field label={t('Provider', '프로바이더')}>
           <Select
             value={provider.preset}
@@ -623,9 +626,9 @@ export default function AiTab() {
             </label>
           </>
         )}
-      </Card>
-      <Card>
-        <SectionTitle>{t('API key', 'API 키')}</SectionTitle>
+      </Group>
+      <Group className="space-y-3 p-4">
+        <GroupHeader className="px-0 pb-0 pt-0">{t('API key', 'API 키')}</GroupHeader>
         <div className="flex gap-2">
           <Input
             type="password"
@@ -671,10 +674,13 @@ export default function AiTab() {
             )}
           </p>
         )}
-      </Card>
-      <Card>
-        <SectionTitle>{t('Extra parameters (JSON)', '추가 파라미터 (JSON)')}</SectionTitle>
+      </Group>
+      <Group className="space-y-3 p-4">
+        <GroupHeader className="px-0 pb-0 pt-0">
+          {t('Extra parameters (JSON)', '추가 파라미터 (JSON)')}
+        </GroupHeader>
         <textarea
+          aria-label={t('Extra parameters (JSON)', '추가 파라미터 (JSON)')}
           className="w-full rounded-lg border border-zinc-700/80 bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-100 transition-colors placeholder:text-zinc-600 focus:border-accent focus:outline-none"
           rows={3}
           value={extraDraft}
@@ -710,7 +716,7 @@ export default function AiTab() {
             '모델이 실패하면 추가 파라미터를 비우고 다시 테스트하세요. 모델마다 토큰 필드가 다릅니다: max_tokens, max_output_tokens, generationConfig.maxOutputTokens.',
           )}
         </p>
-      </Card>
+      </Group>
       <div className="flex items-center gap-3">
         <Button onClick={test}>{t('Test connection', '연결 테스트')}</Button>
         <Button variant="primary" disabled={countdown > 0} onClick={realTest}>

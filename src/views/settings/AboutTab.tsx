@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Card, SectionTitle, Toggle } from '../../components/ui'
+import { Button, Group, GroupHeader, Toggle } from '../../components/ui'
 import UpdateConfirmDialog from '../../components/UpdateConfirmDialog'
 import { useT, errorMessage } from '../../i18n'
 import { cleanupUpdateFiles, openExternal, preflightUpdate, type UpdatePreflight } from '../../lib/tauri'
@@ -73,7 +73,7 @@ export default function AboutTab() {
 
   return (
     <div className="space-y-4 text-sm">
-      <Card className="space-y-2">
+      <Group className="space-y-2 p-4">
         <p className="font-medium text-zinc-100">Cue v{__APP_VERSION__}</p>
         <p className="text-zinc-400">
           {t('Made by kalpha (Choi Jaeyoung)', '만든 사람: kalpha (최재영)')}
@@ -109,9 +109,9 @@ export default function AboutTab() {
             '오버레이와 플래시 테스트는 실제 캡처가 한 번 필요합니다. 단축키를 한 번 누른 뒤 테스트하세요.',
           )}
         </p>
-      </Card>
-      <Card className="space-y-3">
-        <SectionTitle>{t('Updates', '업데이트')}</SectionTitle>
+      </Group>
+      <Group className="space-y-3 p-4">
+        <GroupHeader className="px-0 pb-2 pt-0">{t('Updates', '업데이트')}</GroupHeader>
         <div className="flex items-center justify-between gap-3">
           <p className="font-medium text-zinc-200">Cue v{__APP_VERSION__}</p>
           <Button disabled={checking || installing} onClick={() => void check(false)}>
@@ -224,8 +224,8 @@ export default function AboutTab() {
             '업데이트는 서명으로 검증됩니다. 서명이 맞지 않는 설치 프로그램은 실행하지 않습니다.',
           )}
         </p>
-      </Card>
-      <Card>
+      </Group>
+      <Group className="p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xs font-semibold tracking-wide text-zinc-500">
             {t('Answer history', '답변 기록')}
@@ -249,8 +249,8 @@ export default function AboutTab() {
             ))}
           </ul>
         )}
-      </Card>
-      <Card>
+      </Group>
+      <Group className="p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xs font-semibold tracking-wide text-zinc-500">
             {t('Recent errors', '최근 오류')}
@@ -274,7 +274,7 @@ export default function AboutTab() {
             ))}
           </ul>
         )}
-      </Card>
+      </Group>
       {confirming && available && (
         <UpdateConfirmDialog
           version={available.version}

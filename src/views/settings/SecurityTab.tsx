@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, SectionTitle, Select, Toggle } from '../../components/ui'
+import { Button, Group, GroupHeader, Select, Toggle } from '../../components/ui'
 import { useT } from '../../i18n'
 import {
   addDefenderExclusion,
@@ -316,8 +316,8 @@ export default function SecurityTab() {
 
   return (
     <div className="space-y-4 text-sm">
-      <Card>
-        <SectionTitle>{t('Window', '창')}</SectionTitle>
+      <Group className="p-4">
+        <GroupHeader className="px-0 pb-2 pt-0">{t('Window', '창')}</GroupHeader>
         <Toggle
           checked={stealth.skipTaskbar}
           onChange={(v) => void apply({ skipTaskbar: v }, () => setHideFromTaskbar(v))}
@@ -332,9 +332,9 @@ export default function SecurityTab() {
             'Alt+Tab을 누르거나 다른 앱을 클릭하면 이 창을 숨깁니다. 트레이에서 다시 열 수 있습니다.',
           )}
         />
-      </Card>
-      <Card>
-        <SectionTitle>{t('Screen capture protection', '화면 캡처 보호')}</SectionTitle>
+      </Group>
+      <Group className="p-4">
+        <GroupHeader className="px-0 pb-2 pt-0">{t('Screen capture protection', '화면 캡처 보호')}</GroupHeader>
         <Toggle
           checked={stealth.contentProtection}
           onChange={(v) => void apply({ contentProtection: v }, () => setContentProtection(v))}
@@ -355,10 +355,10 @@ export default function SecurityTab() {
             'Windows 10 2004 이상은 창이 캡처에서 완전히 사라집니다. 이전 버전은 빈 창으로 보이며, 화면을 카메라로 촬영하는 것은 막지 못합니다.',
           )}
         </p>
-      </Card>
-      <Card>
+      </Group>
+      <Group className="p-4">
         <div className="flex items-center justify-between gap-3">
-          <SectionTitle>{t('Meeting safe mode', '회의 안전 모드')}</SectionTitle>
+          <GroupHeader className="px-0 pb-2 pt-0">{t('Meeting safe mode', '회의 안전 모드')}</GroupHeader>
           {meetingHidden && (
             <span className="mb-3 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400">
               {t('Meeting detected', '회의 감지됨')}
@@ -449,9 +449,9 @@ export default function SecurityTab() {
             '회의나 화면 공유 앱이 감지되면 Cue는 트레이 아이콘, 오버레이, 플래시를 숨기고 키보드 LED와 화면 밝기만 사용합니다. 실행 중인 회의·화면 공유 프로세스와 창 제목을 확인하는 휴리스틱이므로 일부 회의를 놓치거나 무관한 작업 중 답변을 숨길 수 있습니다. LED와 밝기가 모두 꺼져 있으면 답변이 표시되지 않습니다. 답변 기록은 그대로 저장됩니다.',
           )}
         </p>
-      </Card>
-      <Card>
-        <SectionTitle>{t('Cursor crop', '커서 영역 자르기')}</SectionTitle>
+      </Group>
+      <Group className="p-4">
+        <GroupHeader className="px-0 pb-2 pt-0">{t('Cursor crop', '커서 영역 자르기')}</GroupHeader>
         <Toggle
           checked={privacy.crop}
           onChange={(v) => setPrivacy({ crop: v })}
@@ -463,10 +463,10 @@ export default function SecurityTab() {
             'Cue는 화면 전체 대신 포인터를 중심으로 한 1600×1000 픽셀 영역만 전송합니다. 이미지가 기기를 떠나기 전에 잘립니다.',
           )}
         </p>
-      </Card>
-      <Card>
+      </Group>
+      <Group className="p-4">
         <div className="flex items-center justify-between gap-3">
-          <SectionTitle>{t('Maximum protection', '최대 보호')}</SectionTitle>
+          <GroupHeader className="px-0 pb-2 pt-0">{t('Maximum protection', '최대 보호')}</GroupHeader>
           <span className={`mb-3 rounded-full px-2 py-0.5 text-xs font-medium ${adminTone}`}>
             {adminLabel}
           </span>
@@ -519,9 +519,9 @@ export default function SecurityTab() {
             '복구는 가드 복사본, 서비스, 예약 작업, 마커를 다시 만듭니다. 관리자가 서비스를 중지·삭제하면 막을 수 없고, 그룹 정책, Windows 종료, 커널 수준 도구도 막을 수 없습니다. 보호는 최선의 노력입니다.',
           )}
         </p>
-      </Card>
-      <Card>
-        <SectionTitle>{t('Windows Defender', 'Windows Defender')}</SectionTitle>
+      </Group>
+      <Group className="p-4">
+        <GroupHeader className="px-0 pb-2 pt-0">{t('Windows Defender', 'Windows Defender')}</GroupHeader>
         <p className="mt-2 text-xs text-zinc-500">
           {t(
             'If Defender quarantines Cue as a false positive, add the app folder and its processes to the exclusion list. This lowers protection for those paths and needs administrator approval. If Cue was already quarantined, restore it in Windows Security > Protection history first.',
@@ -549,10 +549,10 @@ export default function SecurityTab() {
             </p>
           )}
         {defenderMessage && <p className="mt-2 text-xs text-zinc-400">{defenderMessage}</p>}
-      </Card>
-      <Card>
+      </Group>
+      <Group className="p-4">
         <div className="flex items-center justify-between gap-3">
-          <SectionTitle>{t('Survival guard', '생존 보호')}</SectionTitle>
+          <GroupHeader className="px-0 pb-2 pt-0">{t('Survival guard', '생존 보호')}</GroupHeader>
           <span
             className={`mb-3 rounded-full px-2 py-0.5 text-xs font-medium ${
               guardStatus === null
@@ -589,9 +589,9 @@ export default function SecurityTab() {
             '보호는 최선의 노력입니다. 관리자 권한 강제 종료와 그룹 정책 제한은 막을 수 없습니다. 복구는 삭제된 예약 작업과 마커를 다시 만듭니다.',
           )}
         </p>
-      </Card>
-      <Card>
-        <SectionTitle>{t('Tray guide', '트레이 안내')}</SectionTitle>
+      </Group>
+      <Group className="p-4">
+        <GroupHeader className="px-0 pb-2 pt-0">{t('Tray guide', '트레이 안내')}</GroupHeader>
         <ol className="list-decimal space-y-1 pl-5 text-zinc-400">
           <li>{t('Open "Other system tray icons" in Taskbar settings.', '작업 표시줄 설정에서 "기타 시스템 트레이 아이콘"을 엽니다.')}</li>
           <li>{t('Find Cue in the list.', '목록에서 Cue를 찾습니다.')}</li>
@@ -603,7 +603,7 @@ export default function SecurityTab() {
         >
           {t('Open taskbar settings', '작업 표시줄 설정 열기')}
         </Button>
-      </Card>
+      </Group>
       <p className="text-xs text-zinc-500">
         {t(
           'When searching, Cue captures only the display under the pointer.',
