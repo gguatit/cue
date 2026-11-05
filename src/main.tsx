@@ -10,6 +10,9 @@ import { isTauri, showOverlay } from './lib/tauri'
 import { startMeetingWatch } from './stores/answer'
 import { maybeCheckForUpdates } from './stores/updates'
 
+const overlayView = isTauri() && getCurrentWebviewWindow().label === 'overlay'
+if (overlayView) document.documentElement.dataset.view = 'overlay'
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
@@ -17,9 +20,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </React.StrictMode>,
 )
-
-const overlayView = isTauri() && getCurrentWebviewWindow().label === 'overlay'
-if (overlayView) document.documentElement.dataset.view = 'overlay'
 
 if (!overlayView) {
   startAppearanceSync()
