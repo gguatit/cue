@@ -14,10 +14,10 @@ const MAX_AGENTS = 72
 const MIN_MOBILE = 16
 const MAX_MOBILE = 40
 const MAX_CONCURRENT = 12
-const TRIANGLE_RADIUS = 220
-const TRIANGLE_RADIUS_MOBILE = 110
-const TRIANGLE_SPEED = 110
-const TRIANGLE_SPEED_MOBILE = 80
+const TRIANGLE_RADIUS = 180
+const TRIANGLE_RADIUS_MOBILE = 90
+const TRIANGLE_SPEED = 80
+const TRIANGLE_SPEED_MOBILE = 58
 
 function buildKind(el: HTMLElement): 'box' | 'text' | 'code' | 'media' {
   const tag = el.tagName.toLowerCase()
@@ -185,15 +185,17 @@ function pointOnTriangle(distance: number): Point {
   return points[points.length - 1]
 }
 
-function triangleWave(distance: number, now: number): Point {
+function triangleWave(distance: number, now: number, radius: number): Point {
   const point = pointOnTriangle(distance)
   const before = pointOnTriangle(distance - 0.01)
   const after = pointOnTriangle(distance + 0.01)
   const tx = after.x - before.x
   const ty = after.y - before.y
   const length = Math.hypot(tx, ty) || 1
+  const amplitude = 2.5 / Math.max(radius, 1)
   const wave =
-    Math.sin((distance / ROUNDED_TRIANGLE.length) * Math.PI * 4 - now * 0.0022) * 5
+    Math.sin((distance / ROUNDED_TRIANGLE.length) * Math.PI * 4 - now * 0.0022) *
+    amplitude
   return {
     x: point.x + (-ty / length) * wave,
     y: point.y + (tx / length) * wave,
@@ -272,7 +274,6 @@ export default function PageBuilder({
       lastY: window.innerHeight / 2,
       lastAt: performance.now(),
       speed: 0,
-      scatterUntil: 0,
     }
     const anchor = { x: pointer.x, y: pointer.y }
     const onPointerMove = (event: PointerEvent) => {
@@ -281,9 +282,6 @@ export default function PageBuilder({
       const elapsed = Math.max(1, now - pointer.lastAt)
       const velocity = Math.min(36, (distance / elapsed) * 16.667)
       pointer.speed = pointer.speed * 0.4 + velocity * 0.6
-      if (velocity > 2 && now > pointer.scatterUntil - 180) {
-        pointer.scatterUntil = now + 280
-      }
       pointer.x = event.clientX
       pointer.y = event.clientY
       pointer.lastX = event.clientX
@@ -509,14 +507,14 @@ export default function PageBuilder({
         }
       } else {
         pointer.speed *= 0.94
-        anchor.x += (pointer.x - anchor.x) * 0.11
-        anchor.y += (pointer.y - anchor.y) * 0.11
+        anchor.x += (pointer.x - anchor.x) * 0.075
+        anchor.y += (pointer.y - anchor.y) * 0.075
 
         const desktop = window.innerWidth >= 768
-        const boost = Math.min(1.6, pointer.speed / 18)
+        const boost = Math.min(0.7, pointer.speed / 40)
         const baseRadius = desktop ? TRIANGLE_RADIUS : TRIANGLE_RADIUS_MOBILE
         const baseSpeed = desktop ? TRIANGLE_SPEED : TRIANGLE_SPEED_MOBILE
-        triangleRadius = baseRadius + boost * 42
+        triangleRadius = baseRadius + boost * 20
         const marginX = triangleRadius + 24
         const marginY = triangleRadius * 0.78 + 24
         triangleCenter.x = clamp(
@@ -530,7 +528,7 @@ export default function PageBuilder({
           Math.max(window.innerHeight - marginY, window.innerHeight / 2),
         )
         formationDistance +=
-          ((baseSpeed + boost * 70) / triangleRadius) * 0.0167 * dt
+          ((baseSpeed + boost * 26) / triangleRadius) * 0.0167 * dt
 
       for (let index = 0; index < agentCount; index++) {
         const worker = workers[index]
@@ -637,23 +635,18 @@ export default function PageBuilder({
           if (!worker.target) {
             const offset = (index / Math.max(1, agentCount)) * ROUNDED_TRIANGLE.length
             const distance = (formationDistance + offset) % ROUNDED_TRIANGLE.length
-            const point = triangleWave(distance, now)
+            const point = triangleWave(distance, now, triangleRadius)
             const targetX = triangleCenter.x + point.x * triangleRadius
             const targetY = triangleCenter.y + point.y * triangleRadius
             const dx = worker.x - pointer.x
             const dy = worker.y - pointer.y
             const pointerDistance = Math.hypot(dx, dy) || 1
 
-            if (now < pointer.scatterUntil) {
-              const force = 4 + Math.min(8, pointer.speed * 0.35)
+            if (now > worker.scatterUntil && pointerDistance < 26) {
+              const force = 2.5 + Math.min(3, pointer.speed * 0.08)
               worker.scatterVX = (dx / pointerDistance) * force
               worker.scatterVY = (dy / pointerDistance) * force
-              worker.scatterUntil = Math.max(worker.scatterUntil, now + 90)
-            } else if (now > worker.scatterUntil && pointerDistance < 34) {
-              const force = 5 + Math.min(9, pointer.speed * 0.3)
-              worker.scatterVX = (dx / pointerDistance) * force
-              worker.scatterVY = (dy / pointerDistance) * force
-              worker.scatterUntil = now + 360 + Math.random() * 260
+              worker.scatterUntil = now + 280 + Math.random() * 180
             }
 
             if (now < worker.scatterUntil) {
