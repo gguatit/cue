@@ -16,8 +16,8 @@ const MAX_MOBILE = 40
 const MAX_CONCURRENT = 12
 const TRIANGLE_RADIUS = 180
 const TRIANGLE_RADIUS_MOBILE = 90
-const TRIANGLE_SPEED = 80
-const TRIANGLE_SPEED_MOBILE = 58
+const TRIANGLE_SPEED = 120
+const TRIANGLE_SPEED_MOBILE = 90
 
 function buildKind(el: HTMLElement): 'box' | 'text' | 'code' | 'media' {
   const tag = el.tagName.toLowerCase()
@@ -274,8 +274,10 @@ export default function PageBuilder({
       lastY: window.innerHeight / 2,
       lastAt: performance.now(),
       speed: 0,
+      scatterUntil: 0,
     }
     const anchor = { x: pointer.x, y: pointer.y }
+    let formationBlend = 0
     const onPointerMove = (event: PointerEvent) => {
       const now = performance.now()
       const distance = Math.hypot(event.clientX - pointer.lastX, event.clientY - pointer.lastY)
@@ -287,6 +289,8 @@ export default function PageBuilder({
       pointer.lastX = event.clientX
       pointer.lastY = event.clientY
       pointer.lastAt = now
+      pointer.scatterUntil = now + 260
+      formationBlend = 0
     }
     window.addEventListener('pointermove', onPointerMove, { passive: true })
     const workers: Worker[] = Array.from({ length: MAX_AGENTS }, (_, index) => {
@@ -530,6 +534,12 @@ export default function PageBuilder({
         formationDistance +=
           ((baseSpeed + boost * 26) / triangleRadius) * 0.0167 * dt
 
+        const buildActive = active.size > 0 || queue.length > 0
+        const canForm = !buildActive && now - pointer.lastAt > 4000
+        formationBlend = canForm
+          ? Math.min(1, formationBlend + dt * 0.018)
+          : Math.max(0, formationBlend - dt * 0.09)
+
       for (let index = 0; index < agentCount; index++) {
         const worker = workers[index]
         const cursorEl = cursorRefs.current[index]
@@ -636,14 +646,25 @@ export default function PageBuilder({
             const offset = (index / Math.max(1, agentCount)) * ROUNDED_TRIANGLE.length
             const distance = (formationDistance + offset) % ROUNDED_TRIANGLE.length
             const point = triangleWave(distance, now, triangleRadius)
-            const targetX = triangleCenter.x + point.x * triangleRadius
-            const targetY = triangleCenter.y + point.y * triangleRadius
+            const triangleX = triangleCenter.x + point.x * triangleRadius
+            const triangleY = triangleCenter.y + point.y * triangleRadius
+            const freePhase = now * 0.00062 + index * 1.7
+            const freeRadius = 52 + (index % 7) * 24
+            const freeX = anchor.x + Math.cos(freePhase) * freeRadius
+            const freeY = anchor.y + Math.sin(freePhase * 0.85) * freeRadius * 0.8
+            const targetX = freeX + (triangleX - freeX) * formationBlend
+            const targetY = freeY + (triangleY - freeY) * formationBlend
             const dx = worker.x - pointer.x
             const dy = worker.y - pointer.y
             const pointerDistance = Math.hypot(dx, dy) || 1
 
-            if (now > worker.scatterUntil && pointerDistance < 26) {
-              const force = 2.5 + Math.min(3, pointer.speed * 0.08)
+            if (now < pointer.scatterUntil) {
+              const force = 1.5 + Math.min(2.5, pointer.speed * 0.06)
+              worker.scatterVX = (dx / pointerDistance) * force
+              worker.scatterVY = (dy / pointerDistance) * force
+              worker.scatterUntil = Math.max(worker.scatterUntil, now + 80)
+            } else if (now > worker.scatterUntil && pointerDistance < 26) {
+              const force = 2 + Math.min(4, pointer.speed * 0.08)
               worker.scatterVX = (dx / pointerDistance) * force
               worker.scatterVY = (dy / pointerDistance) * force
               worker.scatterUntil = now + 280 + Math.random() * 180
