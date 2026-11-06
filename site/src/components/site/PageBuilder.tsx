@@ -141,6 +141,9 @@ export default function PageBuilder({
   const dimensionRef = useRef<HTMLDivElement>(null)
   const effectRef = useRef<HTMLCanvasElement>(null)
   const caretRef = useRef<HTMLDivElement>(null)
+  const crosshairXRef = useRef<HTMLDivElement>(null)
+  const crosshairYRef = useRef<HTMLDivElement>(null)
+  const coordRef = useRef<HTMLDivElement>(null)
   const cursorsRef = useRef(cursorsEnabled)
   const particlesRef = useRef(particlesEnabled)
 
@@ -412,6 +415,9 @@ export default function PageBuilder({
           dimensions.clear()
           hudRef.current?.classList.remove('is-visible')
           caretRef.current?.classList.remove('is-visible')
+          crosshairXRef.current?.classList.remove('is-visible')
+          crosshairYRef.current?.classList.remove('is-visible')
+          coordRef.current?.classList.remove('is-visible')
           targets.forEach((el) => reveal(el))
           staticRevealed = true
         }
@@ -796,6 +802,28 @@ export default function PageBuilder({
         }
       }
 
+      const hud = hudRef.current
+      const crosshairX = crosshairXRef.current
+      const crosshairY = crosshairYRef.current
+      const coord = coordRef.current
+      const hudVisible = !!hud?.classList.contains('is-visible')
+      if (hudVisible && hud && crosshairX && crosshairY && coord) {
+        const left = Number.parseFloat(hud.style.left) || 0
+        const top = Number.parseFloat(hud.style.top) || 0
+        crosshairX.classList.add('is-visible')
+        crosshairY.classList.add('is-visible')
+        crosshairX.style.left = `${left}px`
+        crosshairY.style.top = `${top}px`
+        coord.classList.add('is-visible')
+        coord.style.left = `${clamp(left + 12, 24, window.innerWidth - 90)}px`
+        coord.style.top = `${clamp(top + 12, 30, window.innerHeight - 30)}px`
+        coord.textContent = `x ${Math.round(left)}  y ${Math.round(top)}`
+      } else {
+        crosshairX?.classList.remove('is-visible')
+        crosshairY?.classList.remove('is-visible')
+        coord?.classList.remove('is-visible')
+      }
+
       if (!active.size && !queue.length && hudRef.current?.classList.contains('is-visible')) {
         hudRef.current.classList.remove('is-visible')
         caretRef.current?.classList.remove('is-visible')
@@ -829,6 +857,9 @@ export default function PageBuilder({
       dimensions.clear()
       hudRef.current?.classList.remove('is-visible')
       caretRef.current?.classList.remove('is-visible')
+      crosshairXRef.current?.classList.remove('is-visible')
+      crosshairYRef.current?.classList.remove('is-visible')
+      coordRef.current?.classList.remove('is-visible')
       targets.forEach((el) => {
         delete el.dataset.buildTarget
         delete el.dataset.buildKind
@@ -863,6 +894,11 @@ export default function PageBuilder({
             </div>
             <div className="ruler-corner" aria-hidden="true" />
             <div ref={dimensionRef} className="dimension-layer" aria-hidden="true" />
+            <div ref={crosshairXRef} className="build-crosshair crosshair-x" aria-hidden="true" />
+            <div ref={crosshairYRef} className="build-crosshair crosshair-y" aria-hidden="true" />
+            <div ref={coordRef} className="cursor-coord" aria-hidden="true">
+              x 0 y 0
+            </div>
             <div className="cursor-layer" aria-hidden="true">
               {Array.from({ length: MAX_AGENTS }, (_, index) => (
                 <div
@@ -879,6 +915,10 @@ export default function PageBuilder({
                 </div>
               ))}
               <div ref={hudRef} className="measure-hud">
+                <span className="measure-handle tl" />
+                <span className="measure-handle tr" />
+                <span className="measure-handle bl" />
+                <span className="measure-handle br" />
                 <span ref={hudLabelRef} className="measure-label">
                   0 × 0
                 </span>
