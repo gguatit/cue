@@ -53,7 +53,6 @@ export default function CursorIntro({ onDone }: { onDone: () => void }) {
       speed: 0.00072 + (index % 5) * 0.00013,
       phase: Math.random() * Math.PI * 2,
       wobble: 16 + Math.random() * 20,
-      direction: index % 3 === 0 ? -1 : 1,
     }))
 
     const frame = (now: number) => {
@@ -67,7 +66,7 @@ export default function CursorIntro({ onDone }: { onDone: () => void }) {
         const el = cursorRefs.current[index]
         if (!el) continue
         const cursor = cursors[index]
-        const angle = cursor.angle + t * cursor.speed * cursor.direction
+        const angle = cursor.angle + t * cursor.speed
         const wobble = Math.sin(t * 0.0016 + cursor.phase) * cursor.wobble
         let x =
           cx +
