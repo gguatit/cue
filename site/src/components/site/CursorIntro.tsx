@@ -66,7 +66,7 @@ export default function CursorIntro({ onDone }: { onDone: () => void }) {
         const el = cursorRefs.current[index]
         if (!el) continue
         const cursor = cursors[index]
-        const angle = cursor.angle + t * cursor.speed
+        const angle = cursor.angle - t * cursor.speed
         const wobble = Math.sin(t * 0.0016 + cursor.phase) * cursor.wobble
         let x =
           cx +

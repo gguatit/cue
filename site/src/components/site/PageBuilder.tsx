@@ -7,20 +7,17 @@ import {
   type ReactNode,
 } from 'react'
 import { useReducedMotion } from '@/lib/useReducedMotion'
-import { CURSOR_COLORS, CursorGlyph, type CursorVariant } from './cursor'
+import { CURSOR_COLORS, CursorGlyph } from './cursor'
 
-const MIN_AGENTS = 19
-const MAX_AGENTS = 44
-const MIN_MOBILE = 10
-const MAX_MOBILE = 26
+const MIN_AGENTS = 24
+const MAX_AGENTS = 56
+const MIN_MOBILE = 12
+const MAX_MOBILE = 32
 const MAX_CONCURRENT = 12
-
-function cursorVariant(index: number): CursorVariant {
-  if (index % 7 === 0) return 'beam'
-  if (index % 11 === 0) return 'cross'
-  if (index % 5 === 0) return 'resize'
-  return 'arrow'
-}
+const TRIANGLE_RADIUS = 220
+const TRIANGLE_RADIUS_MOBILE = 110
+const TRIANGLE_SPEED = 72
+const TRIANGLE_SPEED_MOBILE = 56
 
 function buildKind(el: HTMLElement): 'box' | 'text' | 'code' | 'media' {
   const tag = el.tagName.toLowerCase()
@@ -44,6 +41,9 @@ type Worker = {
   y: number
   angle: number
   desiredAngle: number
+  scatterVX: number
+  scatterVY: number
+  scatterUntil: number
   target: HTMLElement | null
   startX: number
   startY: number
@@ -250,11 +250,26 @@ export default function PageBuilder({
     const queued = new Set<HTMLElement>()
     const active = new Set<HTMLElement>()
     const queue: HTMLElement[] = []
-    const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+    const pointer = {
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+      lastX: window.innerWidth / 2,
+      lastY: window.innerHeight / 2,
+      lastAt: performance.now(),
+      speed: 0,
+    }
     const anchor = { x: pointer.x, y: pointer.y }
     const onPointerMove = (event: PointerEvent) => {
+      const now = performance.now()
+      const distance = Math.hypot(event.clientX - pointer.lastX, event.clientY - pointer.lastY)
+      const elapsed = Math.max(1, now - pointer.lastAt)
+      const velocity = Math.min(36, (distance / elapsed) * 16.667)
+      pointer.speed = pointer.speed * 0.4 + velocity * 0.6
       pointer.x = event.clientX
       pointer.y = event.clientY
+      pointer.lastX = event.clientX
+      pointer.lastY = event.clientY
+      pointer.lastAt = now
     }
     window.addEventListener('pointermove', onPointerMove, { passive: true })
     const workers: Worker[] = Array.from({ length: MAX_AGENTS }, (_, index) => {
@@ -265,6 +280,9 @@ export default function PageBuilder({
         y,
         angle: 0,
         desiredAngle: 0,
+        scatterVX: 0,
+        scatterVY: 0,
+        scatterUntil: 0,
         target: null,
         startX: 0,
         startY: 0,
@@ -296,6 +314,31 @@ export default function PageBuilder({
     const ctx = canvas?.getContext('2d')
     const sparks: Spark[] = []
     const rings: Ring[] = []
+    let formationDistance = 0
+    let lastPointerSpark = 0
+    const triangleCenter = { x: anchor.x, y: anchor.y }
+    let triangleRadius = TRIANGLE_RADIUS
+
+    const emitSparks = (x: number, y: number, color: string, count: number, power = 1) => {
+      for (let index = 0; index < count; index++) {
+        const angle = Math.random() * Math.PI * 2
+        const speed = (0.7 + Math.random() * 2.2) * power
+        sparks.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          born: performance.now(),
+          life: 380 + Math.random() * 360,
+          color: index % 3 === 0 ? color : CURSOR_COLORS[(index + 3) % CURSOR_COLORS.length],
+          size: 1.2 + Math.random() * 2.2,
+          shape: SPARK_SHAPES[index % SPARK_SHAPES.length],
+          rotation: Math.random() * Math.PI * 2,
+          spin: (Math.random() - 0.5) * 0.24,
+        })
+      }
+      if (sparks.length > 140) sparks.splice(0, sparks.length - 140)
+    }
 
     const resizeCanvas = () => {
       if (!canvas || !ctx) return
@@ -468,8 +511,40 @@ export default function PageBuilder({
           staticRevealed = true
         }
       } else {
+        pointer.speed *= 0.94
         anchor.x += (pointer.x - anchor.x) * 0.11
         anchor.y += (pointer.y - anchor.y) * 0.11
+
+        const desktop = window.innerWidth >= 768
+        const boost = Math.min(1.6, pointer.speed / 18)
+        const baseRadius = desktop ? TRIANGLE_RADIUS : TRIANGLE_RADIUS_MOBILE
+        const baseSpeed = desktop ? TRIANGLE_SPEED : TRIANGLE_SPEED_MOBILE
+        triangleRadius = baseRadius + boost * 42
+        const marginX = triangleRadius + 24
+        const marginY = triangleRadius * 0.78 + 24
+        triangleCenter.x = clamp(
+          anchor.x,
+          Math.min(marginX, window.innerWidth / 2),
+          Math.max(window.innerWidth - marginX, window.innerWidth / 2),
+        )
+        triangleCenter.y = clamp(
+          anchor.y,
+          Math.min(marginY, window.innerHeight / 2),
+          Math.max(window.innerHeight - marginY, window.innerHeight / 2),
+        )
+        formationDistance +=
+          ((baseSpeed + boost * 70) / triangleRadius) * 0.0167 * dt
+
+        if (particlesRef.current && pointer.speed > 5 && now - lastPointerSpark > 70) {
+          lastPointerSpark = now
+          emitSparks(
+            pointer.x,
+            pointer.y,
+            CURSOR_COLORS[Math.floor(Math.random() * CURSOR_COLORS.length)],
+            1,
+            0.75,
+          )
+        }
 
       for (let index = 0; index < agentCount; index++) {
         const worker = workers[index]
@@ -574,16 +649,45 @@ export default function PageBuilder({
           }
 
           if (!worker.target) {
-            const desktop = window.innerWidth >= 768
-            const radius = desktop ? 104 : 54
-            const spacing = (desktop ? 16 : 10) / radius
-            const travel = (now * (desktop ? 0.03 : 0.024)) / radius
-            const distance = (travel + index * spacing) % ROUNDED_TRIANGLE.length
+            const offset = (index / Math.max(1, agentCount)) * ROUNDED_TRIANGLE.length
+            const distance = (formationDistance + offset) % ROUNDED_TRIANGLE.length
             const point = pointOnTriangle(distance)
-            const targetX = anchor.x + point.x * radius
-            const targetY = anchor.y + point.y * radius
-            worker.x += (clamp(targetX, 24, window.innerWidth - 40) - worker.x) * 0.075
-            worker.y += (clamp(targetY, 24, window.innerHeight - 40) - worker.y) * 0.075
+            const targetX = triangleCenter.x + point.x * triangleRadius
+            const targetY = triangleCenter.y + point.y * triangleRadius
+            const dx = worker.x - pointer.x
+            const dy = worker.y - pointer.y
+            const pointerDistance = Math.hypot(dx, dy) || 1
+
+            if (now > worker.scatterUntil && pointerDistance < 34) {
+              const force = 5 + Math.min(9, pointer.speed * 0.3)
+              worker.scatterVX = (dx / pointerDistance) * force
+              worker.scatterVY = (dy / pointerDistance) * force
+              worker.scatterUntil = now + 360 + Math.random() * 260
+              if (particlesRef.current) {
+                const color = CURSOR_COLORS[index % CURSOR_COLORS.length]
+                emitSparks(worker.x, worker.y, color, 8, 1.15)
+                rings.push({
+                  x: worker.x,
+                  y: worker.y,
+                  born: now,
+                  life: 480,
+                  color,
+                })
+                if (rings.length > 5) rings.shift()
+              }
+            }
+
+            if (now < worker.scatterUntil) {
+              worker.x += worker.scatterVX
+              worker.y += worker.scatterVY
+              worker.scatterVX *= 0.92
+              worker.scatterVY *= 0.92
+            } else {
+              worker.x +=
+                (clamp(targetX, 24, window.innerWidth - 40) - worker.x) * 0.085
+              worker.y +=
+                (clamp(targetY, 24, window.innerHeight - 40) - worker.y) * 0.085
+            }
           }
         }
 
@@ -607,16 +711,21 @@ export default function PageBuilder({
         ctx.lineJoin = 'round'
 
         if (cursorsOn) {
-        const railRadius = window.innerWidth >= 768 ? 104 : 54
         ctx.strokeStyle = 'rgba(18, 20, 23, 0.22)'
         ctx.globalAlpha = 0.32
         ctx.lineWidth = 0.8
         ctx.setLineDash([3, 7])
         ctx.beginPath()
         const railStart = ROUNDED_TRIANGLE.points[0]
-        ctx.moveTo(anchor.x + railStart.x * railRadius, anchor.y + railStart.y * railRadius)
+        ctx.moveTo(
+          triangleCenter.x + railStart.x * triangleRadius,
+          triangleCenter.y + railStart.y * triangleRadius,
+        )
         for (const point of ROUNDED_TRIANGLE.points) {
-          ctx.lineTo(anchor.x + point.x * railRadius, anchor.y + point.y * railRadius)
+          ctx.lineTo(
+            triangleCenter.x + point.x * triangleRadius,
+            triangleCenter.y + point.y * triangleRadius,
+          )
         }
         ctx.stroke()
         ctx.setLineDash([])
@@ -829,10 +938,7 @@ export default function PageBuilder({
                   }}
                   className="cursor-pointer"
                 >
-                  <CursorGlyph
-                    color={CURSOR_COLORS[index % CURSOR_COLORS.length]}
-                    variant={cursorVariant(index)}
-                  />
+                  <CursorGlyph color={CURSOR_COLORS[index % CURSOR_COLORS.length]} />
                 </div>
               ))}
               <div ref={hudRef} className="measure-hud">
