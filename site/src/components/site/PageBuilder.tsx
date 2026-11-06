@@ -193,8 +193,8 @@ export default function PageBuilder({
     }
     window.addEventListener('pointermove', onPointerMove, { passive: true })
     const desktop = window.innerWidth >= 768
-    const orbitBase = desktop ? 122 : 58
-    const orbitSpread = desktop ? 34 : 16
+    const orbitBase = desktop ? 92 : 48
+    const orbitSpread = desktop ? 24 : 12
     const workers: Worker[] = Array.from({ length: MAX_AGENTS }, (_, index) => {
       const x = (index * 137) % Math.max(1, window.innerWidth - 40) + 20
       const y = (index * 83) % Math.max(1, window.innerHeight - 40) + 20
@@ -416,8 +416,8 @@ export default function PageBuilder({
           staticRevealed = true
         }
       } else {
-        anchor.x += (pointer.x - anchor.x) * 0.035
-        anchor.y += (pointer.y - anchor.y) * 0.035
+        anchor.x += (pointer.x - anchor.x) * 0.11
+        anchor.y += (pointer.y - anchor.y) * 0.11
 
       for (let index = 0; index < agentCount; index++) {
         const worker = workers[index]
@@ -549,14 +549,14 @@ export default function PageBuilder({
               ) {
                 const angle = Math.random() * Math.PI * 2
                 const distance =
-                  210 + Math.random() * Math.max(120, Math.min(window.innerWidth, window.innerHeight) * 0.34)
+                  110 + Math.random() * Math.max(80, Math.min(window.innerWidth, window.innerHeight) * 0.18)
                 worker.roamX = clamp(
                   anchor.x + Math.cos(angle) * distance,
                   30,
                   window.innerWidth - 40,
                 )
                 worker.roamY = clamp(
-                  anchor.y + Math.sin(angle) * distance * 0.75,
+                  anchor.y + Math.sin(angle) * distance * 0.8,
                   30,
                   window.innerHeight - 40,
                 )
@@ -576,8 +576,23 @@ export default function PageBuilder({
                 Math.cos(now * 0.0007 + index * 1.3) * 10
             }
 
-            worker.x += (clamp(targetX, 24, window.innerWidth - 40) - worker.x) * 0.04
-            worker.y += (clamp(targetY, 24, window.innerHeight - 40) - worker.y) * 0.04
+            let separationX = 0
+            let separationY = 0
+            for (let other = 0; other < agentCount; other++) {
+              if (other === index) continue
+              const dx = worker.x - workers[other].x
+              const dy = worker.y - workers[other].y
+              const distance = Math.hypot(dx, dy)
+              if (distance > 0.01 && distance < 34) {
+                separationX += (dx / distance) * (34 - distance)
+                separationY += (dy / distance) * (34 - distance)
+              }
+            }
+
+            worker.x +=
+              (clamp(targetX + separationX * 0.45, 24, window.innerWidth - 40) - worker.x) * 0.04
+            worker.y +=
+              (clamp(targetY + separationY * 0.45, 24, window.innerHeight - 40) - worker.y) * 0.04
           }
         }
 
