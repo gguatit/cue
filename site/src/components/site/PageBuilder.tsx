@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useReducedMotion } from '@/lib/useReducedMotion'
+import type { CursorHandoff } from '@/lib/cursorHandoff'
 import { CURSOR_COLORS, CursorGlyph } from './cursor'
 
 const MIN_AGENTS = 32
@@ -44,6 +45,8 @@ type Worker = {
   scatterVX: number
   scatterVY: number
   scatterUntil: number
+  scatterVersion: number
+  contactUntil: number
   target: HTMLElement | null
   startX: number
   startY: number
@@ -206,10 +209,12 @@ export default function PageBuilder({
   children,
   cursorsEnabled = true,
   particlesEnabled = true,
+  handoff = null,
 }: {
   children: ReactNode
   cursorsEnabled?: boolean
   particlesEnabled?: boolean
+  handoff?: CursorHandoff | null
 }) {
   const reduced = useReducedMotion()
   const [state, setState] = useState<BuilderState>({ agents: 0, built: 0, builders: 0 })
@@ -267,35 +272,70 @@ export default function PageBuilder({
     const queued = new Set<HTMLElement>()
     const active = new Set<HTMLElement>()
     const queue: HTMLElement[] = []
-    const pointer = {
+    const initialPointer = handoff?.pointer ?? {
       x: window.innerWidth / 2,
       y: window.innerHeight / 2,
-      lastX: window.innerWidth / 2,
-      lastY: window.innerHeight / 2,
+    }
+    const pointer = {
+      x: initialPointer.x,
+      y: initialPointer.y,
+      lastX: initialPointer.x,
+      lastY: initialPointer.y,
       lastAt: performance.now(),
       speed: 0,
-      scatterUntil: 0,
+      vx: 0,
+      vy: 0,
     }
-    const anchor = { x: pointer.x, y: pointer.y }
+    let anchorX = initialPointer.x
+    let anchorY = initialPointer.y
     let formationBlend = 0
+    let scatterVersion = 0
+    let scatterUntil = 0
+    let lastAgentCount = 0
+    const handoffCursors = handoff?.cursors ?? []
+
     const onPointerMove = (event: PointerEvent) => {
       const now = performance.now()
-      const distance = Math.hypot(event.clientX - pointer.lastX, event.clientY - pointer.lastY)
+      const dx = event.clientX - pointer.lastX
+      const dy = event.clientY - pointer.lastY
+      const distance = Math.hypot(dx, dy)
+      if (distance < 2.5) {
+        pointer.x = event.clientX
+        pointer.y = event.clientY
+        pointer.lastX = event.clientX
+        pointer.lastY = event.clientY
+        return
+      }
       const elapsed = Math.max(1, now - pointer.lastAt)
       const velocity = Math.min(36, (distance / elapsed) * 16.667)
       pointer.speed = pointer.speed * 0.4 + velocity * 0.6
+      pointer.vx = (dx / elapsed) * 16.667
+      pointer.vy = (dy / elapsed) * 16.667
       pointer.x = event.clientX
       pointer.y = event.clientY
       pointer.lastX = event.clientX
       pointer.lastY = event.clientY
       pointer.lastAt = now
-      pointer.scatterUntil = now + 260
-      formationBlend = 0
+      if (velocity > 7 && now > scatterUntil) {
+        scatterVersion += 1
+        scatterUntil = now + 420
+      }
     }
     window.addEventListener('pointermove', onPointerMove, { passive: true })
     const workers: Worker[] = Array.from({ length: MAX_AGENTS }, (_, index) => {
-      const x = (index * 137) % Math.max(1, window.innerWidth - 40) + 20
-      const y = (index * 83) % Math.max(1, window.innerHeight - 40) + 20
+      const handoffPoint = handoffCursors[index]
+      const angle = (index * 2.39996) % (Math.PI * 2)
+      const radius = 34 + (index % 8) * 11
+      const x = clamp(
+        handoffPoint?.x ?? initialPointer.x + Math.cos(angle) * radius,
+        20,
+        window.innerWidth - 20,
+      )
+      const y = clamp(
+        handoffPoint?.y ?? initialPointer.y + Math.sin(angle) * radius * 0.8,
+        20,
+        window.innerHeight - 20,
+      )
       return {
         x,
         y,
@@ -304,6 +344,8 @@ export default function PageBuilder({
         scatterVX: 0,
         scatterVY: 0,
         scatterUntil: 0,
+        scatterVersion: -1,
+        contactUntil: 0,
         target: null,
         startX: 0,
         startY: 0,
@@ -336,7 +378,8 @@ export default function PageBuilder({
     const sparks: Spark[] = []
     const rings: Ring[] = []
     let formationDistance = 0
-    const triangleCenter = { x: anchor.x, y: anchor.y }
+    let spawnLatchUntil = performance.now() + 180
+    const triangleCenter = { x: anchorX, y: anchorY }
     let triangleRadius = TRIANGLE_RADIUS
 
     const resizeCanvas = () => {
@@ -510,35 +553,60 @@ export default function PageBuilder({
           staticRevealed = true
         }
       } else {
-        pointer.speed *= 0.94
-        anchor.x += (pointer.x - anchor.x) * 0.075
-        anchor.y += (pointer.y - anchor.y) * 0.075
+        const dtSec = dt / 60
+        pointer.speed *= Math.pow(0.94, dt)
+        anchorX += (pointer.x - anchorX) * (1 - Math.exp(-6 * dtSec))
+        anchorY += (pointer.y - anchorY) * (1 - Math.exp(-6 * dtSec))
+
+        if (lastAgentCount === 0) {
+          lastAgentCount = agentCount
+        } else if (agentCount > lastAgentCount) {
+          for (let index = lastAgentCount; index < agentCount; index++) {
+            const worker = workers[index]
+            const angle = index * 2.39996
+            const radius = 34 + (index % 8) * 11
+            worker.x = clamp(anchorX + Math.cos(angle) * radius, 20, window.innerWidth - 20)
+            worker.y = clamp(anchorY + Math.sin(angle) * radius * 0.8, 20, window.innerHeight - 20)
+          }
+          lastAgentCount = agentCount
+        } else if (agentCount < lastAgentCount) {
+          lastAgentCount = agentCount
+        }
 
         const desktop = window.innerWidth >= 768
         const boost = Math.min(0.7, pointer.speed / 40)
         const baseRadius = desktop ? TRIANGLE_RADIUS : TRIANGLE_RADIUS_MOBILE
         const baseSpeed = desktop ? TRIANGLE_SPEED : TRIANGLE_SPEED_MOBILE
-        triangleRadius = baseRadius + boost * 20
-        const marginX = triangleRadius + 24
-        const marginY = triangleRadius * 0.78 + 24
-        triangleCenter.x = clamp(
-          anchor.x,
-          Math.min(marginX, window.innerWidth / 2),
-          Math.max(window.innerWidth - marginX, window.innerWidth / 2),
+        const availableX = Math.max(0, Math.min(anchorX, window.innerWidth - anchorX) - 28)
+        const availableY = Math.max(0, Math.min(anchorY, window.innerHeight - anchorY) - 28)
+        const fitRadius = Math.max(
+          52,
+          Math.min(baseRadius + boost * 20, availableX / 0.9, availableY / 1.05),
         )
-        triangleCenter.y = clamp(
-          anchor.y,
-          Math.min(marginY, window.innerHeight / 2),
-          Math.max(window.innerHeight - marginY, window.innerHeight / 2),
+        triangleRadius += (fitRadius - triangleRadius) * (1 - Math.exp(-4 * dtSec))
+        const centerMarginX = triangleRadius * 0.9 + 14
+        const centerMarginY = triangleRadius * 0.8 + 14
+        const centerTargetX = clamp(
+          anchorX,
+          Math.min(centerMarginX, window.innerWidth / 2),
+          Math.max(window.innerWidth - centerMarginX, window.innerWidth / 2),
         )
+        const centerTargetY = clamp(
+          anchorY,
+          Math.min(centerMarginY, window.innerHeight / 2),
+          Math.max(window.innerHeight - centerMarginY, window.innerHeight / 2),
+        )
+        triangleCenter.x += (centerTargetX - triangleCenter.x) * (1 - Math.exp(-5 * dtSec))
+        triangleCenter.y += (centerTargetY - triangleCenter.y) * (1 - Math.exp(-5 * dtSec))
         formationDistance +=
           ((baseSpeed + boost * 26) / triangleRadius) * 0.0167 * dt
 
         const buildActive = active.size > 0 || queue.length > 0
-        const canForm = !buildActive && now - pointer.lastAt > 4000
-        formationBlend = canForm
-          ? Math.min(1, formationBlend + dt * 0.018)
-          : Math.max(0, formationBlend - dt * 0.09)
+        const canForm = !buildActive && now - pointer.lastAt > 4000 && pointer.speed < 2
+        const blendTarget = canForm ? 1 : 0
+        const blendSpeed = canForm ? 1.15 : 3.6
+        formationBlend +=
+          (blendTarget - formationBlend) * (1 - Math.exp(-blendSpeed * dtSec))
 
       for (let index = 0; index < agentCount; index++) {
         const worker = workers[index]
@@ -620,7 +688,7 @@ export default function PageBuilder({
             }
           }
         } else {
-          if (active.size < MAX_CONCURRENT && queue.length) {
+          if (now > spawnLatchUntil && active.size < MAX_CONCURRENT && queue.length) {
             queue.sort((a, b) => {
               const ar = a.getBoundingClientRect()
               const br = b.getBoundingClientRect()
@@ -648,38 +716,46 @@ export default function PageBuilder({
             const point = triangleWave(distance, now, triangleRadius)
             const triangleX = triangleCenter.x + point.x * triangleRadius
             const triangleY = triangleCenter.y + point.y * triangleRadius
-            const freePhase = now * 0.00062 + index * 1.7
-            const freeRadius = 52 + (index % 7) * 24
-            const freeX = anchor.x + Math.cos(freePhase) * freeRadius
-            const freeY = anchor.y + Math.sin(freePhase * 0.85) * freeRadius * 0.8
+            const ringCount = agentCount > 48 ? 6 : 4
+            const ring = index % ringCount
+            const seat = Math.floor(index / ringCount)
+            const seats = Math.max(1, Math.ceil((agentCount - ring) / ringCount))
+            const freeRadius = 48 + ring * 34
+            const freePhase = (seat / seats) * Math.PI * 2 + now * 0.00045 + ring * 0.37
+            const freeX = anchorX + Math.cos(freePhase) * freeRadius
+            const freeY = anchorY + Math.sin(freePhase) * freeRadius * 0.82
             const targetX = freeX + (triangleX - freeX) * formationBlend
             const targetY = freeY + (triangleY - freeY) * formationBlend
             const dx = worker.x - pointer.x
             const dy = worker.y - pointer.y
             const pointerDistance = Math.hypot(dx, dy) || 1
 
-            if (now < pointer.scatterUntil) {
-              const force = 1.5 + Math.min(2.5, pointer.speed * 0.06)
-              worker.scatterVX = (dx / pointerDistance) * force
-              worker.scatterVY = (dy / pointerDistance) * force
-              worker.scatterUntil = Math.max(worker.scatterUntil, now + 80)
-            } else if (now > worker.scatterUntil && pointerDistance < 26) {
+            if (now < scatterUntil && worker.scatterVersion !== scatterVersion) {
+              worker.scatterVersion = scatterVersion
               const force = 2 + Math.min(4, pointer.speed * 0.08)
+              worker.scatterVX = (dx / pointerDistance) * force + pointer.vx * 0.12
+              worker.scatterVY = (dy / pointerDistance) * force + pointer.vy * 0.12
+              worker.scatterUntil = now + 360 + Math.random() * 180
+            } else if (now > worker.contactUntil && pointerDistance < 34) {
+              const force = 2.2 + Math.min(3.5, pointer.speed * 0.07)
               worker.scatterVX = (dx / pointerDistance) * force
               worker.scatterVY = (dy / pointerDistance) * force
-              worker.scatterUntil = now + 280 + Math.random() * 180
+              worker.contactUntil = now + 650
+              worker.scatterUntil = now + 340 + Math.random() * 160
             }
 
             if (now < worker.scatterUntil) {
-              worker.x += worker.scatterVX
-              worker.y += worker.scatterVY
-              worker.scatterVX *= 0.92
-              worker.scatterVY *= 0.92
+              worker.x += worker.scatterVX * dt
+              worker.y += worker.scatterVY * dt
+              const damping = Math.pow(0.88, dt)
+              worker.scatterVX *= damping
+              worker.scatterVY *= damping
             } else {
+              const follow = 1 - Math.exp(-5.2 * dtSec)
               worker.x +=
-                (clamp(targetX, 24, window.innerWidth - 40) - worker.x) * 0.085
+                (clamp(targetX, 24, window.innerWidth - 40) - worker.x) * follow
               worker.y +=
-                (clamp(targetY, 24, window.innerHeight - 40) - worker.y) * 0.085
+                (clamp(targetY, 24, window.innerHeight - 40) - worker.y) * follow
             }
           }
         }
@@ -704,23 +780,25 @@ export default function PageBuilder({
         ctx.lineJoin = 'round'
 
         if (cursorsOn) {
-        ctx.strokeStyle = 'rgba(18, 20, 23, 0.22)'
-        ctx.globalAlpha = 0.32
-        ctx.lineWidth = 0.8
-        ctx.setLineDash([3, 7])
-        ctx.beginPath()
-        const railStart = ROUNDED_TRIANGLE.points[0]
-        ctx.moveTo(
-          triangleCenter.x + railStart.x * triangleRadius,
-          triangleCenter.y + railStart.y * triangleRadius,
-        )
-        for (const point of ROUNDED_TRIANGLE.points) {
-          ctx.lineTo(
-            triangleCenter.x + point.x * triangleRadius,
-            triangleCenter.y + point.y * triangleRadius,
+        if (formationBlend > 0.02) {
+          ctx.strokeStyle = 'rgba(18, 20, 23, 0.22)'
+          ctx.globalAlpha = 0.32 * formationBlend
+          ctx.lineWidth = 0.8
+          ctx.setLineDash([3, 7])
+          ctx.beginPath()
+          const railStart = ROUNDED_TRIANGLE.points[0]
+          ctx.moveTo(
+            triangleCenter.x + railStart.x * triangleRadius,
+            triangleCenter.y + railStart.y * triangleRadius,
           )
+          for (const point of ROUNDED_TRIANGLE.points) {
+            ctx.lineTo(
+              triangleCenter.x + point.x * triangleRadius,
+              triangleCenter.y + point.y * triangleRadius,
+            )
+          }
+          ctx.stroke()
         }
-        ctx.stroke()
         ctx.setLineDash([])
 
         for (let index = 0; index < agentCount; index++) {
@@ -762,10 +840,10 @@ export default function PageBuilder({
             sparks.splice(index, 1)
             continue
           }
-          spark.x += spark.vx
-          spark.y += spark.vy
-          spark.vy += 0.018
-          spark.rotation += spark.spin
+          spark.x += spark.vx * dt
+          spark.y += spark.vy * dt
+          spark.vy += 0.018 * dt
+          spark.rotation += spark.spin * dt
           ctx.save()
           ctx.translate(spark.x, spark.y)
           ctx.rotate(spark.rotation)
@@ -859,8 +937,16 @@ export default function PageBuilder({
       updateAgents()
       enqueueVisible()
     }
+    const onVisibility = () => {
+      if (document.hidden) return
+      lastFrame = 0
+      pointer.lastAt = performance.now()
+      updateAgents()
+      enqueueVisible()
+    }
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', onScroll)
+    document.addEventListener('visibilitychange', onVisibility)
     updateAgents()
 
     return () => {
@@ -869,6 +955,7 @@ export default function PageBuilder({
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
       window.removeEventListener('resize', resizeCanvas)
+      document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerdown', onPointerDown)
       delete document.documentElement.dataset.buildActive

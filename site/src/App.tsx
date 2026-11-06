@@ -14,19 +14,34 @@ import SiteHeader from '@/components/site/SiteHeader'
 import TrustStrip from '@/components/site/TrustStrip'
 import WarningBand from '@/components/site/WarningBand'
 import { useSiteEffects } from '@/lib/useSiteEffects'
+import type { CursorHandoff } from '@/lib/cursorHandoff'
 
 export default function App() {
   const [effects, setEffects] = useSiteEffects()
   const [introDone, setIntroDone] = useState(!effects.cursors)
+  const [handoff, setHandoff] = useState<CursorHandoff | null>(null)
 
   useEffect(() => {
     if (!effects.cursors) setIntroDone(true)
   }, [effects.cursors])
 
-  if (!introDone) return <CursorIntro onDone={() => setIntroDone(true)} />
+  if (!introDone) {
+    return (
+      <CursorIntro
+        onDone={(next) => {
+          setHandoff(next ?? null)
+          setIntroDone(true)
+        }}
+      />
+    )
+  }
 
   return (
-    <PageBuilder cursorsEnabled={effects.cursors} particlesEnabled={effects.particles}>
+    <PageBuilder
+      cursorsEnabled={effects.cursors}
+      particlesEnabled={effects.particles}
+      handoff={handoff}
+    >
       <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
         <a
           href="#main"

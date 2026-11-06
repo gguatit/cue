@@ -1,20 +1,34 @@
 import { useEffect, useRef } from 'react'
+import type { CursorHandoff } from '@/lib/cursorHandoff'
 import { CURSOR_COLORS, CursorArrow } from './cursor'
 
 const COUNT = 18
 const DESKTOP_MS = 3600
 const MOBILE_MS = 2800
 
-export default function CursorIntro({ onDone }: { onDone: () => void }) {
+export default function CursorIntro({
+  onDone,
+}: {
+  onDone: (handoff?: CursorHandoff) => void
+}) {
   const cursorRefs = useRef<Array<HTMLDivElement | null>>([])
+  const cursorPositions = useRef<Array<{ x: number; y: number }>>([])
   const doneRef = useRef(false)
-  const pointer = useRef({ x: 0, y: 0, active: false })
+  const pointer = useRef({
+    x: window.innerWidth / 2,
+    y: window.innerHeight / 2,
+    active: false,
+  })
 
   useEffect(() => {
     const done = () => {
       if (doneRef.current) return
       doneRef.current = true
-      onDone()
+      const fallback = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+      onDone({
+        pointer: { x: pointer.current.x, y: pointer.current.y },
+        cursors: Array.from({ length: COUNT }, (_, index) => cursorPositions.current[index] ?? fallback),
+      })
     }
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduced) {
@@ -37,6 +51,8 @@ export default function CursorIntro({ onDone }: { onDone: () => void }) {
     window.addEventListener('keydown', onSkip)
 
     const onMove = (event: PointerEvent) => {
+      const target = event.target as Element | null
+      if (target?.closest('.intro-skip')) return
       pointer.current = { x: event.clientX, y: event.clientY, active: true }
     }
     const onLeave = () => {
@@ -78,10 +94,15 @@ export default function CursorIntro({ onDone }: { onDone: () => void }) {
           9 * Math.cos(angle + 0.7)
 
         if (pointer.current.active) {
-          x += (pointer.current.x - x) * 0.026
-          y += (pointer.current.y - y) * 0.026
+          const dx = pointer.current.x - x
+          const dy = pointer.current.y - y
+          const distance = Math.hypot(dx, dy) || 1
+          const pull = Math.min(0.008, 12 / distance)
+          x += dx * pull
+          y += dy * pull
         }
 
+        cursorPositions.current[index] = { x, y }
         el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) rotate(${(
           (angle * 180) / Math.PI +
           24
