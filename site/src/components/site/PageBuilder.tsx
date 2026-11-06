@@ -42,11 +42,7 @@ type Worker = {
   y: number
   angle: number
   desiredAngle: number
-  scatterVX: number
-  scatterVY: number
-  scatterUntil: number
-  scatterVersion: number
-  contactUntil: number
+
   target: HTMLElement | null
   startX: number
   startY: number
@@ -283,14 +279,10 @@ export default function PageBuilder({
       lastY: initialPointer.y,
       lastAt: performance.now(),
       speed: 0,
-      vx: 0,
-      vy: 0,
     }
     let anchorX = initialPointer.x
     let anchorY = initialPointer.y
     let formationBlend = 0
-    let scatterVersion = 0
-    let scatterUntil = 0
     let lastAgentCount = 0
     const handoffCursors = handoff?.cursors ?? []
 
@@ -309,17 +301,11 @@ export default function PageBuilder({
       const elapsed = Math.max(1, now - pointer.lastAt)
       const velocity = Math.min(36, (distance / elapsed) * 16.667)
       pointer.speed = pointer.speed * 0.4 + velocity * 0.6
-      pointer.vx = (dx / elapsed) * 16.667
-      pointer.vy = (dy / elapsed) * 16.667
       pointer.x = event.clientX
       pointer.y = event.clientY
       pointer.lastX = event.clientX
       pointer.lastY = event.clientY
       pointer.lastAt = now
-      if (velocity > 7 && now > scatterUntil) {
-        scatterVersion += 1
-        scatterUntil = now + 420
-      }
     }
     window.addEventListener('pointermove', onPointerMove, { passive: true })
     const workers: Worker[] = Array.from({ length: MAX_AGENTS }, (_, index) => {
@@ -341,11 +327,6 @@ export default function PageBuilder({
         y,
         angle: 0,
         desiredAngle: 0,
-        scatterVX: 0,
-        scatterVY: 0,
-        scatterUntil: 0,
-        scatterVersion: -1,
-        contactUntil: 0,
         target: null,
         startX: 0,
         startY: 0,
@@ -555,8 +536,8 @@ export default function PageBuilder({
       } else {
         const dtSec = dt / 60
         pointer.speed *= Math.pow(0.94, dt)
-        anchorX += (pointer.x - anchorX) * (1 - Math.exp(-6 * dtSec))
-        anchorY += (pointer.y - anchorY) * (1 - Math.exp(-6 * dtSec))
+        anchorX += (pointer.x - anchorX) * (1 - Math.exp(-10 * dtSec))
+        anchorY += (pointer.y - anchorY) * (1 - Math.exp(-10 * dtSec))
 
         if (lastAgentCount === 0) {
           lastAgentCount = agentCount
@@ -577,27 +558,15 @@ export default function PageBuilder({
         const boost = Math.min(0.7, pointer.speed / 40)
         const baseRadius = desktop ? TRIANGLE_RADIUS : TRIANGLE_RADIUS_MOBILE
         const baseSpeed = desktop ? TRIANGLE_SPEED : TRIANGLE_SPEED_MOBILE
-        const availableX = Math.max(0, Math.min(anchorX, window.innerWidth - anchorX) - 28)
-        const availableY = Math.max(0, Math.min(anchorY, window.innerHeight - anchorY) - 28)
+        const availableX = Math.max(28, Math.min(anchorX, window.innerWidth - anchorX) - 24)
+        const availableY = Math.max(28, Math.min(anchorY, window.innerHeight - anchorY) - 24)
         const fitRadius = Math.max(
-          52,
+          40,
           Math.min(baseRadius + boost * 20, availableX / 0.9, availableY / 1.05),
         )
         triangleRadius += (fitRadius - triangleRadius) * (1 - Math.exp(-4 * dtSec))
-        const centerMarginX = triangleRadius * 0.9 + 14
-        const centerMarginY = triangleRadius * 0.8 + 14
-        const centerTargetX = clamp(
-          anchorX,
-          Math.min(centerMarginX, window.innerWidth / 2),
-          Math.max(window.innerWidth - centerMarginX, window.innerWidth / 2),
-        )
-        const centerTargetY = clamp(
-          anchorY,
-          Math.min(centerMarginY, window.innerHeight / 2),
-          Math.max(window.innerHeight - centerMarginY, window.innerHeight / 2),
-        )
-        triangleCenter.x += (centerTargetX - triangleCenter.x) * (1 - Math.exp(-5 * dtSec))
-        triangleCenter.y += (centerTargetY - triangleCenter.y) * (1 - Math.exp(-5 * dtSec))
+        triangleCenter.x += (anchorX - triangleCenter.x) * (1 - Math.exp(-8 * dtSec))
+        triangleCenter.y += (anchorY - triangleCenter.y) * (1 - Math.exp(-8 * dtSec))
         formationDistance +=
           ((baseSpeed + boost * 26) / triangleRadius) * 0.0167 * dt
 
@@ -726,37 +695,11 @@ export default function PageBuilder({
             const freeY = anchorY + Math.sin(freePhase) * freeRadius * 0.82
             const targetX = freeX + (triangleX - freeX) * formationBlend
             const targetY = freeY + (triangleY - freeY) * formationBlend
-            const dx = worker.x - pointer.x
-            const dy = worker.y - pointer.y
-            const pointerDistance = Math.hypot(dx, dy) || 1
-
-            if (now < scatterUntil && worker.scatterVersion !== scatterVersion) {
-              worker.scatterVersion = scatterVersion
-              const force = 2 + Math.min(4, pointer.speed * 0.08)
-              worker.scatterVX = (dx / pointerDistance) * force + pointer.vx * 0.12
-              worker.scatterVY = (dy / pointerDistance) * force + pointer.vy * 0.12
-              worker.scatterUntil = now + 360 + Math.random() * 180
-            } else if (now > worker.contactUntil && pointerDistance < 34) {
-              const force = 2.2 + Math.min(3.5, pointer.speed * 0.07)
-              worker.scatterVX = (dx / pointerDistance) * force
-              worker.scatterVY = (dy / pointerDistance) * force
-              worker.contactUntil = now + 650
-              worker.scatterUntil = now + 340 + Math.random() * 160
-            }
-
-            if (now < worker.scatterUntil) {
-              worker.x += worker.scatterVX * dt
-              worker.y += worker.scatterVY * dt
-              const damping = Math.pow(0.88, dt)
-              worker.scatterVX *= damping
-              worker.scatterVY *= damping
-            } else {
-              const follow = 1 - Math.exp(-5.2 * dtSec)
-              worker.x +=
-                (clamp(targetX, 24, window.innerWidth - 40) - worker.x) * follow
-              worker.y +=
-                (clamp(targetY, 24, window.innerHeight - 40) - worker.y) * follow
-            }
+            const follow = 1 - Math.exp(-5.2 * dtSec)
+            worker.x +=
+              (clamp(targetX, 24, window.innerWidth - 40) - worker.x) * follow
+            worker.y +=
+              (clamp(targetY, 24, window.innerHeight - 40) - worker.y) * follow
           }
         }
 

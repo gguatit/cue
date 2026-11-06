@@ -45,6 +45,9 @@ export default function CursorIntro({
 
     const onSkip = (event: Event) => {
       if (event instanceof KeyboardEvent && event.key !== 'Escape') return
+      if (event instanceof MouseEvent) {
+        pointer.current = { x: event.clientX, y: event.clientY, active: true }
+      }
       done()
     }
     window.addEventListener('click', onSkip)
