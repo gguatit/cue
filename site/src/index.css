@@ -433,19 +433,33 @@ body,
   }
 }
 
-html[data-build-active] [data-build]:not(.is-built) {
+html[data-build-active] [data-build-target]:not(.is-built) {
   clip-path: inset(0 100% 0 0);
   pointer-events: none;
 }
 
-html[data-build-active] [data-build].is-building {
+html[data-build-active] [data-build-target].is-building {
   outline: 1px solid rgba(18, 20, 23, 0.3);
   outline-offset: 4px;
 }
 
-html[data-build-active] [data-build]:focus-within {
+html[data-build-active] [data-build-target]:focus-within {
   clip-path: none;
   pointer-events: auto;
+}
+
+.build-caret {
+  position: fixed;
+  z-index: 37;
+  width: 1.5px;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+  transition: opacity 120ms ease;
+}
+
+.build-caret.is-visible {
+  opacity: 1;
 }
 
 .intro-screen {

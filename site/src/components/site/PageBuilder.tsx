@@ -13,13 +13,23 @@ const MIN_AGENTS = 19
 const MAX_AGENTS = 44
 const MIN_MOBILE = 10
 const MAX_MOBILE = 26
-const MAX_CONCURRENT = 8
+const MAX_CONCURRENT = 12
 
 function cursorVariant(index: number): CursorVariant {
   if (index % 7 === 0) return 'beam'
   if (index % 11 === 0) return 'cross'
   if (index % 5 === 0) return 'resize'
   return 'arrow'
+}
+
+function buildKind(el: HTMLElement): 'box' | 'text' | 'code' | 'media' {
+  const tag = el.tagName.toLowerCase()
+  if (tag === 'pre' || tag === 'code' || el.classList.contains('code-panel')) return 'code'
+  if (tag === 'img' || tag === 'picture' || tag === 'video' || tag === 'canvas') return 'media'
+  if (['h1', 'h2', 'h3', 'h4', 'p', 'span', 'strong', 'em', 'a', 'button'].includes(tag)) {
+    return 'text'
+  }
+  return 'box'
 }
 
 type BuilderState = { agents: number; built: number; builders: number }
@@ -130,6 +140,7 @@ export default function PageBuilder({
   const hudLabelRef = useRef<HTMLSpanElement>(null)
   const dimensionRef = useRef<HTMLDivElement>(null)
   const effectRef = useRef<HTMLCanvasElement>(null)
+  const caretRef = useRef<HTMLDivElement>(null)
   const cursorsRef = useRef(cursorsEnabled)
   const particlesRef = useRef(particlesEnabled)
 
@@ -146,8 +157,18 @@ export default function PageBuilder({
     const root = rootRef.current
     if (!root) return
 
-    const targets = Array.from(root.querySelectorAll<HTMLElement>('[data-build]'))
+    const groups = Array.from(root.querySelectorAll<HTMLElement>('[data-build]'))
+    const targets = groups.flatMap((group) => {
+      const children = Array.from(group.children).filter(
+        (child): child is HTMLElement => child instanceof HTMLElement,
+      )
+      return children.length ? children : [group]
+    })
     if (!targets.length) return
+    targets.forEach((el) => {
+      el.dataset.buildTarget = ''
+      el.dataset.buildKind = buildKind(el)
+    })
 
     if (reduced) {
       targets.forEach((el) => el.classList.add('is-built'))
@@ -389,6 +410,8 @@ export default function PageBuilder({
           queued.clear()
           dimensions.forEach((tag) => tag.remove())
           dimensions.clear()
+          hudRef.current?.classList.remove('is-visible')
+          caretRef.current?.classList.remove('is-visible')
           targets.forEach((el) => reveal(el))
           staticRevealed = true
         }
@@ -421,8 +444,13 @@ export default function PageBuilder({
             const draw = clamp((t - 0.36) / 0.64, 0, 1)
             const moveEase = move * move * (3 - 2 * move)
             const drawEase = draw * draw * (3 - 2 * draw)
+            const kind = el.dataset.buildKind ?? 'box'
+            const lineY =
+              kind === 'text' || kind === 'code'
+                ? rect.top + Math.min(30, rect.height * 0.55)
+                : rect.top + 10
             const targetX = clamp(rect.left + 10, 12, window.innerWidth - 38)
-            const targetY = clamp(rect.top + 10, 12, window.innerHeight - 38)
+            const targetY = clamp(lineY, 12, window.innerHeight - 38)
             if (t < 0.36) {
               worker.x = worker.startX + (targetX - worker.startX) * moveEase
               worker.y = worker.startY + (targetY - worker.startY) * moveEase
@@ -435,6 +463,19 @@ export default function PageBuilder({
               worker.y = targetY
             }
             el.style.clipPath = `inset(0 ${((1 - draw) * 100).toFixed(2)}% 0 0)`
+
+            const caret = caretRef.current
+            if (caret) {
+              if (kind === 'text' || kind === 'code') {
+                caret.classList.add('is-visible')
+                caret.style.left = `${worker.x.toFixed(2)}px`
+                caret.style.top = `${targetY.toFixed(2)}px`
+                caret.style.height = `${clamp(rect.height * 0.5, 12, 28).toFixed(2)}px`
+                caret.style.background = CURSOR_COLORS[index % CURSOR_COLORS.length]
+              } else {
+                caret.classList.remove('is-visible')
+              }
+            }
 
             const hud = hudRef.current
             const label = hudLabelRef.current
@@ -742,6 +783,7 @@ export default function PageBuilder({
 
       if (!active.size && !queue.length && hudRef.current?.classList.contains('is-visible')) {
         hudRef.current.classList.remove('is-visible')
+        caretRef.current?.classList.remove('is-visible')
       }
       raf = requestAnimationFrame(loop)
     }
@@ -771,6 +813,11 @@ export default function PageBuilder({
       dimensions.forEach((tag) => tag.remove())
       dimensions.clear()
       hudRef.current?.classList.remove('is-visible')
+      caretRef.current?.classList.remove('is-visible')
+      targets.forEach((el) => {
+        delete el.dataset.buildTarget
+        delete el.dataset.buildKind
+      })
     }
   }, [reduced])
 
@@ -821,6 +868,7 @@ export default function PageBuilder({
                   0 × 0
                 </span>
               </div>
+              <div ref={caretRef} className="build-caret" />
             </div>
             <div className="agent-counter" aria-hidden="true">
               <span className="agent-dot" />
