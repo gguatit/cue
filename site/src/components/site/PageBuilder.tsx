@@ -9,15 +9,15 @@ import {
 import { useReducedMotion } from '@/lib/useReducedMotion'
 import { CURSOR_COLORS, CursorGlyph } from './cursor'
 
-const MIN_AGENTS = 24
-const MAX_AGENTS = 56
-const MIN_MOBILE = 12
-const MAX_MOBILE = 32
+const MIN_AGENTS = 32
+const MAX_AGENTS = 72
+const MIN_MOBILE = 16
+const MAX_MOBILE = 40
 const MAX_CONCURRENT = 12
 const TRIANGLE_RADIUS = 220
 const TRIANGLE_RADIUS_MOBILE = 110
-const TRIANGLE_SPEED = 72
-const TRIANGLE_SPEED_MOBILE = 56
+const TRIANGLE_SPEED = 110
+const TRIANGLE_SPEED_MOBILE = 80
 
 function buildKind(el: HTMLElement): 'box' | 'text' | 'code' | 'media' {
   const tag = el.tagName.toLowerCase()
@@ -110,7 +110,7 @@ const ROUNDED_TRIANGLE = (() => {
     { x: 0.866, y: 0.5 },
     { x: -0.866, y: 0.5 },
   ]
-  const corner = 0.22
+  const corner = 0.3
   const corners = vertices.map((vertex, index) => {
     const previous = vertices[(index + 2) % 3]
     const next = vertices[(index + 1) % 3]
@@ -185,6 +185,21 @@ function pointOnTriangle(distance: number): Point {
   return points[points.length - 1]
 }
 
+function triangleWave(distance: number, now: number): Point {
+  const point = pointOnTriangle(distance)
+  const before = pointOnTriangle(distance - 0.01)
+  const after = pointOnTriangle(distance + 0.01)
+  const tx = after.x - before.x
+  const ty = after.y - before.y
+  const length = Math.hypot(tx, ty) || 1
+  const wave =
+    Math.sin((distance / ROUNDED_TRIANGLE.length) * Math.PI * 4 - now * 0.0022) * 5
+  return {
+    x: point.x + (-ty / length) * wave,
+    y: point.y + (tx / length) * wave,
+  }
+}
+
 export default function PageBuilder({
   children,
   cursorsEnabled = true,
@@ -257,6 +272,7 @@ export default function PageBuilder({
       lastY: window.innerHeight / 2,
       lastAt: performance.now(),
       speed: 0,
+      scatterUntil: 0,
     }
     const anchor = { x: pointer.x, y: pointer.y }
     const onPointerMove = (event: PointerEvent) => {
@@ -265,6 +281,9 @@ export default function PageBuilder({
       const elapsed = Math.max(1, now - pointer.lastAt)
       const velocity = Math.min(36, (distance / elapsed) * 16.667)
       pointer.speed = pointer.speed * 0.4 + velocity * 0.6
+      if (velocity > 2 && now > pointer.scatterUntil - 180) {
+        pointer.scatterUntil = now + 280
+      }
       pointer.x = event.clientX
       pointer.y = event.clientY
       pointer.lastX = event.clientX
@@ -315,30 +334,8 @@ export default function PageBuilder({
     const sparks: Spark[] = []
     const rings: Ring[] = []
     let formationDistance = 0
-    let lastPointerSpark = 0
     const triangleCenter = { x: anchor.x, y: anchor.y }
     let triangleRadius = TRIANGLE_RADIUS
-
-    const emitSparks = (x: number, y: number, color: string, count: number, power = 1) => {
-      for (let index = 0; index < count; index++) {
-        const angle = Math.random() * Math.PI * 2
-        const speed = (0.7 + Math.random() * 2.2) * power
-        sparks.push({
-          x,
-          y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          born: performance.now(),
-          life: 380 + Math.random() * 360,
-          color: index % 3 === 0 ? color : CURSOR_COLORS[(index + 3) % CURSOR_COLORS.length],
-          size: 1.2 + Math.random() * 2.2,
-          shape: SPARK_SHAPES[index % SPARK_SHAPES.length],
-          rotation: Math.random() * Math.PI * 2,
-          spin: (Math.random() - 0.5) * 0.24,
-        })
-      }
-      if (sparks.length > 140) sparks.splice(0, sparks.length - 140)
-    }
 
     const resizeCanvas = () => {
       if (!canvas || !ctx) return
@@ -535,17 +532,6 @@ export default function PageBuilder({
         formationDistance +=
           ((baseSpeed + boost * 70) / triangleRadius) * 0.0167 * dt
 
-        if (particlesRef.current && pointer.speed > 5 && now - lastPointerSpark > 70) {
-          lastPointerSpark = now
-          emitSparks(
-            pointer.x,
-            pointer.y,
-            CURSOR_COLORS[Math.floor(Math.random() * CURSOR_COLORS.length)],
-            1,
-            0.75,
-          )
-        }
-
       for (let index = 0; index < agentCount; index++) {
         const worker = workers[index]
         const cursorEl = cursorRefs.current[index]
@@ -651,30 +637,23 @@ export default function PageBuilder({
           if (!worker.target) {
             const offset = (index / Math.max(1, agentCount)) * ROUNDED_TRIANGLE.length
             const distance = (formationDistance + offset) % ROUNDED_TRIANGLE.length
-            const point = pointOnTriangle(distance)
+            const point = triangleWave(distance, now)
             const targetX = triangleCenter.x + point.x * triangleRadius
             const targetY = triangleCenter.y + point.y * triangleRadius
             const dx = worker.x - pointer.x
             const dy = worker.y - pointer.y
             const pointerDistance = Math.hypot(dx, dy) || 1
 
-            if (now > worker.scatterUntil && pointerDistance < 34) {
+            if (now < pointer.scatterUntil) {
+              const force = 4 + Math.min(8, pointer.speed * 0.35)
+              worker.scatterVX = (dx / pointerDistance) * force
+              worker.scatterVY = (dy / pointerDistance) * force
+              worker.scatterUntil = Math.max(worker.scatterUntil, now + 90)
+            } else if (now > worker.scatterUntil && pointerDistance < 34) {
               const force = 5 + Math.min(9, pointer.speed * 0.3)
               worker.scatterVX = (dx / pointerDistance) * force
               worker.scatterVY = (dy / pointerDistance) * force
               worker.scatterUntil = now + 360 + Math.random() * 260
-              if (particlesRef.current) {
-                const color = CURSOR_COLORS[index % CURSOR_COLORS.length]
-                emitSparks(worker.x, worker.y, color, 8, 1.15)
-                rings.push({
-                  x: worker.x,
-                  y: worker.y,
-                  born: now,
-                  life: 480,
-                  color,
-                })
-                if (rings.length > 5) rings.shift()
-              }
             }
 
             if (now < worker.scatterUntil) {
