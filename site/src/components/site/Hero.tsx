@@ -39,10 +39,10 @@ export default function Hero() {
           </div>
 
           <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[#7a818a]">
-            <span>{SHORTCUT} + 클릭</span>
-            <span>약 221MB</span>
-            <span>UAC 1회</span>
-            <span>서명된 업데이트</span>
+            <span data-build-item>{SHORTCUT} + 클릭</span>
+            <span data-build-item>약 221MB</span>
+            <span data-build-item>UAC 1회</span>
+            <span data-build-item>서명된 업데이트</span>
           </div>
         </Reveal>
 

@@ -56,7 +56,7 @@ export default function SecuritySection() {
           <div className="mt-9 divide-y divide-[#e3e7eb] border-y border-[#e3e7eb]">
             {controls.map((item) => (
               <div key={item.number} className="grid gap-3 py-4 sm:grid-cols-[36px_1fr]">
-                <span className="font-mono text-[9px] tracking-[0.12em] text-[#9aa0a8]">
+                <span data-build-item className="font-mono text-[9px] tracking-[0.12em] text-[#9aa0a8]">
                   {item.number}
                 </span>
                 <div>
@@ -80,7 +80,12 @@ export default function SecuritySection() {
             </div>
             <div className="divide-y divide-[#e3e7eb]">
               {status.map((row) => (
-                <div key={row.label} className="flex items-center justify-between px-4 py-3.5">
+                <div
+                  key={row.label}
+                  data-build-item
+                  data-build-kind="box"
+                  className="flex items-center justify-between px-4 py-3.5"
+                >
                   <span className="text-[12px] text-[#5f6670]">{row.label}</span>
                   <span
                     className={`inline-flex items-center gap-1.5 font-mono text-[9px] tracking-[0.08em] ${

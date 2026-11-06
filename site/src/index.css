@@ -416,6 +416,37 @@ body,
   overflow: hidden;
 }
 
+.tick-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.build-tick {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid #121417;
+  transform: translate(-50%, -50%);
+  animation: tick-pop 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes tick-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.45) rotate(0deg);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.7) rotate(28deg);
+  }
+}
+
 .effect-canvas {
   position: fixed;
   inset: 0;

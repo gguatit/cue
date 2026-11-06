@@ -10,15 +10,19 @@ import { useReducedMotion } from '@/lib/useReducedMotion'
 import type { CursorHandoff } from '@/lib/cursorHandoff'
 import { CURSOR_COLORS, CursorGlyph } from './cursor'
 
-const MIN_AGENTS = 32
-const MAX_AGENTS = 72
-const MIN_MOBILE = 16
-const MAX_MOBILE = 40
-const MAX_CONCURRENT = 12
+const MIN_AGENTS = 40
+const MAX_AGENTS = 96
+const MIN_MOBILE = 20
+const MAX_MOBILE = 52
+const MAX_CONCURRENT = 20
+const CONCURRENT_BOOST = 8
+const SCROLL_BOOST_MS = 900
 const TRIANGLE_RADIUS = 180
 const TRIANGLE_RADIUS_MOBILE = 90
 const TRIANGLE_SPEED = 120
 const TRIANGLE_SPEED_MOBILE = 90
+const FINE_TARGETS =
+  'h1,h2,h3,h4,p,li,button,a,pre,img,span.mono-label,[data-build-item]'
 
 function buildKind(el: HTMLElement): 'box' | 'text' | 'code' | 'media' {
   const tag = el.tagName.toLowerCase()
@@ -44,6 +48,7 @@ type Worker = {
   desiredAngle: number
 
   target: HTMLElement | null
+  ticked: boolean
   startX: number
   startY: number
   startedAt: number
@@ -220,6 +225,7 @@ export default function PageBuilder({
   const hudRef = useRef<HTMLDivElement>(null)
   const hudLabelRef = useRef<HTMLSpanElement>(null)
   const dimensionRef = useRef<HTMLDivElement>(null)
+  const tickLayerRef = useRef<HTMLDivElement>(null)
   const effectRef = useRef<HTMLCanvasElement>(null)
   const caretRef = useRef<HTMLDivElement>(null)
   const crosshairXRef = useRef<HTMLDivElement>(null)
@@ -242,12 +248,20 @@ export default function PageBuilder({
     if (!root) return
 
     const groups = Array.from(root.querySelectorAll<HTMLElement>('[data-build]'))
-    const targets = groups.flatMap((group) => {
-      const children = Array.from(group.children).filter(
-        (child): child is HTMLElement => child instanceof HTMLElement,
-      )
-      return children.length ? children : [group]
-    })
+    const targets = Array.from(
+      new Set(
+        groups.flatMap((group) => {
+          const fine = Array.from(group.querySelectorAll<HTMLElement>(FINE_TARGETS)).filter(
+            (el) => !el.querySelector(FINE_TARGETS),
+          )
+          if (fine.length) return fine
+          const children = Array.from(group.children).filter(
+            (child): child is HTMLElement => child instanceof HTMLElement,
+          )
+          return children.length ? children : [group]
+        }),
+      ),
+    )
     if (!targets.length) return
     targets.forEach((el) => {
       el.dataset.buildTarget = ''
@@ -328,10 +342,11 @@ export default function PageBuilder({
         angle: 0,
         desiredAngle: 0,
         target: null,
+        ticked: false,
         startX: 0,
         startY: 0,
         startedAt: 0,
-        duration: 1000,
+        duration: 700,
         trail: [],
       }
     })
@@ -504,6 +519,19 @@ export default function PageBuilder({
     let raf = 0
     let lastFrame = 0
     let staticRevealed = false
+    let scrollBoostUntil = 0
+    let lastScrollY = window.scrollY
+    const createTick = (x: number, y: number, color: string) => {
+      const layer = tickLayerRef.current
+      if (!layer) return
+      const tick = document.createElement('span')
+      tick.className = 'build-tick'
+      tick.style.left = `${Math.round(x)}px`
+      tick.style.top = `${Math.round(y)}px`
+      tick.style.borderColor = color
+      layer.appendChild(tick)
+      window.setTimeout(() => tick.remove(), 330)
+    }
     const loop = (now: number) => {
       const dt = lastFrame ? Math.min(2.5, (now - lastFrame) / 16.667) : 1
       lastFrame = now
@@ -621,6 +649,10 @@ export default function PageBuilder({
               worker.y = targetY
             }
             el.style.clipPath = `inset(0 ${((1 - draw) * 100).toFixed(2)}% 0 0)`
+            if (!worker.ticked && t >= 0.36) {
+              worker.ticked = true
+              createTick(worker.x, worker.y, CURSOR_COLORS[index % CURSOR_COLORS.length])
+            }
 
             const caret = caretRef.current
             if (caret) {
@@ -657,7 +689,9 @@ export default function PageBuilder({
             }
           }
         } else {
-          if (now > spawnLatchUntil && active.size < MAX_CONCURRENT && queue.length) {
+          const concurrentLimit =
+            MAX_CONCURRENT + (now < scrollBoostUntil ? CONCURRENT_BOOST : 0)
+          if (now > spawnLatchUntil && active.size < concurrentLimit && queue.length) {
             queue.sort((a, b) => {
               const ar = a.getBoundingClientRect()
               const br = b.getBoundingClientRect()
@@ -675,7 +709,8 @@ export default function PageBuilder({
               worker.startX = worker.x
               worker.startY = worker.y
               worker.startedAt = now
-              worker.duration = 1000 + ((index * 67) % 260)
+              worker.ticked = false
+              worker.duration = 620 + ((index * 37) % 220)
             }
           }
 
@@ -877,6 +912,10 @@ export default function PageBuilder({
     raf = requestAnimationFrame(loop)
 
     const onScroll = () => {
+      const now = performance.now()
+      const delta = Math.abs(window.scrollY - lastScrollY)
+      lastScrollY = window.scrollY
+      if (delta > 8) scrollBoostUntil = now + SCROLL_BOOST_MS
       updateAgents()
       enqueueVisible()
     }
@@ -908,6 +947,7 @@ export default function PageBuilder({
       })
       dimensions.forEach((tag) => tag.remove())
       dimensions.clear()
+      tickLayerRef.current?.replaceChildren()
       hudRef.current?.classList.remove('is-visible')
       caretRef.current?.classList.remove('is-visible')
       crosshairXRef.current?.classList.remove('is-visible')
@@ -947,6 +987,7 @@ export default function PageBuilder({
             </div>
             <div className="ruler-corner" aria-hidden="true" />
             <div ref={dimensionRef} className="dimension-layer" aria-hidden="true" />
+            <div ref={tickLayerRef} className="tick-layer" aria-hidden="true" />
             <div ref={crosshairXRef} className="build-crosshair crosshair-x" aria-hidden="true" />
             <div ref={crosshairYRef} className="build-crosshair crosshair-y" aria-hidden="true" />
             <div ref={coordRef} className="cursor-coord" aria-hidden="true">

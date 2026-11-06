@@ -57,7 +57,7 @@ export default function DownloadSection() {
 
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 font-mono text-[9px] uppercase tracking-[0.08em] text-[#7a818a]">
               {facts.map((fact) => (
-                <span key={fact}>{fact}</span>
+                <span key={fact} data-build-item>{fact}</span>
               ))}
             </div>
           </div>

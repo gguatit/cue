@@ -44,7 +44,7 @@ export default function HowItWorks() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] tracking-[0.16em] text-[#9aa0a8]">
+                <span data-build-item className="font-mono text-[10px] tracking-[0.16em] text-[#9aa0a8]">
                   {step.number}
                 </span>
                 <span className="size-1.5 rounded-full bg-[#121417]" />

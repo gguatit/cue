@@ -59,7 +59,7 @@ export default function FeatureGrid() {
               className="group border-b border-r border-[#e3e7eb] p-6 transition-colors duration-200 hover:bg-white/60 md:p-8"
             >
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] tracking-[0.16em] text-[#9aa0a8]">
+                <span data-build-item className="font-mono text-[10px] tracking-[0.16em] text-[#9aa0a8]">
                   {feature.number}
                 </span>
                 <span className="h-px w-5 bg-[#cfd4da] transition-all duration-300 group-hover:w-9 group-hover:bg-[#121417]" />
