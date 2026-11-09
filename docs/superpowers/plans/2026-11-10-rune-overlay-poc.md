@@ -173,10 +173,12 @@ git commit -m "chore: scaffold rune overlay poc"
 - Consumes: `WindowOptions::overlay(display)` and the control window.
 - Produces: a visible translucent badge over the control window; clicks pass through.
 
-- [ ] **Step 1: Make the overlay visibly translucent**
+- [ ] **Step 1: Make the overlay visibly translucent and test Korean text**
   - Fill the overlay root with a semi-transparent dark card (`Color { a: 0.55 }`).
   - Keep the rest of the full-display root transparent.
-  - If the whole window is opaque, stop: transparency is a go/no-go failure.
+  - Render `B`, `정답은 B입니다`, and a 2,000-character Korean/English mixed string.
+  - Confirm Hangul glyphs, wrapping, and scrolling are readable.
+  - If the whole window is opaque or Korean text is missing/garbled, stop: transparency/text is a go/no-go failure.
 
 - [ ] **Step 2: Verify click-through**
   - Place the overlay over the control window's click area.
