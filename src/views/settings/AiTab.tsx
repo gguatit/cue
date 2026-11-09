@@ -41,7 +41,7 @@ function ModelChips({
           className={`rounded-md border px-2 py-1 text-xs transition-colors ${
             m === selected
               ? 'border-accent bg-accent/10 text-accent'
-              : 'border-zinc-700/80 bg-zinc-900 text-zinc-300 hover:border-zinc-500'
+              : 'border-separator bg-surface-2 text-ink hover:border-ink-3'
           }`}
         >
           {m}
@@ -386,7 +386,7 @@ export default function AiTab() {
             onChange={(e) => setProvider({ baseUrl: e.target.value })}
           />
           {provider.preset !== 'custom' && (
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-ink-3">
               {t(
                 'The official endpoint is fixed for this preset. Use Custom to enter another compatible endpoint.',
                 '이 프리셋의 공식 주소는 고정되어 있습니다. 다른 호환 주소를 쓰려면 Custom을 선택하세요.',
@@ -394,8 +394,8 @@ export default function AiTab() {
             </p>
           )}
           {provider.preset === 'custom' && (
-            <div className="mt-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2.5">
-              <p className="text-xs text-zinc-500">
+            <div className="mt-2 rounded-md border border-separator bg-surface-2/60 p-2.5">
+              <p className="text-xs text-ink-3">
                 {t(
                   'Local models can run without an API key on loopback. Ollama defaults to 11434; LM Studio to 1234.',
                   '로컬 모델은 루프백 주소에서 API 키 없이 실행할 수 있습니다. Ollama는 11434, LM Studio는 1234를 사용합니다.',
@@ -410,7 +410,7 @@ export default function AiTab() {
                 </Button>
               </div>
               {isLoopbackUrl(provider.baseUrl) && (
-                <p className="mt-2 text-xs text-emerald-400">
+                <p className="mt-2 text-xs text-success">
                   {t(
                     'Loopback endpoint: API key is optional.',
                     '루프백 주소: API 키는 선택 사항입니다.',
@@ -452,7 +452,7 @@ export default function AiTab() {
           />
         </Field>
         {(provider.preset === 'opencode' || provider.preset === 'opencode-go') && (
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-ink-3">
             {t(
               'The list shows only models available to your OpenCode plan. Zen free models are hidden because OpenCode only allows them inside its own app.',
               '목록은 현재 OpenCode 플랜에서 사용 가능한 모델만 표시합니다. Zen 무료 모델은 OpenCode 앱에서만 사용할 수 있어 숨깁니다.',
@@ -499,7 +499,7 @@ export default function AiTab() {
               selected={provider.verifyModel}
               onSelect={(model) => setProvider({ verifyModel: model })}
             />
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-ink-3">
               {t(
                 'A second model from the same provider checks the answer. Matching answers show a match badge; different answers show both. The verifier does not use the extra parameters below, so mixed API protocols stay valid.',
                 '같은 프로바이더의 두 번째 모델이 답을 검증합니다. 일치하면 일치 배지, 다르면 두 답을 모두 표시합니다. 검증 모델에는 아래 추가 파라미터를 적용하지 않아 서로 다른 API 방식에서도 요청이 깨지지 않습니다.',
@@ -507,7 +507,7 @@ export default function AiTab() {
             </p>
             {(!provider.verifyModel.trim() ||
               provider.verifyModel.trim() === provider.model) && (
-              <p className="mt-1 text-xs text-amber-400">
+              <p className="mt-1 text-xs text-warning">
                 {t(
                   'Pick a different second model to make cross-check work.',
                   '기본 모델과 다른 두 번째 모델을 선택해야 교차 검증이 작동합니다.',
@@ -517,7 +517,7 @@ export default function AiTab() {
           </Field>
         )}
         {provider.answerType !== 'choice' && (
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-ink-3">
             {t(
               'Cross-check is available for multiple-choice answers only.',
               '교차 검증은 객관식 답변에서만 사용할 수 있습니다.',
@@ -541,14 +541,14 @@ export default function AiTab() {
             selected={provider.fallbackModel}
             onSelect={(model) => setProvider({ fallbackModel: model })}
           />
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-ink-3">
             {t(
               'If the primary model rejects the image, protocol, or plan, Cue retries once with this model. It uses the same provider and key, without the extra parameters below.',
               '기본 모델이 이미지·프로토콜·플랜 문제를 반환하면 이 모델로 한 번 다시 시도합니다. 같은 공급자와 키를 쓰며 아래 추가 파라미터는 적용하지 않습니다.',
             )}
           </p>
           {provider.fallbackModel.trim() === provider.model && provider.model && (
-            <p className="mt-1 text-xs text-amber-400">
+            <p className="mt-1 text-xs text-warning">
               {t(
                 'Pick a different model to make fallback work.',
                 '기본 모델과 다른 모델을 선택해야 대체 모델이 작동합니다.',
@@ -566,7 +566,7 @@ export default function AiTab() {
           </Select>
         </Field>
         {provider.answerType === 'text' && (
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-ink-3">
             {t(
               'Descriptive answers always use the overlay panel, even when the overlay toggle is off.',
               '설명형 답변은 오버레이 토글과 관계없이 항상 패널로 표시됩니다.',
@@ -584,7 +584,7 @@ export default function AiTab() {
                 <option value="ko">{t('Korean', '한국어')}</option>
                 <option value="en">{t('English', '영어')}</option>
               </Select>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-ink-3">
                 {t(
                   'Auto answers in the language of the question.',
                   '자동은 질문의 언어로 답합니다.',
@@ -600,23 +600,23 @@ export default function AiTab() {
                 <option value="normal">{t('Normal', '보통')}</option>
                 <option value="detailed">{t('Detailed', '상세')}</option>
               </Select>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-ink-3">
                 {t(
                   'Level controls how long and detailed the answer is.',
                   '수준은 답변의 길이와 상세함을 조절합니다.',
                 )}
               </p>
             </Field>
-            <label className="flex items-start gap-2 text-sm text-zinc-300">
+            <label className="flex items-start gap-2 text-sm text-ink">
               <input
                 type="checkbox"
-                className="mt-0.5 accent-amber-400"
+                className="mt-0.5 accent-accent"
                 checked={provider.paraphrase}
                 onChange={(e) => setProvider({ paraphrase: e.target.checked })}
               />
               <span>
                 {t('Paraphrase the answer once', '답변을 한 번 바꿔 표현')}
-                <span className="mt-1 block text-xs text-zinc-500">
+                <span className="mt-1 block text-xs text-ink-3">
                   {t(
                     'Descriptive answers appear only in a click-through overlay panel for the configured duration. Very long text may clip.',
                     '설명형 답변은 설정된 시간 동안 클릭 통과 오버레이 패널에만 표시됩니다. 아주 긴 텍스트는 잘릴 수 있습니다.',
@@ -653,10 +653,10 @@ export default function AiTab() {
           <span
             className={`rounded-md px-2 py-0.5 text-xs ${
               keyState === 'saved'
-                ? 'bg-emerald-500/10 text-emerald-400'
+                ? 'bg-success/10 text-success'
                 : keyState === 'none'
-                  ? 'bg-zinc-800 text-zinc-400'
-                  : 'bg-red-500/10 text-red-400'
+                  ? 'bg-surface-3 text-ink-2'
+                  : 'bg-danger/10 text-danger'
             }`}
           >
             {keyState === 'saved'
@@ -667,7 +667,7 @@ export default function AiTab() {
           </span>
         </div>
         {provider.preset === 'custom' && isLoopbackUrl(provider.baseUrl) && (
-          <p className="mt-2 text-xs text-emerald-400">
+          <p className="mt-2 text-xs text-success">
             {t(
               'No API key is required for this loopback endpoint. Leave the key blank.',
               '이 루프백 주소에는 API 키가 필요하지 않습니다. 키를 비워 두세요.',
@@ -681,7 +681,7 @@ export default function AiTab() {
         </GroupHeader>
         <textarea
           aria-label={t('Extra parameters (JSON)', '추가 파라미터 (JSON)')}
-          className="w-full rounded-lg border border-zinc-700/80 bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-100 transition-colors placeholder:text-zinc-600 focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-separator bg-surface-2 px-3 py-2 font-mono text-xs text-ink transition-colors placeholder:text-ink-3 focus:border-accent focus:outline-none"
           rows={3}
           value={extraDraft}
           onChange={(e) => {
@@ -693,7 +693,7 @@ export default function AiTab() {
         {extraWarnings.length > 0 && (
           <div className="mt-2 space-y-1" role="status" aria-live="polite">
             {extraWarnings.map((code) => (
-              <p key={code} className="text-xs text-amber-400">
+              <p key={code} className="text-xs text-warning">
                 {extraWarningText(code)}
               </p>
             ))}
@@ -702,15 +702,15 @@ export default function AiTab() {
         <div className="mt-2 flex items-center gap-2">
           <Button onClick={applyExtra}>{t('Apply', '적용')}</Button>
           <Button onClick={clearExtra}>{t('Clear', '비우기')}</Button>
-          {extraError && <span className="text-xs text-red-400">{extraError}</span>}
+          {extraError && <span className="text-xs text-danger">{extraError}</span>}
         </div>
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-ink-3">
           {t(
             'temperature, model, messages, input, contents and stream are managed by Cue and cannot be overridden.',
             'temperature, model, messages, input, contents, stream은 Cue가 관리하며 덮어쓸 수 없습니다.',
           )}
         </p>
-        <p className="mt-2 text-xs text-amber-400">
+        <p className="mt-2 text-xs text-warning">
           {t(
             'If a model fails, clear the extra parameters and test again. Token fields differ by model: max_tokens, max_output_tokens, or generationConfig.maxOutputTokens.',
             '모델이 실패하면 추가 파라미터를 비우고 다시 테스트하세요. 모델마다 토큰 필드가 다릅니다: max_tokens, max_output_tokens, generationConfig.maxOutputTokens.',
@@ -727,30 +727,30 @@ export default function AiTab() {
           aria-live="polite"
           className={`text-sm ${
             statusKind === 'err'
-              ? 'text-red-400'
+              ? 'text-danger'
               : statusKind === 'warn'
-                ? 'text-amber-400'
+                ? 'text-warning'
                 : statusKind === 'ok'
-                  ? 'text-emerald-400'
-                  : 'text-zinc-400'
+                  ? 'text-success'
+                  : 'text-ink-2'
           }`}
         >
           {status}
         </span>
       </div>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-ink-3">
         {t(
           'Full test runs the real shortcut flow after a 5-second countdown: move the pointer over a question during the countdown.',
           '실전 테스트는 5초 카운트다운 뒤 실제 단축키 흐름을 실행합니다. 카운트다운 동안 포인터를 문제 위로 옮기세요.',
         )}
       </p>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-ink-3">
         {t(
           'Use a vision-capable model. Screenshots are sent only to the provider you configure.',
           '비전 지원 모델을 사용하세요. 화면은 사용자가 지정한 프로바이더로만 전송됩니다.',
         )}
       </p>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-ink-3">
         {t(
           'Paraphrasing sends the extracted answer text to the provider for one extra rewrite request. Only the cleaned answer is shown; invisible watermark characters and HTML tags are removed.',
           '바꿔 표현을 켜면 추출된 답변 텍스트가 한 번의 추가 재작성 요청으로 프로바이더에 전송됩니다. 화면에는 정리된 답변만 표시되며, 보이지 않는 워터마크 문자와 HTML 태그는 제거됩니다.',

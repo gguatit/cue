@@ -1,16 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import MouseTriggerCard from '../../components/MouseTriggerCard'
 import ExamReadiness from './ExamReadiness'
 import {
   Button,
-  Card,
   Group,
   GroupHeader,
   Input,
   Row,
-  SectionTitle,
   SegmentedControl,
   Select,
   Toggle,
@@ -35,6 +33,23 @@ import {
   type AccentChoice,
   type ThemeChoice,
 } from '../../stores/settings'
+
+function SettingsGroup({
+  title,
+  children,
+  className = '',
+}: {
+  title: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <Group>
+      <GroupHeader>{title}</GroupHeader>
+      <div className={`space-y-4 px-4 pb-4 ${className}`}>{children}</div>
+    </Group>
+  )
+}
 
 export default function GeneralTab() {
   const t = useT()
@@ -213,11 +228,10 @@ export default function GeneralTab() {
   return (
     <div className="space-y-4">
       <ExamReadiness />
-      <Card className="space-y-4">
+      <SettingsGroup title={t('Answer shortcut', '답변 단축키')}>
         <div>
-          <SectionTitle>{t('Answer shortcut', '답변 단축키')}</SectionTitle>
           <ShortcutRecorder />
-          <div className="mt-3 space-y-2 border-t border-zinc-800 pt-3">
+          <div className="mt-3 space-y-2 border-t border-separator pt-3">
             <Toggle
               checked={shortcut.click}
               onChange={(v) => void toggleClick(v)}
@@ -237,7 +251,7 @@ export default function GeneralTab() {
             />
             {shortcut.click && (
               <div className="flex items-center justify-between gap-3 px-1">
-                <span className="shrink-0 whitespace-nowrap text-sm text-zinc-300">{t('Mouse button', '마우스 버튼')}</span>
+                <span className="shrink-0 whitespace-nowrap text-sm text-ink">{t('Mouse button', '마우스 버튼')}</span>
                 <Select
                   className="w-36"
                   aria-label={t('Mouse button', '마우스 버튼')}
@@ -253,16 +267,16 @@ export default function GeneralTab() {
           </div>
         </div>
         <div>
-          <SectionTitle>{t('Panic clear', '패닉 클리어')}</SectionTitle>
+          <p className="text-[13px] font-medium text-ink">{t('Panic clear', '패닉 클리어')}</p>
           <ShortcutRecorder panic />
-          <p className="mt-2 text-xs text-zinc-500">
+          <p className="mt-2 text-xs text-ink-3">
             {t(
               'Clears the answer, history and error log, then hides the Cue window.',
               '답변·기록·오류 로그를 지우고 Cue 창을 숨깁니다.',
             )}
           </p>
         </div>
-        <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-3 text-xs text-amber-300">
+        <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
           <p className="font-medium">{t('Shortcut conflicts', '단축키 충돌')}</p>
           <p className="mt-1">
             {t(
@@ -271,7 +285,7 @@ export default function GeneralTab() {
             )}
           </p>
           {shortcutConflicts(shortcut, panic) && (
-            <p className="mt-2 text-red-300">
+            <p className="mt-2 text-danger">
               {t(
                 'The answer and panic shortcuts share modifiers. Turn on Require mouse click or choose a different panic shortcut.',
                 '답변과 패닉 단축키가 같은 보조키를 공유합니다. 마우스 클릭 필요를 켜거나 패닉 단축키를 바꾸세요.',
@@ -279,12 +293,11 @@ export default function GeneralTab() {
             </p>
           )}
         </div>
-      </Card>
+      </SettingsGroup>
       <MouseTriggerCard />
-      <Card className="space-y-4">
+      <SettingsGroup title={t('Free mode', '자유 모드')}>
         <div>
-          <SectionTitle>{t('Free mode', '자유 모드')}</SectionTitle>
-          <p className="mb-3 text-xs text-zinc-500">
+          <p className="mb-3 text-xs text-ink-3">
             {t(
               'Hold the answer shortcut and click this button to explain or help with whatever is under the cursor. It uses the same provider, model, and key.',
               '답변 단축키를 누른 채 이 버튼을 클릭하면 커서 아래의 내용을 설명하거나 도와줍니다. 같은 프로바이더·모델·키를 사용합니다.',
@@ -311,7 +324,7 @@ export default function GeneralTab() {
         {free.enabled && (
           <>
             <div className="flex items-center justify-between gap-3">
-              <span className="shrink-0 whitespace-nowrap text-sm text-zinc-300">{t('Free mode button', '자유 모드 버튼')}</span>
+              <span className="shrink-0 whitespace-nowrap text-sm text-ink">{t('Free mode button', '자유 모드 버튼')}</span>
               <Select
                 className="w-36"
                 aria-label={t('Free mode button', '자유 모드 버튼')}
@@ -331,10 +344,10 @@ export default function GeneralTab() {
                   ))}
               </Select>
             </div>
-            <label className="block text-sm text-zinc-300">
+            <label className="block text-sm text-ink">
               {t('Instruction (optional)', '지시문 (선택)')}
               <textarea
-                className="mt-2 w-full rounded-lg border border-zinc-700/80 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 transition-colors placeholder:text-zinc-600 focus:border-accent focus:outline-none"
+                className="mt-2 w-full rounded-lg border border-separator bg-surface-2 px-3 py-2 text-sm text-ink transition-colors placeholder:text-ink-3 focus:border-accent focus:outline-none"
                 rows={3}
                 value={free.instruction}
                 onChange={(e) => setFree({ instruction: e.target.value })}
@@ -349,9 +362,8 @@ export default function GeneralTab() {
             </Button>
           </>
         )}
-      </Card>
-      <Card>
-        <SectionTitle>{t('Language', '언어')}</SectionTitle>
+      </SettingsGroup>
+      <SettingsGroup title={t('Language', '언어')}>
         <Select
           className="w-40"
           aria-label={t('Language', '언어')}
@@ -364,7 +376,7 @@ export default function GeneralTab() {
           <option value="ko">한국어</option>
           <option value="en">English</option>
         </Select>
-      </Card>
+      </SettingsGroup>
       <Group>
         <GroupHeader>{t('Appearance', '모양')}</GroupHeader>
         <Row>
@@ -411,16 +423,14 @@ export default function GeneralTab() {
           />
         </Row>
       </Group>
-      <Card>
-        <SectionTitle>{t('Startup', '시작')}</SectionTitle>
+      <SettingsGroup title={t('Startup', '시작')}>
         <Toggle
           checked={auto}
           onChange={(v) => void toggleAuto(v)}
           label={t('Start automatically at login (background)', '로그인 시 자동 실행 (백그라운드)')}
         />
-      </Card>
-      <Card className="space-y-3">
-        <SectionTitle>{t('Privacy', '개인정보')}</SectionTitle>
+      </SettingsGroup>
+      <SettingsGroup title={t('Privacy', '개인정보')} className="space-y-3">
         <Toggle
           checked={storage.history}
           onChange={(v) => setStorage({ history: v })}
@@ -433,15 +443,14 @@ export default function GeneralTab() {
           label={t('Keep error log', '오류 로그 보관')}
           hint={t('Up to 20 errors, stored only on this device.', '최대 20개의 오류를 이 기기에만 저장합니다.')}
         />
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-ink-3">
           {t(
             'Turning a log off clears its saved entries. Nothing is sent anywhere.',
             '로그를 끄면 저장된 항목이 지워집니다. 어디에도 전송되지 않습니다.',
           )}
         </p>
-      </Card>
-      <Card className="space-y-3">
-        <SectionTitle>{t('Settings backup', '설정 백업')}</SectionTitle>
+      </SettingsGroup>
+      <SettingsGroup title={t('Settings backup', '설정 백업')} className="space-y-3">
         <div className="flex flex-wrap gap-2">
           <Button onClick={exportJson}>{t('Export JSON', 'JSON 내보내기')}</Button>
           <Button
@@ -464,7 +473,7 @@ export default function GeneralTab() {
             }}
           />
         </div>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-ink-3">
           {t(
             'API keys are stored in the Windows Credential Manager and are never exported.',
             'API 키는 Windows 자격증명 관리자에 저장되며 내보내지 않습니다.',
@@ -486,18 +495,18 @@ export default function GeneralTab() {
             {profiles.map((profile) => (
               <li
                 key={profile.id}
-                className="flex items-center justify-between gap-2 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300"
+                className="flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-ink"
               >
                 <span className="min-w-0 truncate">{profile.name}</span>
                 <span className="flex shrink-0 gap-1">
                   <button
-                    className="text-xs text-zinc-400 transition-colors hover:text-zinc-100"
+                    className="text-xs text-ink-2 transition-colors hover:text-ink"
                     onClick={() => void applyProfile(profile)}
                   >
                     {t('Apply', '적용')}
                   </button>
                   <button
-                    className="text-xs text-zinc-500 transition-colors hover:text-red-400"
+                    className="text-xs text-ink-3 transition-colors hover:text-danger"
                     onClick={() => removeProfile(profile)}
                   >
                     {t('Delete', '삭제')}
@@ -507,8 +516,8 @@ export default function GeneralTab() {
             ))}
           </ul>
         )}
-        {backupMessage && <p className="text-xs text-zinc-400">{backupMessage}</p>}
-      </Card>
+        {backupMessage && <p className="text-xs text-ink-2">{backupMessage}</p>}
+      </SettingsGroup>
       {pendingImport && (
         <ConfirmDialog
           title={t('Apply imported settings?', '가져온 설정을 적용할까요?')}

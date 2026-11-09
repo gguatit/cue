@@ -38,7 +38,7 @@ function Status({ state }: { state: Check }) {
             ? 'bg-warning/10 text-warning'
             : state === 'fail'
               ? 'bg-danger/10 text-danger'
-              : 'bg-surface-3 text-ink-3'
+              : 'bg-surface-3 text-ink-2'
       }`}
     >
       {label}

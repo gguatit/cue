@@ -233,31 +233,31 @@ export default function SecurityTab() {
   }
 
   let adminLabel = t('Not checked', '확인 안 됨')
-  let adminTone = 'bg-zinc-800 text-zinc-500'
+  let adminTone = 'bg-surface-3 text-ink-3'
   if (protection) {
     if (protection.elevated) {
       adminLabel = t('Configured', '설정됨')
-      adminTone = 'bg-emerald-500/15 text-emerald-400'
+      adminTone = 'bg-success/15 text-success'
     } else if (stealth.admin) {
       adminLabel = t('Restart required', '재시작 필요')
-      adminTone = 'bg-amber-500/15 text-amber-400'
+      adminTone = 'bg-warning/15 text-warning'
     } else {
       adminLabel = t('Not configured', '설정 안 됨')
-      adminTone = 'bg-zinc-800 text-zinc-400'
+      adminTone = 'bg-surface-3 text-ink-2'
     }
   }
 
   let defenderLabel = t('Not checked', '확인 안 됨')
-  let defenderTone = 'bg-zinc-800 text-zinc-500'
+  let defenderTone = 'bg-surface-3 text-ink-3'
   if (defenderStatus) {
     if (!defenderStatus.available) {
       defenderLabel = t('Admin permission required', '확인하려면 관리자 권한 필요')
     } else if (defenderStatus.complete) {
       defenderLabel = t('Added', '추가됨')
-      defenderTone = 'bg-emerald-500/10 text-emerald-400'
+      defenderTone = 'bg-success/10 text-success'
     } else if (defenderStatus.pathsPresent > 0 || defenderStatus.processesPresent > 0) {
       defenderLabel = t('Partially added', '일부 추가됨')
-      defenderTone = 'bg-amber-500/10 text-amber-400'
+      defenderTone = 'bg-warning/10 text-warning'
     } else {
       defenderLabel = t('Not added', '추가되지 않음')
     }
@@ -282,10 +282,10 @@ export default function SecurityTab() {
     <span
       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
         on === null
-          ? 'bg-zinc-800 text-zinc-400'
+          ? 'bg-surface-3 text-ink-2'
           : on
-            ? 'bg-emerald-500/15 text-emerald-400'
-            : 'bg-zinc-800 text-zinc-400'
+            ? 'bg-success/15 text-success'
+            : 'bg-surface-3 text-ink-2'
       }`}
     >
       {on === null ? t('Unknown', '알 수 없음') : on ? onText : t('Off', '꺼짐')}
@@ -343,13 +343,13 @@ export default function SecurityTab() {
         <p
           className={`mt-2 text-xs ${
             capture && capture.main === 0 && stealth.contentProtection
-              ? 'text-amber-400'
-              : 'text-zinc-500'
+              ? 'text-warning'
+              : 'text-ink-3'
           }`}
         >
           {captureProtectionLabel(capture, t)}
         </p>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-ink-3">
           {t(
             'Windows 10 2004 and later remove the windows from captures. Older versions show them as blank, and a photograph of the screen is never blocked.',
             'Windows 10 2004 이상은 창이 캡처에서 완전히 사라집니다. 이전 버전은 빈 창으로 보이며, 화면을 카메라로 촬영하는 것은 막지 못합니다.',
@@ -360,7 +360,7 @@ export default function SecurityTab() {
         <div className="flex items-center justify-between gap-3">
           <GroupHeader className="px-0 pb-2 pt-0">{t('Meeting safe mode', '회의 안전 모드')}</GroupHeader>
           {meetingHidden && (
-            <span className="mb-3 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400">
+            <span className="mb-3 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
               {t('Meeting detected', '회의 감지됨')}
             </span>
           )}
@@ -370,8 +370,8 @@ export default function SecurityTab() {
           onChange={(v) => setStealth({ meetingSafe: v })}
           label={t('Meeting safe mode', '회의 안전 모드')}
         />
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 pt-3">
-          <span className="text-sm text-zinc-300">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-separator pt-3">
+          <span className="text-sm text-ink">
             {t('Detection signal', '감지 기준')}
           </span>
           <Select
@@ -390,7 +390,7 @@ export default function SecurityTab() {
             <option value="process">{t('Running app (sensitive)', '실행 중인 앱 (민감)')}</option>
           </Select>
         </div>
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-ink-3">
           {t(
             'The default needs a meeting window for meeting apps, while OBS, RDP and remote apps trigger by process alone. Window title only may miss hidden meetings; running-app mode is the most sensitive.',
             '기본은 회의 앱에 회의 창이 있어야 감지하고, OBS·RDP·원격 앱은 실행만으로 감지합니다. 창 제목만은 숨겨진 회의를 놓칠 수 있고, 실행 중인 앱 모드는 가장 민감합니다.',
@@ -400,8 +400,8 @@ export default function SecurityTab() {
           <span
             className={`rounded-full px-2 py-0.5 text-xs ${
               meetingState?.process
-                ? 'bg-amber-500/15 text-amber-400'
-                : 'bg-zinc-800 text-zinc-400'
+                ? 'bg-warning/15 text-warning'
+                : 'bg-surface-3 text-ink-2'
             }`}
           >
             {t('Meeting app', '회의 앱')}:{' '}
@@ -414,8 +414,8 @@ export default function SecurityTab() {
           <span
             className={`rounded-full px-2 py-0.5 text-xs ${
               meetingState?.share
-                ? 'bg-amber-500/15 text-amber-400'
-                : 'bg-zinc-800 text-zinc-400'
+                ? 'bg-warning/15 text-warning'
+                : 'bg-surface-3 text-ink-2'
             }`}
           >
             {t('Share/remote', '공유/원격')}:{' '}
@@ -428,8 +428,8 @@ export default function SecurityTab() {
           <span
             className={`rounded-full px-2 py-0.5 text-xs ${
               meetingState?.window
-                ? 'bg-amber-500/15 text-amber-400'
-                : 'bg-zinc-800 text-zinc-400'
+                ? 'bg-warning/15 text-warning'
+                : 'bg-surface-3 text-ink-2'
             }`}
           >
             {t('Window', '창')}:{' '}
@@ -443,7 +443,7 @@ export default function SecurityTab() {
             {t('Refresh signals', '감지 신호 새로고침')}
           </Button>
         </div>
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-ink-3">
           {t(
             'When a meeting or screen-share app is detected, Cue hides the tray icon, overlay and flash, and uses only the keyboard LED and screen brightness. Detection checks running meeting/screen-share processes and window titles, so it is a heuristic and may miss some meetings or hide answers during unrelated activity. If LED and brightness are off, no answer is shown. Answer history is still recorded.',
             '회의나 화면 공유 앱이 감지되면 Cue는 트레이 아이콘, 오버레이, 플래시를 숨기고 키보드 LED와 화면 밝기만 사용합니다. 실행 중인 회의·화면 공유 프로세스와 창 제목을 확인하는 휴리스틱이므로 일부 회의를 놓치거나 무관한 작업 중 답변을 숨길 수 있습니다. LED와 밝기가 모두 꺼져 있으면 답변이 표시되지 않습니다. 답변 기록은 그대로 저장됩니다.',
@@ -457,7 +457,7 @@ export default function SecurityTab() {
           onChange={(v) => setPrivacy({ crop: v })}
           label={t('Send only the area around the cursor', '커서 주변 영역만 전송')}
         />
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-ink-3">
           {t(
             'Cue sends a 1600×1000 pixel region centered on the pointer instead of the whole display. The crop happens before the image leaves your device.',
             'Cue는 화면 전체 대신 포인터를 중심으로 한 1600×1000 픽셀 영역만 전송합니다. 이미지가 기기를 떠나기 전에 잘립니다.',
@@ -477,16 +477,16 @@ export default function SecurityTab() {
           label={t('Run as administrator', '관리자 권한으로 실행')}
         />
         {restartNeeded && (
-          <p className="mt-2 text-xs text-amber-400">
+          <p className="mt-2 text-xs text-warning">
             {t(
               'Restart Cue to finish leaving administrator mode.',
               '관리자 모드를 완전히 종료하려면 Cue를 다시 시작하세요.',
             )}
           </p>
         )}
-        {adminMessage && <p className="mt-2 text-xs text-amber-400">{adminMessage}</p>}
+        {adminMessage && <p className="mt-2 text-xs text-warning">{adminMessage}</p>}
         {protection?.adminPrepareFailed && (
-          <div className="mt-2 rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-xs text-amber-200/90">
+          <div className="mt-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
             {t(
               'The installer could not refresh administrator protection. Press Repair protection. If it still fails, reinstall Cue.',
               '설치 프로그램이 관리자 보호를 갱신하지 못했습니다. 보호 복구를 누르세요. 계속 실패하면 Cue를 다시 설치하세요.',
@@ -504,7 +504,7 @@ export default function SecurityTab() {
         <Button className="mt-2" variant="secondary" onClick={() => void refreshProtection()}>
           {t('Refresh protection status', '보호 상태 새로 고침')}
         </Button>
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-ink-3">
           {t(
             'Works from any install folder. Cue keeps a protected copy for administrator mode. Asks for UAC once, then restarts Cue elevated and registers a highest-privilege logon task so it starts without another prompt. A normal Task Manager kill is denied, and a killed Cue is restarted within seconds. The CueWatchdog service runs as SYSTEM, so even an administrator killing the watchdog only delays it by about five seconds.',
             '설치 폴더와 관계없이 사용할 수 있습니다. Cue는 관리자 모드용 보호 복사본을 따로 유지합니다. UAC를 한 번만 확인한 뒤 Cue를 관리자 권한으로 다시 실행하고, 최고 권한 로그온 작업을 등록해 다음부터는 확인 없이 시작합니다. 일반 작업 관리자에서는 종료가 거부되고, 강제 종료되어도 몇 초 안에 다시 실행됩니다. CueWatchdog 서비스는 SYSTEM으로 실행되므로 관리자가 워치독을 종료해도 약 5초 뒤 다시 살아납니다.',
@@ -513,7 +513,7 @@ export default function SecurityTab() {
         <Button className="mt-3" onClick={() => void repairAll()}>
           {t('Repair protection', '보호 복구')}
         </Button>
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-ink-3">
           {t(
             'Repair recreates the guard copy, service, scheduled tasks and markers. An administrator can still stop or delete the service, and Group Policy, Windows shutdown and kernel-level tools cannot be blocked; protection is best effort.',
             '복구는 가드 복사본, 서비스, 예약 작업, 마커를 다시 만듭니다. 관리자가 서비스를 중지·삭제하면 막을 수 없고, 그룹 정책, Windows 종료, 커널 수준 도구도 막을 수 없습니다. 보호는 최선의 노력입니다.',
@@ -522,7 +522,7 @@ export default function SecurityTab() {
       </Group>
       <Group className="p-4">
         <GroupHeader className="px-0 pb-2 pt-0">{t('Windows Defender', 'Windows Defender')}</GroupHeader>
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-ink-3">
           {t(
             'If Defender quarantines Cue as a false positive, add the app folder and its processes to the exclusion list. This lowers protection for those paths and needs administrator approval. If Cue was already quarantined, restore it in Windows Security > Protection history first.',
             'Defender가 Cue를 오탐으로 격리할 때 앱 폴더와 프로세스를 예외 목록에 추가합니다. 해당 경로의 보호 수준이 낮아지며 관리자 승인이 필요합니다. 이미 격리되었다면 Windows 보안 > 보호 기록에서 먼저 복원하세요.',
@@ -541,14 +541,14 @@ export default function SecurityTab() {
         </div>
         {defenderStatus?.available &&
           (defenderStatus.pathsTotal > 0 || defenderStatus.processesTotal > 0) && (
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-xs text-ink-3">
               {t(
                 `Paths ${defenderStatus.pathsPresent}/${defenderStatus.pathsTotal} · Processes ${defenderStatus.processesPresent}/${defenderStatus.processesTotal}`,
                 `경로 ${defenderStatus.pathsPresent}/${defenderStatus.pathsTotal} · 프로세스 ${defenderStatus.processesPresent}/${defenderStatus.processesTotal}`,
               )}
             </p>
           )}
-        {defenderMessage && <p className="mt-2 text-xs text-zinc-400">{defenderMessage}</p>}
+        {defenderMessage && <p className="mt-2 text-xs text-ink-2">{defenderMessage}</p>}
       </Group>
       <Group className="p-4">
         <div className="flex items-center justify-between gap-3">
@@ -556,10 +556,10 @@ export default function SecurityTab() {
           <span
             className={`mb-3 rounded-full px-2 py-0.5 text-xs font-medium ${
               guardStatus === null
-                ? 'bg-zinc-800 text-zinc-400'
+                ? 'bg-surface-3 text-ink-2'
                 : guardStatus
-                  ? 'bg-emerald-500/15 text-emerald-400'
-                  : 'bg-zinc-800 text-zinc-400'
+                  ? 'bg-success/15 text-success'
+                  : 'bg-surface-3 text-ink-2'
             }`}
           >
             {guardStatus === null
@@ -574,7 +574,7 @@ export default function SecurityTab() {
           onChange={(v) => void apply({ guard: v }, () => setGuard(v), 'guard').then(refreshGuard)}
           label={t('Restart Cue if it is killed', 'Cue가 강제 종료되면 다시 실행')}
         />
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-ink-3">
           {t(
             'Creates a per-user scheduled task that runs every minute and keeps Cue running in the background. Normal Quit stops the guard; it re-arms automatically the next time Cue starts.',
             '사용자별 예약 작업을 만들어 1분마다 실행하며 Cue를 백그라운드에서 계속 실행합니다. 정상 종료하면 보호가 멈추지만, Cue를 다시 실행하면 자동으로 다시 켜집니다.',
@@ -583,7 +583,7 @@ export default function SecurityTab() {
         <Button className="mt-3" onClick={() => void repair()}>
           {t('Repair guard', '보호 복구')}
         </Button>
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-ink-3">
           {t(
             'The guard is best effort. Administrator-level kills and group-policy restrictions cannot be defeated. Repair recreates the scheduled task and marker if they were removed.',
             '보호는 최선의 노력입니다. 관리자 권한 강제 종료와 그룹 정책 제한은 막을 수 없습니다. 복구는 삭제된 예약 작업과 마커를 다시 만듭니다.',
@@ -592,7 +592,7 @@ export default function SecurityTab() {
       </Group>
       <Group className="p-4">
         <GroupHeader className="px-0 pb-2 pt-0">{t('Tray guide', '트레이 안내')}</GroupHeader>
-        <ol className="list-decimal space-y-1 pl-5 text-zinc-400">
+        <ol className="list-decimal space-y-1 pl-5 text-ink-2">
           <li>{t('Open "Other system tray icons" in Taskbar settings.', '작업 표시줄 설정에서 "기타 시스템 트레이 아이콘"을 엽니다.')}</li>
           <li>{t('Find Cue in the list.', '목록에서 Cue를 찾습니다.')}</li>
           <li>{t('Turn it on so the icon stays visible.', '아이콘이 항상 보이도록 켭니다.')}</li>
@@ -604,7 +604,7 @@ export default function SecurityTab() {
           {t('Open taskbar settings', '작업 표시줄 설정 열기')}
         </Button>
       </Group>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-ink-3">
         {t(
           'When searching, Cue captures only the display under the pointer.',
           '검색할 때 Cue는 포인터가 있는 디스플레이의 화면만 캡처합니다.',

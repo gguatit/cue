@@ -3,7 +3,7 @@ import { CAMOUFLAGE_ICONS, useSettings, type DisplayMode, type LedKey } from '..
 import { useAnswer } from '../../stores/answer'
 import { CAMOUFLAGE_COMPONENTS } from '../../components/camouflage'
 import alyacIconUrl from '../../assets/alyac-icon.ico'
-import { Button, Card, Group, GroupHeader, Row, SectionTitle, Select, Switch } from '../../components/ui'
+import { Button, Group, GroupHeader, Row, Select, Switch } from '../../components/ui'
 import { blinkAnswer, blinkBrightness, showOverlay } from '../../lib/tauri'
 import { setTrayForMode } from '../../lib/trayDisplay'
 import { t, useT } from '../../i18n'
@@ -31,6 +31,7 @@ function IconPicker({
           key={o}
           title={o}
           aria-label={o}
+          aria-pressed={value === o}
           onClick={() => onChange(o)}
           className={`flex h-8 w-8 items-center justify-center rounded-[8px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
             value === o ? 'bg-accent text-black' : 'bg-surface-2 text-ink-2 hover:bg-surface-3'
@@ -212,16 +213,17 @@ export default function ModeTab() {
           </Row>
         )}
       </Group>
-      <Card>
-        <SectionTitle>{t('Tray camouflage icons', '트레이 위장 아이콘')}</SectionTitle>
-        <p className="mb-3 text-xs text-zinc-500">
+      <Group>
+        <GroupHeader>{t('Tray camouflage icons', '트레이 위장 아이콘')}</GroupHeader>
+        <div className="p-4">
+        <p className="mb-3 text-xs text-ink-3">
           {t(
             'Pick an icon per answer, or show the answer letter.',
             '답마다 아이콘을 지정하거나 답 문자를 그대로 표시할 수 있습니다.',
           )}
         </p>
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs text-zinc-400">
+          <div className="flex items-center gap-2 text-xs text-ink-2">
             <span className="w-24">{t('Idle', '평소')}</span>
             <IconPicker
               value={trayIcons.idle}
@@ -230,7 +232,7 @@ export default function ModeTab() {
             />
           </div>
           {['1', '2', '3', '4', '5'].map((slot, i) => (
-            <div key={slot} className="flex items-center gap-2 text-xs text-zinc-400">
+            <div key={slot} className="flex items-center gap-2 text-xs text-ink-2">
               <span className="w-24">
                 {t('Option', '보기')} {String.fromCharCode(65 + i)} ({i + 1})
               </span>
@@ -251,17 +253,18 @@ export default function ModeTab() {
         >
           {t('Reset icons', '아이콘 초기화')}
         </Button>
-      </Card>
-      <Card>
-        <SectionTitle>{t('Test', '테스트')}</SectionTitle>
-        <div className="space-y-2 text-sm">
-          <p className="text-zinc-300">
+        </div>
+      </Group>
+      <Group>
+        <GroupHeader>{t('Test', '테스트')}</GroupHeader>
+        <div className="space-y-2 p-4 text-sm">
+          <p className="text-ink">
             {t(
               'Which built-in Python function prints text to the console?',
               '파이썬에서 콘솔에 텍스트를 출력하는 내장 함수는 무엇인가?',
             )}
           </p>
-          <p className="text-zinc-500">{t('A. echo  B. print', 'A. echo  B. print')}</p>
+          <p className="text-ink-3">{t('A. echo  B. print', 'A. echo  B. print')}</p>
           <div className="flex gap-2 pt-1">
             <Button variant="primary" onClick={() => void useAnswer.getState().run(true)}>
               {t('Run test answer', '테스트 답 표시')}
@@ -274,7 +277,7 @@ export default function ModeTab() {
             </Button>
           </div>
         </div>
-      </Card>
+      </Group>
     </div>
   )
 }
