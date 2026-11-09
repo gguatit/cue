@@ -39,7 +39,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 저장소: 설정은 zustand persist `cue-settings`(`src/stores/settings.ts`, `version: 21`, `mergeSettings`). 자유 모드(`free`), 마우스 전용 트리거(`mouse`: hold/shake, ms/px 값), 교차 검증(`provider.consensus`/`verifyModel`), 대체 모델(`provider.fallbackModel`), 회의 감지 기준(`stealth.meetingPolicy`), 포커스 손실 숨김(`stealth.hideOnBlur`), 테마·강조 색(`appearance.theme`: dark/light/system, `appearance.accent`: system/amber/blue/violet) 설정을 포함한다. 답변 기록/오류 로그는 `cue-history`/`cue-errors`. 프로필은 `cue-profiles`(`src/lib/settingsBackup.ts`). 업데이트 UI 상태는 `src/stores/updates.ts`, 마지막 확인 시각은 localStorage `cue-update-check`.
 - 오류: Rust는 문자열 코드(`no_key`, `busy`, `http_401`, `config`, `defender` …)로 반환하고 `src/i18n.ts::ERRORS`에서 en/ko로 매핑한다. **새 오류 코드는 반드시 `ERRORS`에 쌍으로 추가** — 없으면 raw 코드가 UI에 노출된다.
 - NSIS 훅: `src-tauri/windows/hooks.nsh`. 설치/제거 시 Run 키·예약 작업·서비스·ProgramData 정리를 유지한다. 업데이트는 `/UPDATE`라 `PREUNINSTALL`/`POSTUNINSTALL`은 실행되지 않고 `PREINSTALL`/`POSTINSTALL`만 실행된다. `POSTINSTALL`의 `--admin-prepare` 실패는 업데이트 모드에서 `admin-prepare.failed` 마커로 남긴다.
-- 문서: 사용법 `README.md`, 변경 기록 `docs/CHANGELOG.md`, AI 파라미터 프리셋 `docs/AI_PARAMETER_PRESETS.md`, 제외 범위 `docs/OUT_OF_SCOPE.md`, 사이트 개발/배포 `site/README.md`.
+- 문서: 사용법 `README.md`, 변경 기록 `docs/CHANGELOG.md`, AI 파라미터 프리셋 `docs/AI_PARAMETER_PRESETS.md`, 제외 범위 `docs/OUT_OF_SCOPE.md`, 미래 작업 `docs/FUTURE.md`, 사이트 개발/배포 `site/README.md`.
 - 기능 제안·계획 전에 `docs/OUT_OF_SCOPE.md`를 읽고, 사용자가 방향을 바꾸지 않은 제외 항목을 다시 제안하지 않는다.
 
 ## 불변식
