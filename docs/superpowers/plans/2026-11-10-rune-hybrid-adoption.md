@@ -208,7 +208,7 @@ This phase requires its own implementation plan after the settings service is st
 - Guard, service, scheduled tasks, uninstall hooks.
 - Capture exclusion with screen recording and screen share.
 - Sleep/resume, session switch, Explorer restart.
-- Multi-monitor/DPI and negative coordinates.
+- Single-display DPI; multi-monitor/negative-coordinate verification is explicitly excluded (laptop single display).
 - Korean/English, light/dark/system, 880×640/640×480.
 - No orphan process; no startup regression.
 

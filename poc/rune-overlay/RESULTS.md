@@ -3,7 +3,7 @@
 **Date:** 2026-11-10  
 **Rune rev:** `2bc3179d08355a8bb08fa54b9025780fe848b8f6`  
 **Machine:** Windows 10/11 x64, 1707×1067 primary display, 144 DPI (150%)  
-**Result:** **PARTIAL — offscreen prewarm and hide/show pass; multi-monitor and integrated sidecar resources remain unverified.**
+**Result:** **PARTIAL — offscreen prewarm and hide/show pass; multi-monitor excluded; integrated sidecar resources remain unverified.**
 
 ## Task results
 
@@ -15,7 +15,7 @@
 | 2. Topmost/no-activate | PASS after native fix | `Topmost=True`, `NoActivate=True`, `ToolWindow=True`, `APPWINDOW` removed |
 | 3. WDA | PASS | `GetWindowDisplayAffinity = 0x11`; screen capture contained no overlay |
 | 4. DPI | PASS on single display | 1707×1067 physical, 144 DPI, full-display overlay at 0,0 |
-| 4. Multi-monitor | NOT VERIFIED | Only one display available |
+| 4. Multi-monitor | EXCLUDED by user | Laptop has one display; residual risk accepted |
 | 5. Lazy/prewarm creation | PASS via offscreen workaround | Create visible offscreen, build first frame, then move onscreen |
 | 5. Hidden `visible=false` path | REJECTED for integration | Delayed show renders, but Rune's show resets EX styles |
 | 5. First visible frame | PASS | WDA is applied before the offscreen window is moved onscreen |
@@ -23,7 +23,7 @@
 | 5. Long/Korean text | PASS for wrapping | Korean/English long text wraps inside the card |
 | 5. Text scrolling | NOT VERIFIED | Click-through intentionally passes pointer/wheel input |
 | 6. Resources | PARTIAL | Idle release process: ~169MB WS, ~145MB private, 0 CPU seconds/30s |
-| 7. Decision | PARTIAL | Keep PoC; multi-monitor and integrated sidecar resources remain |
+| 7. Decision | PARTIAL | Keep PoC; multi-monitor excluded; integrated sidecar resources remain |
 
 ## Critical findings
 
@@ -88,11 +88,11 @@ use an event-driven ack instead of a fixed sleep.
 **PARTIAL.** The main Windows overlay path is proven, including lazy/prewarm via
 offscreen creation and native hide/show. These gates remain:
 
-- Verify multi-monitor and negative coordinates on a two-display system.
+- Multi-monitor and negative-coordinate verification: **excluded by user** (laptop single display).
 - Measure the integrated sidecar + Tauri host, not the standalone PoC.
 - Decide whether long text needs interactive scrolling or only wrapping.
 - Design the bridge lifecycle/fallback around the offscreen prewarm model.
 - Replace the stdio harness with the named-pipe transport and event-driven ack.
 
-Do not proceed to Phase 2 production integration until the multi-monitor and
-integrated resource gates are reviewed.
+Do not proceed to Phase 2 production integration until the integrated resource
+gate is reviewed. Multi-monitor remains excluded by user request.

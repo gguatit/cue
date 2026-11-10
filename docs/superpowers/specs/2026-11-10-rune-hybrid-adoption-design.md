@@ -196,7 +196,7 @@ Use `docs/superpowers/plans/2026-11-10-rune-overlay-poc.md`. Add a Korean/long-t
 - Rune overlay/settings default.
 - `index.html`/React settings not loaded in production; overlay WebView not created.
 - Tauri host still owns tray/updater/installer/guard.
-- Full matrix: capture exclusion, update, uninstall, guard, admin, sleep/resume, multi-monitor, DPI.
+- Full matrix: capture exclusion, update, uninstall, guard, admin, sleep/resume, single-display DPI. Multi-monitor verification is excluded at the user's request (laptop single display); residual risk is documented.
 
 ### Phase 6 (not planned)
 

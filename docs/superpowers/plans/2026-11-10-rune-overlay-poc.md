@@ -282,7 +282,9 @@ git add poc/rune-overlay
 git commit -m "feat: exclude the rune overlay from captures"
 ```
 
-## Task 4: Multi-monitor and DPI
+## Task 4: Single-display DPI (multi-monitor excluded)
+
+> **Scope change 2026-11-10:** Multi-monitor and negative-coordinate verification is excluded at the user's request because the test laptop has one display. Single-display DPI remains required; residual multi-monitor risk is accepted for Phase 0/2 and must be re-tested only if a second display becomes available.
 
 **Files:**
 - Create: `poc/rune-overlay/src/displays.rs`
@@ -430,7 +432,7 @@ git commit -m "docs: record rune overlay poc results"
 | 1 | Scaffold + Rune API gate | `cargo check` and exact raw-handle API recorded |
 | 2 | Transparency, click-through, topmost, no activate | 20/20 clicks pass through, no taskbar/focus steal |
 | 3 | WDA capture exclusion | overlay absent/blank in capture; fail-closed |
-| 4 | Multi-monitor/DPI | correct placement or explicitly unverified |
+| 4 | Single-display DPI | correct placement; multi-monitor explicitly excluded |
 | 5 | Show/hide + latency | warm show within 100ms of Cue |
 | 6 | Resource measurement + decision | PASS/FAIL recorded |
 | 7 | Remove PoC or write integration design | no production changes |
