@@ -14,6 +14,7 @@ pub struct AppState {
     pub content_protection: AtomicBool,
     pub overlay_state: Mutex<OverlayDelivery>,
     pub tray_visible: AtomicBool,
+    pub rune: Mutex<Option<crate::rune_bridge::RuneBridge>>,
 }
 
 #[derive(Default)]
@@ -39,8 +40,47 @@ impl Default for AppState {
             content_protection: AtomicBool::new(true),
             overlay_state: Mutex::new(OverlayDelivery::default()),
             tray_visible: AtomicBool::new(true),
+            rune: Mutex::new(None),
         }
     }
+}
+
+fn rune_enabled() -> bool {
+    std::env::var_os("CUE_RUNE_OVERLAY").is_some_and(|value| value == "1")
+}
+
+fn rune_sidecar_path() -> Option<std::path::PathBuf> {
+    if let Some(path) = std::env::var_os("CUE_RUNE_SIDECAR") {
+        return Some(path.into());
+    }
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join("rune-overlay-poc.exe")))
+}
+
+fn try_rune_show(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    answer: &str,
+    style: &str,
+    duration_ms: u64,
+    rect: (i32, i32, i32, i32),
+    scale: f64,
+) -> Result<(), String> {
+    let Some(path) = rune_sidecar_path() else {
+        return Err("rune sidecar path unavailable".to_string());
+    };
+    let mut guard = state.rune.lock().map_err(|_| "rune bridge".to_string())?;
+    if guard.is_none() {
+        *guard = Some(crate::rune_bridge::RuneBridge::start(&path)?);
+    }
+    let bridge = guard.as_mut().ok_or("rune bridge")?;
+    bridge.show(answer, style, duration_ms, rect, scale)?;
+    use tauri::Manager;
+    if let Some(window) = app.get_webview_window("overlay") {
+        let _ = window.hide();
+    }
+    Ok(())
 }
 
 fn next_generation(value: u64) -> u64 {
@@ -420,12 +460,7 @@ pub async fn show_overlay(
     verification: Option<Verification>,
 ) -> Result<(), String> {
     use tauri::Emitter;
-    let overlay = ensure_overlay(&app)?;
     let protect = state.content_protection.load(Ordering::SeqCst);
-    if crate::windows::set_capture_protection(&overlay, protect).is_err() {
-        let _ = overlay.hide();
-        return Err("stealth".into());
-    }
     let last = *state
         .last_capture
         .lock()
@@ -452,6 +487,26 @@ pub async fn show_overlay(
         let (bx, by) = crate::windows::badge_position((cx, cy), mon, size);
         (size.0 as u32, size.1 as u32, bx, by)
     };
+    if rune_enabled() {
+        if try_rune_show(
+            &app,
+            &state,
+            &answer,
+            &style,
+            duration_ms,
+            (x, y, w as i32, h as i32),
+            crate::windows::monitor_scale(mon),
+        )
+        .is_ok()
+        {
+            return Ok(());
+        }
+    }
+    let overlay = ensure_overlay(&app)?;
+    if crate::windows::set_capture_protection(&overlay, protect).is_err() {
+        let _ = overlay.hide();
+        return Err("stealth".into());
+    }
     overlay
         .set_size(tauri::PhysicalSize::new(w, h))
         .map_err(|_| "capture")?;
@@ -531,6 +586,15 @@ pub fn hide_overlay(app: tauri::AppHandle, state: tauri::State<'_, AppState>) {
     OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     if let Ok(mut delivery) = state.overlay_state.lock() {
         delivery.pending = None;
+    }
+    if rune_enabled() {
+        if let Ok(mut guard) = state.rune.lock() {
+            if let Some(bridge) = guard.as_mut() {
+                if bridge.hide().is_ok() {
+                    return;
+                }
+            }
+        }
     }
     if let Some(w) = app.get_webview_window("overlay") {
         let _ = w.hide();

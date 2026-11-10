@@ -10,6 +10,7 @@ mod guard;
 mod led;
 mod meeting;
 mod models;
+mod rune_bridge;
 mod secrets;
 mod shortcut;
 mod tray;

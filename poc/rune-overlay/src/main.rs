@@ -71,6 +71,8 @@ static AUTO_DONE: AtomicBool = AtomicBool::new(false);
 static READY: AtomicBool = AtomicBool::new(false);
 static PIPE_MODE: AtomicBool = AtomicBool::new(false);
 static PIPE_WRITER: OnceLock<Mutex<Option<File>>> = OnceLock::new();
+static PENDING: OnceLock<Mutex<Option<(String, String)>>> = OnceLock::new();
+static SHOW_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 fn live_hwnd() -> Option<HWND> {
     let raw = LIVE_HWND
@@ -252,6 +254,44 @@ fn handle_pipe_message(value: Value) {
             }
         }
         "show_overlay" => {
+            let answer = value
+                .get("answer")
+                .and_then(Value::as_str)
+                .unwrap_or("RUNE OVERLAY")
+                .to_string();
+            let style = value
+                .get("style")
+                .and_then(Value::as_str)
+                .unwrap_or("badge")
+                .to_string();
+            *PENDING
+                .get_or_init(|| Mutex::new(None))
+                .lock()
+                .expect("pending overlay") = Some((answer, style));
+            if let (Some(rect), Some(window)) = (
+                value.get("rect"),
+                LIVE_OVERLAY
+                    .get()
+                    .and_then(|slot| slot.lock().expect("live overlay").clone()),
+            ) {
+                let x = rect.get("x").and_then(Value::as_i64).unwrap_or(0) as i32;
+                let y = rect.get("y").and_then(Value::as_i64).unwrap_or(0) as i32;
+                let w = rect.get("w").and_then(Value::as_i64).unwrap_or(160) as f32;
+                let h = rect.get("h").and_then(Value::as_i64).unwrap_or(72) as f32;
+                window.resize_instant((w, h));
+                window.set_position((x, y));
+            }
+            let generation = SHOW_GEN.fetch_add(1, Ordering::SeqCst) + 1;
+            let duration_ms = value
+                .get("durationMs")
+                .and_then(Value::as_u64)
+                .unwrap_or(8000);
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(duration_ms));
+                if SHOW_GEN.load(Ordering::SeqCst) == generation {
+                    set_live_visible(false);
+                }
+            });
             set_live_visible(true);
             std::thread::sleep(Duration::from_millis(150));
             reharden_live();
@@ -271,6 +311,7 @@ fn handle_pipe_message(value: Value) {
             }
         }
         "hide_overlay" => {
+            SHOW_GEN.fetch_add(1, Ordering::SeqCst);
             set_live_visible(false);
             std::thread::sleep(Duration::from_millis(20));
             match live_state() {
@@ -352,10 +393,16 @@ fn command_loop<R: BufRead>(reader: R) {
 struct State {
     overlay: bool,
     click_count: u32,
+    answer: String,
+    style: String,
 }
 
 fn init() -> State {
-    State::default()
+    State {
+        answer: "RUNE OVERLAY".to_string(),
+        style: "badge".to_string(),
+        ..State::default()
+    }
 }
 
 fn with_hwnd<R>(window: &WindowHandle, f: impl FnOnce(HWND) -> R) -> Result<R, String> {
@@ -533,7 +580,16 @@ fn reharden_live() {
     }
 }
 
-fn poll(_: &mut State, _: f64, tx: &mut rune::Tx) -> bool {
+fn poll(s: &mut State, _: f64, tx: &mut rune::Tx) -> bool {
+    let mut changed = false;
+    if let Some((answer, style)) = PENDING
+        .get()
+        .and_then(|slot| slot.lock().expect("pending overlay").take())
+    {
+        s.answer = answer;
+        s.style = style;
+        changed = true;
+    }
     match HARDEN_AT.get() {
         Some(at) if !HARDENED.load(Ordering::SeqCst) && at.elapsed() >= Duration::from_millis(350) => {
             apply_overlay_styles()
@@ -567,61 +623,92 @@ fn poll(_: &mut State, _: f64, tx: &mut rune::Tx) -> bool {
             tx.wake_after(Duration::from_millis(50));
         }
     }
-    false
+    changed
 }
-
-const LONG_TEXT: &str = "정답은 B입니다. 긴 설명 텍스트의 줄바꿈과 스크롤을 확인합니다. \
-이 문장은 한국어와 English text를 섞어서 표시합니다. The quick brown fox jumps over the lazy dog. \
-문제의 보기가 길어지거나 설명이 여러 줄이 되더라도 카드 안에서 읽을 수 있어야 합니다. \
-Rune의 텍스트 레이아웃과 스크롤 뷰포트가 실제 오버레이 크기에서 동작하는지 확인하는 샘플입니다. \
-정답은 B입니다. 긴 설명 텍스트의 줄바꿈과 스크롤을 확인합니다. \
-이 문장은 한국어와 English text를 섞어서 표시합니다. The quick brown fox jumps over the lazy dog. \
-문제의 보기가 길어지거나 설명이 여러 줄이 되더라도 카드 안에서 읽을 수 있어야 합니다. \
-Rune의 텍스트 레이아웃과 스크롤 뷰포트가 실제 오버레이 크기에서 동작하는지 확인하는 샘플입니다. \
-정답은 B입니다. 긴 설명 텍스트의 줄바꿈과 스크롤을 확인합니다. \
-이 문장은 한국어와 English text를 섞어서 표시합니다. The quick brown fox jumps over the lazy dog. \
-문제의 보기가 길어지거나 설명이 여러 줄이 되더라도 카드 안에서 읽을 수 있어야 합니다. \
-Rune의 텍스트 레이아웃과 스크롤 뷰포트가 실제 오버레이 크기에서 동작하는지 확인하는 샘플입니다.";
 
 fn view(s: &State, _: &mut Cx<State>) -> El {
     if s.overlay {
+        let answer = s.answer.clone();
+        if s.style == "flash" {
+            return el()
+                .w_full()
+                .h_full()
+                .center()
+                .fill(Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.55,
+                })
+                .child(
+                    text(answer)
+                        .wrap()
+                        .w_full()
+                        .color(Color {
+                            r: 1.0,
+                            g: 1.0,
+                            b: 1.0,
+                            a: 1.0,
+                        }),
+                );
+        }
+        if s.style == "text" {
+            return el()
+                .w_full()
+                .h_full()
+                .padding(8.0)
+                .child(
+                    el()
+                        .w_full()
+                        .h_full()
+                        .padding(16.0)
+                        .radius(12.0)
+                        .fill(Color {
+                            r: 1.0,
+                            g: 1.0,
+                            b: 1.0,
+                            a: 0.78,
+                        })
+                        .scroll(ScrollSpec { stick_bottom: false })
+                        .child(
+                            text(answer)
+                                .wrap()
+                                .w_full()
+                                .color(Color {
+                                    r: 0.02,
+                                    g: 0.02,
+                                    b: 0.02,
+                                    a: 1.0,
+                                }),
+                        ),
+                );
+        }
         return el()
             .w_full()
             .h_full()
+            .padding(8.0)
+            .center()
             .child(
-                col()
-                    .w(900.0)
-                    .h(600.0)
-                    .padding(16.0)
-                    .gap(12.0)
+                el()
+                    .w_full()
+                    .padding(12.0)
                     .radius(10.0)
-                    .fill(Color { r: 1.0, g: 1.0, b: 1.0, a: 0.55 })
+                    .fill(Color {
+                        r: 1.0,
+                        g: 1.0,
+                        b: 1.0,
+                        a: 0.78,
+                    })
                     .child(
-                        text("RUNE OVERLAY / 정답은 B입니다")
+                        text(answer)
+                            .wrap()
+                            .w_full()
                             .color(Color {
                                 r: 0.02,
                                 g: 0.02,
                                 b: 0.02,
                                 a: 1.0,
                             }),
-                    )
-                    .child(
-                        el()
-                            .w_full()
-                            .grow(1.0)
-                            .min_h(0.0)
-                            .scroll(ScrollSpec { stick_bottom: false })
-                            .child(
-                                text(LONG_TEXT)
-                                    .wrap()
-                                    .w_full()
-                                    .color(Color {
-                                        r: 0.02,
-                                        g: 0.02,
-                                        b: 0.02,
-                                        a: 1.0,
-                                    }),
-                            ),
                     ),
             );
     }
@@ -758,6 +845,7 @@ fn main() {
                     .state(State {
                         overlay: true,
                         click_count: 0,
+                        ..init()
                     })
                     .options(options)
                     .on_created(move |window| {
