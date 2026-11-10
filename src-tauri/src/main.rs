@@ -119,7 +119,14 @@ fn main() {
         // ProgramData copy instead of elevating the install the user launched.
         if let Ok(current) = std::env::current_exe() {
             if let Ok(target) = elevation::admin_app_for(&current) {
-                let _ = elevation::relaunch_elevated_exe(&target, "--admin-check");
+                // UAC relaunch does not reliably carry the environment; keep
+                // the experimental Rune flag as an explicit argument.
+                let extra = if commands::rune_enabled() {
+                    "--admin-check --rune-overlay"
+                } else {
+                    "--admin-check"
+                };
+                let _ = elevation::relaunch_elevated_exe(&target, extra);
                 return;
             }
         }

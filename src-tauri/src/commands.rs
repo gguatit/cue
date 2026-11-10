@@ -45,8 +45,9 @@ impl Default for AppState {
     }
 }
 
-fn rune_enabled() -> bool {
-    std::env::var_os("CUE_RUNE_OVERLAY").is_some_and(|value| value == "1")
+pub(crate) fn rune_enabled() -> bool {
+    std::env::args().any(|arg| arg == "--rune-overlay")
+        || std::env::var_os("CUE_RUNE_OVERLAY").is_some_and(|value| value == "1")
 }
 
 fn rune_sidecar_path() -> Option<std::path::PathBuf> {
