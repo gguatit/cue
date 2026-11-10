@@ -464,6 +464,7 @@ pub async fn show_overlay(
     let _ = app.emit_to("overlay", "overlay-clear", ());
     let _ = crate::windows::set_tool_window(&overlay, true);
     overlay.show().map_err(|_| "capture")?;
+    let _ = crate::windows::set_tool_window(&overlay, true);
     // Fail closed: never show an answer on a window the OS will capture.
     if protect && crate::windows::capture_affinity(&overlay).ok() != Some(0x11) {
         let _ = overlay.hide();
