@@ -8,6 +8,11 @@
   Sleep 1000
   ExecWait '"$SYSDIR\taskkill.exe" /IM cue.exe /F'
   ExecWait '"$SYSDIR\taskkill.exe" /IM cue-guard.exe /F'
+  ExecWait '"$SYSDIR\taskkill.exe" /IM rune-overlay-poc.exe /F'
+  Delete "$INSTDIR\rune-overlay-poc.exe"
+  Delete "$COMMONAPPDATA\Cue\rune-overlay-poc.exe"
+  ReadEnvStr $1 "LOCALAPPDATA"
+  Delete "$1\Cue\rune-overlay-poc.exe"
   Sleep 1500
 !macroend
 !macro NSIS_HOOK_POSTINSTALL
@@ -75,6 +80,10 @@ cue_postinstall_done:
 
   ExecWait '"$SYSDIR\taskkill.exe" /IM cue.exe /F'
   ExecWait '"$SYSDIR\taskkill.exe" /IM cue-guard.exe /F'
+  ExecWait '"$SYSDIR\taskkill.exe" /IM rune-overlay-poc.exe /F'
+  Delete "$INSTDIR\rune-overlay-poc.exe"
+  Delete "$0\Cue\rune-overlay-poc.exe"
+  Delete "$1\Cue\rune-overlay-poc.exe"
   Sleep 1500
   ExecWait '"$SYSDIR\sc.exe" stop CueWatchdog'
   Sleep 3000
@@ -98,6 +107,10 @@ cue_postinstall_done:
   Delete "$0\Cue\quit.flag"
   DeleteRegKey HKLM "Software\Cue"
   ExecWait '"$SYSDIR\taskkill.exe" /IM cue-guard.exe /F'
+  ExecWait '"$SYSDIR\taskkill.exe" /IM rune-overlay-poc.exe /F'
+  Delete "$INSTDIR\rune-overlay-poc.exe"
+  Delete "$0\Cue\rune-overlay-poc.exe"
+  Delete "$1\Cue\rune-overlay-poc.exe"
   ExecWait '"$SYSDIR\sc.exe" stop CueWatchdog'
   Sleep 2000
   ExecWait '"$SYSDIR\sc.exe" delete CueWatchdog'
