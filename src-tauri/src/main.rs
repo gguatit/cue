@@ -209,6 +209,7 @@ fn main() {
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
+            guard::clear_quit_latch();
             if admin_setup {
                 let exe = std::env::current_exe().map_err(|_| "admin")?;
                 if !elevation::is_admin_path(&exe) {
