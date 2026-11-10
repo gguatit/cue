@@ -46,10 +46,10 @@ Rune 하이브리드 전환에서 **아직 계획하지 않은** 항목을 모�
 
 | 항목 | 내용 | 상태 |
 |---|---|---|
-| Named pipe ACL | 현재 사용자 SID만 허용, pipe squatting 방지 | 선행 필요 |
-| 프로토콜 버전 | host/sidecar 버전 불일치 시 fail-closed | 선행 필요 |
-| 메시지 제한 | 최대 크기, malformed JSON, timeout, replay | 선행 필요 |
-| 고아 프로세스 | host 종료·크래시 후 sidecar 정리 (job object 등) | 선행 필요 |
+| Named pipe ACL | 현재 사용자 SID만 허용, pipe squatting 방지 | PoC 적용; Tauri 통합 검증 필요 |
+| 프로토콜 버전 | host/sidecar 버전 불일치 시 fail-closed | PoC 적용 |
+| 메시지 제한 | 최대 크기, malformed JSON, timeout, replay | PoC 적용; replay 미구현 |
+| 고아 프로세스 | host 종료·크래시 후 sidecar 정리 (job object 등) | PoC 적용 |
 | 로그 | 답변 텍스트·API 키를 로그에 남기지 않는 정책 | 선행 필요 |
 | 사이드카 권한 | 일반 사용자 권한, 관리자 모드와의 관계 | 결정 필요 |
 

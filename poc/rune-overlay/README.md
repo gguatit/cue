@@ -44,20 +44,22 @@ sidecar resource cost remains unmeasured. The named-pipe harness passes. See
 
 ## Control-channel harness
 
-The sidecar accepts line commands over stdin (`--stdio`) or a named pipe
-(`--pipe <name>`):
+The sidecar accepts line commands over stdin (`--stdio`) or length-prefixed
+JSON frames over a named pipe (`--pipe <name>`):
 
 ```text
-hello -> ready
-show  -> ack show affinity=0x11 visible=true
-hide  -> ack hide affinity=0x11 visible=false
-ping  -> pong
-quit
+stdio: hello/quit are not used; show/hide/ping/quit use line responses
+pipe:  hello -> ready
+       show_overlay -> overlay_ack
+       hide_overlay -> overlay_ack
+       ping -> pong
+       shutdown
 ```
 
-`bridge_host.exe` is the Rust pipe-server harness. It creates a current-process
-pipe, starts the sidecar as the client, sends `hello`, waits for `ready` only
-after the overlay is hardened, then runs 20 show/hide cycles:
+`bridge_host.exe` is the Rust pipe-server harness. It creates a current-user
+ACL pipe, assigns the child to a kill-on-close job object, sends `hello`, waits
+for `ready` only after the overlay is hardened, then runs 20 show/hide cycles.
+Reads have a 5-second timeout:
 
 ```powershell
 cargo build --release --manifest-path poc/rune-overlay/Cargo.toml --bins
@@ -70,9 +72,10 @@ The stdio harness remains available for comparison:
 powershell -ExecutionPolicy Bypass -File poc/rune-overlay/scripts/bridge-test.ps1
 ```
 
-The PoC pipe is local and randomly named, but it still uses the default Windows
-pipe DACL and a line protocol. Production integration still needs an explicit
-current-user ACL, JSON framing, and read timeouts.
+The PoC pipe is local, randomly named, restricted to the current owner and
+SYSTEM, and uses the same kill-on-close job object expected in production.
+Remaining production work is event-driven ack, integrated resource measurement,
+and Tauri host integration.
 
 ## Test switches
 

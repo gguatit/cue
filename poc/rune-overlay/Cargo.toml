@@ -7,11 +7,16 @@ publish = false
 [dependencies]
 rune = { git = "https://github.com/anomalyco/rune", rev = "2bc3179d08355a8bb08fa54b9025780fe848b8f6" }
 raw-window-handle = "0.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 windows = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Security",
+  "Win32_Security_Authorization",
   "Win32_Storage_FileSystem",
   "Win32_System_IO",
+  "Win32_System_JobObjects",
   "Win32_System_Pipes",
+  "Win32_System_Threading",
   "Win32_UI_WindowsAndMessaging",
 ] }

@@ -3,7 +3,7 @@
 **Date:** 2026-11-10  
 **Rune rev:** `2bc3179d08355a8bb08fa54b9025780fe848b8f6`  
 **Machine:** Windows 10/11 x64, 1707×1067 primary display, 144 DPI (150%)  
-**Result:** **PARTIAL — offscreen prewarm, hide/show, and named-pipe transport pass; multi-monitor excluded; integrated sidecar resources remain unverified.**
+**Result:** **PARTIAL — offscreen prewarm, hide/show, and named-pipe transport (JSON, ACL, job object, timeout) pass; multi-monitor excluded; integrated sidecar resources remain unverified.**
 
 ## Task results
 
@@ -22,7 +22,7 @@
 | 5. Hide/show | PASS | `ShowWindow` + 120ms reharden; final EX style stays `0x080801B8` |
 | 5. Long/Korean text | PASS for wrapping | Korean/English long text wraps inside the card |
 | 5. Text scrolling | NOT VERIFIED | Click-through intentionally passes pointer/wheel input |
-| 5. Named-pipe transport | PASS for PoC | Host pipe server + sidecar client; `hello`/`ready`; 20 show/hide cycles |
+| 5. Named-pipe transport | PASS for PoC | Length-prefixed JSON, current-user ACL, job object, host read timeout; 20 show/hide cycles |
 | 6. Resources | PARTIAL | Idle release process: ~169MB WS, ~145MB private, 0 CPU seconds/30s |
 | 7. Decision | PARTIAL | Keep PoC; multi-monitor excluded; integrated sidecar resources remain |
 
@@ -72,22 +72,22 @@ the stdio path for comparison.
 
 | Measurement | Result |
 |---|---|
-| `ready` | 656ms in the stdio run; included Rune startup + hardening |
-| `show` ack | 254ms (includes 150ms style-settle wait) |
-| 20 show/hide cycles | 6,374ms |
+| `ready` | 657–718ms (Rune startup + hardening) |
+| `show` ack | 163–286ms (includes 150ms style-settle wait) |
+| 20 show/hide cycles | 5.2–7.7s |
 | Show state | affinity `0x11`, `visible=true` |
 | Hide state | affinity `0x11`, `visible=false` |
-| Sidecar WS / private | 135.4MB / 124.4MB |
-| Sidecar CPU at ready | 0.281s |
+| Sidecar WS / private | 135.6–136.1MB / 124.6–124.9MB |
+| Sidecar CPU at ready | 0.266–0.328s |
 | Sidecar process count | 1 |
+| Host crash test | sidecar count 0 after host kill |
 
-The 254ms show ack is not real UI latency; the harness deliberately waits for
-Rune's queued show styles to drain before acknowledging. Production should use
-an event-driven ack instead of a fixed sleep.
+The 163–286ms show ack is not real UI latency; the harness deliberately waits
+for Rune's queued show styles to drain before acknowledging. Production should
+use an event-driven ack instead of a fixed sleep.
 
-The pipe is randomly named and local, but this PoC still uses the default pipe
-DACL and a line protocol. Production needs a current-user ACL, JSON framing, and
-read timeouts.
+The pipe is randomly named, current-user ACL, length-prefixed JSON, and job
+object protected. Host reads time out after 5 seconds.
 
 ## Decision
 
@@ -98,7 +98,7 @@ offscreen creation and native hide/show. These gates remain:
 - Measure the integrated sidecar + Tauri host, not the standalone PoC.
 - Decide whether long text needs interactive scrolling or only wrapping.
 - Design the bridge lifecycle/fallback around the offscreen prewarm model.
-- Add a current-user pipe ACL, JSON framing, and read timeouts for production.
+- Add event-driven ack instead of the fixed 150ms settle.
 
 Do not proceed to Phase 2 production integration until the integrated resource
 gate is reviewed. Multi-monitor remains excluded by user request.

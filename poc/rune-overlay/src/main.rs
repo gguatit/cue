@@ -10,6 +10,8 @@ use rune::{
     AppSpec, Color, Cx, El, ScrollSpec, WindowHandle, WindowOptions, WindowSpec, col, el,
     run_windows, text,
 };
+use rune_overlay_poc::bridge::{read_frame, write_frame};
+use serde_json::{Value, json};
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{GENERIC_READ, GENERIC_WRITE, HWND};
 use windows::Win32::Storage::FileSystem::{
@@ -119,25 +121,23 @@ fn live_state() -> Option<(u32, bool)> {
 }
 
 fn send_line(line: &str) {
-    let mut pipe_result = None;
-    if let Some(slot) = PIPE_WRITER.get() {
-        if let Ok(mut guard) = slot.lock() {
-            if let Some(out) = guard.as_mut() {
-                // Pipe writes are synchronous; FlushFileBuffers can block until
-                // the host drains the pipe, so do not flush the pipe writer.
-                pipe_result = Some(writeln!(out, "{line}"));
-            }
-        }
-    }
-    if let Some(result) = pipe_result {
-        if let Err(error) = result {
-            log(&format!("pipe write failed: {error}"));
-        }
-        return;
-    }
     let mut out = std::io::stdout().lock();
     let _ = writeln!(out, "{line}");
     let _ = out.flush();
+}
+
+fn send_json(value: &Value) {
+    if let Some(slot) = PIPE_WRITER.get() {
+        if let Ok(mut guard) = slot.lock() {
+            if let Some(out) = guard.as_mut() {
+                if let Err(error) = write_frame(out, value) {
+                    log(&format!("pipe write failed: {error}"));
+                }
+                return;
+            }
+        }
+    }
+    log("pipe writer unavailable");
 }
 
 fn signal_ready() {
@@ -210,7 +210,93 @@ fn handle_pipe(name: String) {
         .lock()
         .expect("pipe writer") = Some(writer);
     log("pipe connected");
-    command_loop(BufReader::new(file));
+    let mut reader = BufReader::new(file);
+    loop {
+        match read_frame(&mut reader) {
+            Ok(value) => handle_pipe_message(value),
+            Err(error) => {
+                log(&format!("pipe read failed: {error}"));
+                break;
+            }
+        }
+    }
+}
+
+fn wait_hardened() -> bool {
+    let start = Instant::now();
+    while !HARDENED.load(Ordering::SeqCst) && start.elapsed() < Duration::from_secs(10) {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    HARDENED.load(Ordering::SeqCst) && live_hwnd().is_some()
+}
+
+fn handle_pipe_message(value: Value) {
+    let id = value.get("id").cloned().unwrap_or(Value::Null);
+    match value.get("type").and_then(Value::as_str).unwrap_or_default() {
+        "hello" => {
+            let protocol = value.get("protocol").and_then(Value::as_u64).unwrap_or(0);
+            if protocol != 1 {
+                send_json(&json!({
+                    "type":"error",
+                    "id":id,
+                    "code":"protocol",
+                    "message":"unsupported protocol",
+                }));
+                return;
+            }
+            READY.store(true, Ordering::SeqCst);
+            if wait_hardened() {
+                send_json(&json!({"type":"ready","protocol":1}));
+            } else {
+                send_json(&json!({"type":"error","id":id,"code":"hardening","message":"overlay not hardened"}));
+            }
+        }
+        "show_overlay" => {
+            set_live_visible(true);
+            std::thread::sleep(Duration::from_millis(150));
+            reharden_live();
+            match live_state() {
+                Some((affinity, visible)) => send_json(&json!({
+                    "type":"overlay_ack",
+                    "id":id,
+                    "affinity":affinity,
+                    "visible":visible,
+                })),
+                None => send_json(&json!({
+                    "type":"error",
+                    "id":id,
+                    "code":"state",
+                    "message":"overlay state unavailable",
+                })),
+            }
+        }
+        "hide_overlay" => {
+            set_live_visible(false);
+            std::thread::sleep(Duration::from_millis(20));
+            match live_state() {
+                Some((affinity, visible)) => send_json(&json!({
+                    "type":"overlay_ack",
+                    "id":id,
+                    "affinity":affinity,
+                    "visible":visible,
+                })),
+                None => send_json(&json!({
+                    "type":"error",
+                    "id":id,
+                    "code":"state",
+                    "message":"overlay state unavailable",
+                })),
+            }
+        }
+        "ping" => send_json(&json!({"type":"pong","id":id})),
+        "shutdown" => std::process::exit(0),
+        other => send_json(&json!({
+            "type":"error",
+            "id":id,
+            "code":"unknown_type",
+            "message":other,
+        })),
+    }
 }
 
 fn command_loop<R: BufRead>(reader: R) {
