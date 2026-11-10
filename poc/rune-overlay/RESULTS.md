@@ -3,7 +3,7 @@
 **Date:** 2026-11-10  
 **Rune rev:** `2bc3179d08355a8bb08fa54b9025780fe848b8f6`  
 **Machine:** Windows 10/11 x64, 1707×1067 primary display, 144 DPI (150%)  
-**Result:** **PARTIAL — offscreen prewarm and hide/show pass; multi-monitor excluded; integrated sidecar resources remain unverified.**
+**Result:** **PARTIAL — offscreen prewarm, hide/show, and named-pipe transport pass; multi-monitor excluded; integrated sidecar resources remain unverified.**
 
 ## Task results
 
@@ -22,6 +22,7 @@
 | 5. Hide/show | PASS | `ShowWindow` + 120ms reharden; final EX style stays `0x080801B8` |
 | 5. Long/Korean text | PASS for wrapping | Korean/English long text wraps inside the card |
 | 5. Text scrolling | NOT VERIFIED | Click-through intentionally passes pointer/wheel input |
+| 5. Named-pipe transport | PASS for PoC | Host pipe server + sidecar client; `hello`/`ready`; 20 show/hide cycles |
 | 6. Resources | PARTIAL | Idle release process: ~169MB WS, ~145MB private, 0 CPU seconds/30s |
 | 7. Decision | PARTIAL | Keep PoC; multi-monitor excluded; integrated sidecar resources remain |
 
@@ -62,26 +63,31 @@ The PoC is a single Rune process. Cue 0.3.1 was measured at 134.1MB WS /
 The integrated sidecar would add a process while the main WebView remains until
 Phase 5, so a net resource win is not established.
 
-## Control-channel harness (stdio, not yet named pipe)
+## Control-channel harness
 
-`scripts/bridge-test.ps1` starts the release sidecar with `--stdio` and exercises
-the future host/sidecar messages. This validates message semantics and the
-offscreen lifecycle, not the final named-pipe transport.
+`scripts/bridge-pipe-test.ps1` starts `bridge_host.exe`, which creates a named
+pipe server, starts the sidecar as the client, sends `hello`, waits for `ready`
+after hardening, and runs 20 show/hide cycles. `scripts/bridge-test.ps1` keeps
+the stdio path for comparison.
 
 | Measurement | Result |
 |---|---|
-| `ready` | 1,376ms (includes Rune startup + 350ms hardening) |
-| `show` ack | 265ms (includes 150ms style-settle wait) |
-| `hide` ack | 63ms (includes 20ms settle) |
+| `ready` | 656ms in the stdio run; included Rune startup + hardening |
+| `show` ack | 254ms (includes 150ms style-settle wait) |
+| 20 show/hide cycles | 6,374ms |
 | Show state | affinity `0x11`, `visible=true` |
 | Hide state | affinity `0x11`, `visible=false` |
-| Sidecar WS / private | 135.7MB / 124.8MB |
-| Sidecar CPU at ready | 0.266s |
+| Sidecar WS / private | 135.4MB / 124.4MB |
+| Sidecar CPU at ready | 0.281s |
 | Sidecar process count | 1 |
 
-The 265ms show ack is not the real UI latency; the harness deliberately waits
-for Rune's queued show styles to drain before acknowledging. Production should
-use an event-driven ack instead of a fixed sleep.
+The 254ms show ack is not real UI latency; the harness deliberately waits for
+Rune's queued show styles to drain before acknowledging. Production should use
+an event-driven ack instead of a fixed sleep.
+
+The pipe is randomly named and local, but this PoC still uses the default pipe
+DACL and a line protocol. Production needs a current-user ACL, JSON framing, and
+read timeouts.
 
 ## Decision
 
@@ -92,7 +98,7 @@ offscreen creation and native hide/show. These gates remain:
 - Measure the integrated sidecar + Tauri host, not the standalone PoC.
 - Decide whether long text needs interactive scrolling or only wrapping.
 - Design the bridge lifecycle/fallback around the offscreen prewarm model.
-- Replace the stdio harness with the named-pipe transport and event-driven ack.
+- Add a current-user pipe ACL, JSON framing, and read timeouts for production.
 
 Do not proceed to Phase 2 production integration until the integrated resource
 gate is reviewed. Multi-monitor remains excluded by user request.

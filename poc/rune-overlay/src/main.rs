@@ -1,4 +1,6 @@
-use std::io::{BufRead, Write};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Write};
+use std::os::windows::io::FromRawHandle;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -8,7 +10,11 @@ use rune::{
     AppSpec, Color, Cx, El, ScrollSpec, WindowHandle, WindowOptions, WindowSpec, col, el,
     run_windows, text,
 };
-use windows::Win32::Foundation::HWND;
+use windows::core::PCWSTR;
+use windows::Win32::Foundation::{GENERIC_READ, GENERIC_WRITE, HWND};
+use windows::Win32::Storage::FileSystem::{
+    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     GWL_EXSTYLE, GetWindowDisplayAffinity, GetWindowLongPtrW, IsWindowVisible, SWP_FRAMECHANGED,
     SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, SetWindowDisplayAffinity,
@@ -60,8 +66,9 @@ static NO_WDA: AtomicBool = AtomicBool::new(false);
 static AUTO_HIDE: AtomicBool = AtomicBool::new(false);
 static AUTO_STAGE: AtomicBool = AtomicBool::new(false);
 static AUTO_DONE: AtomicBool = AtomicBool::new(false);
-static STDIO: AtomicBool = AtomicBool::new(false);
-static STDIO_READY: AtomicBool = AtomicBool::new(false);
+static READY: AtomicBool = AtomicBool::new(false);
+static PIPE_MODE: AtomicBool = AtomicBool::new(false);
+static PIPE_WRITER: OnceLock<Mutex<Option<File>>> = OnceLock::new();
 
 fn live_hwnd() -> Option<HWND> {
     let raw = LIVE_HWND
@@ -111,21 +118,103 @@ fn live_state() -> Option<(u32, bool)> {
     }
 }
 
-fn write_line(line: &str) {
+fn send_line(line: &str) {
+    let mut pipe_result = None;
+    if let Some(slot) = PIPE_WRITER.get() {
+        if let Ok(mut guard) = slot.lock() {
+            if let Some(out) = guard.as_mut() {
+                // Pipe writes are synchronous; FlushFileBuffers can block until
+                // the host drains the pipe, so do not flush the pipe writer.
+                pipe_result = Some(writeln!(out, "{line}"));
+            }
+        }
+    }
+    if let Some(result) = pipe_result {
+        if let Err(error) = result {
+            log(&format!("pipe write failed: {error}"));
+        }
+        return;
+    }
     let mut out = std::io::stdout().lock();
     let _ = writeln!(out, "{line}");
     let _ = out.flush();
 }
 
-fn signal_stdio_ready() {
-    if STDIO.load(Ordering::SeqCst) && !STDIO_READY.swap(true, Ordering::SeqCst) {
-        write_line("ready");
+fn signal_ready() {
+    // Pipe mode acknowledges a host `hello` after hardening, so the host never
+    // receives an early ready before a live HWND exists.
+    if PIPE_MODE.load(Ordering::SeqCst) {
+        return;
+    }
+    if !READY.swap(true, Ordering::SeqCst) {
+        send_line("ready");
     }
 }
 
-fn stdio_loop() {
-    let stdin = std::io::stdin();
-    for line in stdin.lock().lines() {
+fn pipe_path(name: &str) -> String {
+    if name.starts_with("\\\\.\\pipe\\") {
+        name.to_string()
+    } else {
+        format!("\\\\.\\pipe\\{name}")
+    }
+}
+
+fn wide(value: &str) -> Vec<u16> {
+    value.encode_utf16().chain(Some(0)).collect()
+}
+
+fn connect_pipe(name: &str) -> Result<File, String> {
+    let path = pipe_path(name);
+    let path = wide(&path);
+    let start = Instant::now();
+    loop {
+        let handle = unsafe {
+            CreateFileW(
+                PCWSTR(path.as_ptr()),
+                GENERIC_READ.0 | GENERIC_WRITE.0,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                None,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                None,
+            )
+        };
+        match handle {
+            Ok(handle) => return Ok(unsafe { File::from_raw_handle(handle.0) }),
+            Err(error) if start.elapsed() < Duration::from_secs(5) => {
+                log(&format!("pipe connect retry: {error}"));
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(error) => return Err(format!("pipe connect: {error}")),
+        }
+    }
+}
+
+fn handle_pipe(name: String) {
+    let file = match connect_pipe(&name) {
+        Ok(file) => file,
+        Err(error) => {
+            log(&format!("pipe failed: {error}"));
+            std::process::exit(1);
+        }
+    };
+    let writer = match file.try_clone() {
+        Ok(writer) => writer,
+        Err(error) => {
+            log(&format!("pipe clone failed: {error}"));
+            std::process::exit(1);
+        }
+    };
+    *PIPE_WRITER
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+        .expect("pipe writer") = Some(writer);
+    log("pipe connected");
+    command_loop(BufReader::new(file));
+}
+
+fn command_loop<R: BufRead>(reader: R) {
+    for line in reader.lines() {
         let Ok(line) = line else {
             break;
         };
@@ -137,26 +226,38 @@ fn stdio_loop() {
                 std::thread::sleep(Duration::from_millis(150));
                 reharden_live();
                 match live_state() {
-                    Some((affinity, visible)) => write_line(&format!(
+                    Some((affinity, visible)) => send_line(&format!(
                         "ack show affinity=0x{affinity:x} visible={visible}"
                     )),
-                    None => write_line("ack show affinity=0x0 visible=false"),
+                    None => send_line("ack show affinity=0x0 visible=false"),
                 }
             }
             "hide" => {
                 set_live_visible(false);
                 std::thread::sleep(Duration::from_millis(20));
                 match live_state() {
-                    Some((affinity, visible)) => write_line(&format!(
+                    Some((affinity, visible)) => send_line(&format!(
                         "ack hide affinity=0x{affinity:x} visible={visible}"
                     )),
-                    None => write_line("ack hide affinity=0x0 visible=false"),
+                    None => send_line("ack hide affinity=0x0 visible=false"),
                 }
             }
-            "ping" => write_line("pong"),
+            "hello" => {
+                let start = Instant::now();
+                while !HARDENED.load(Ordering::SeqCst) && start.elapsed() < Duration::from_secs(10) {
+                    std::thread::sleep(Duration::from_millis(50));
+                }
+                READY.store(true, Ordering::SeqCst);
+                if live_hwnd().is_some() {
+                    send_line("ready");
+                } else {
+                    send_line("error hardening");
+                }
+            }
+            "ping" => send_line("pong"),
             "quit" => std::process::exit(0),
             "" => {}
-            other => write_line(&format!("error unknown_command={other}")),
+            other => send_line(&format!("error unknown_command={other}")),
         }
     }
 }
@@ -295,7 +396,7 @@ fn apply_overlay_styles() {
                     .expect("live hwnd")
                     .replace(raw_hwnd);
                 log("apply_overlay_styles ok");
-                signal_stdio_ready();
+                signal_ready();
             }
             Ok(Err(error)) | Err(error) => {
                 log(&format!("overlay hardening failed: {error}"));
@@ -528,15 +629,24 @@ fn spec() -> AppSpec<State> {
 
 fn main() {
     let mode = OverlayMode::from_env();
-    let stdio = std::env::args().any(|arg| arg == "--stdio");
-    STDIO.store(stdio, Ordering::SeqCst);
+    let args: Vec<String> = std::env::args().collect();
+    let stdio = args.iter().any(|arg| arg == "--stdio");
+    let pipe = args
+        .iter()
+        .position(|arg| arg == "--pipe")
+        .and_then(|index| args.get(index + 1))
+        .cloned();
     NO_WDA.store(std::env::var_os("RUNE_POC_NO_WDA").is_some(), Ordering::SeqCst);
     AUTO_HIDE.store(std::env::var_os("RUNE_POC_AUTOHIDE").is_some(), Ordering::SeqCst);
-    if stdio {
-        std::thread::spawn(stdio_loop);
+    if let Some(name) = pipe.clone() {
+        PIPE_MODE.store(true, Ordering::SeqCst);
+        std::thread::spawn(move || handle_pipe(name));
+    } else if stdio {
+        std::thread::spawn(|| command_loop(std::io::stdin().lock()));
     }
+    let headless = stdio || pipe.is_some();
     run_windows(move |displays| {
-        let mut windows = if stdio {
+        let mut windows = if headless {
             Vec::new()
         } else {
             vec![WindowSpec::new("controls", spec()).state(init())]
@@ -575,3 +685,13 @@ fn main() {
     });
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pipe_path_is_namespaced_once() {
+        assert_eq!(pipe_path("abc"), "\\\\.\\pipe\\abc");
+        assert_eq!(pipe_path("\\\\.\\pipe\\abc"), "\\\\.\\pipe\\abc");
+    }
+}

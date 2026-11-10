@@ -9,5 +9,9 @@ rune = { git = "https://github.com/anomalyco/rune", rev = "2bc3179d08355a8bb08fa
 raw-window-handle = "0.6"
 windows = { version = "0.61", features = [
   "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Storage_FileSystem",
+  "Win32_System_IO",
+  "Win32_System_Pipes",
   "Win32_UI_WindowsAndMessaging",
 ] }

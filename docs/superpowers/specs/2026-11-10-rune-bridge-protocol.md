@@ -1,7 +1,7 @@
 # Rune Bridge Protocol (Phase 1)
 
 **Date:** 2026-11-10  
-**Status:** Proposed  
+**Status:** Proposed. PoC transport verified with a line-command named pipe; JSON framing and the current-user ACL remain production gates.  
 **Scope:** Tauri host ↔ one Rune UI sidecar. Overlay first; settings later.
 
 ## 1. Purpose

@@ -37,27 +37,42 @@ The selected lifecycle is:
 4. Move it to the target display.
 5. Hide/show with `ShowWindow` and reapply styles after show.
 
-The result is **PARTIAL**: multi-monitor, interactive text scrolling, and the
-integrated sidecar resource cost remain unverified. See `RESULTS.md`.
+The result is **PARTIAL**: multi-monitor is excluded by user request (laptop
+single display), interactive text scrolling is unverified, and the integrated
+sidecar resource cost remains unmeasured. The named-pipe harness passes. See
+`RESULTS.md`.
 
 ## Control-channel harness
 
-`--stdio` runs only the overlay and accepts line commands on stdin:
+The sidecar accepts line commands over stdin (`--stdio`) or a named pipe
+(`--pipe <name>`):
 
 ```text
-show -> ack show affinity=0x11 visible=true
-hide -> ack hide affinity=0x11 visible=false
-ping -> pong
+hello -> ready
+show  -> ack show affinity=0x11 visible=true
+hide  -> ack hide affinity=0x11 visible=false
+ping  -> pong
 quit
 ```
 
-The harness validates the future host/sidecar message semantics without a
-production Tauri change.
+`bridge_host.exe` is the Rust pipe-server harness. It creates a current-process
+pipe, starts the sidecar as the client, sends `hello`, waits for `ready` only
+after the overlay is hardened, then runs 20 show/hide cycles:
 
 ```powershell
-cargo build --release --manifest-path poc/rune-overlay/Cargo.toml
+cargo build --release --manifest-path poc/rune-overlay/Cargo.toml --bins
+powershell -ExecutionPolicy Bypass -File poc/rune-overlay/scripts/bridge-pipe-test.ps1
+```
+
+The stdio harness remains available for comparison:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File poc/rune-overlay/scripts/bridge-test.ps1
 ```
+
+The PoC pipe is local and randomly named, but it still uses the default Windows
+pipe DACL and a line protocol. Production integration still needs an explicit
+current-user ACL, JSON framing, and read timeouts.
 
 ## Test switches
 
