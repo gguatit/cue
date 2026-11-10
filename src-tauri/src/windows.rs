@@ -16,19 +16,13 @@ pub fn set_tool_window(win: &WebviewWindow, hidden: bool) -> Result<(), String> 
             .0,
     );
     unsafe {
-        let current = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
-        let mut style = current;
+        let mut style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
         if hidden {
             style |= WS_EX_TOOLWINDOW.0;
             style &= !WS_EX_APPWINDOW.0;
         } else {
             style &= !WS_EX_TOOLWINDOW.0;
             style |= WS_EX_APPWINDOW.0;
-        }
-        // A redundant SetWindowPos(FRAMECHANGED) can flash the overlay after
-        // show; only touch the native style when it actually changes.
-        if style == current {
-            return Ok(());
         }
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style as isize);
         let _ = SetWindowPos(

@@ -446,28 +446,9 @@ pub fn prepare_admin_copy() -> Result<(), String> {
         stop_service();
     }
     copy_guard(&source, &target, false)?;
-    copy_admin_sidecar(&source, &target);
     restore_admin_runtime(&target)?;
     clear_admin_prepare_failed();
     Ok(())
-}
-
-/// The experimental Rune sidecar must live beside the protected app copy too;
-/// otherwise admin mode silently falls back to the Tauri overlay.
-fn copy_admin_sidecar(source_app: &Path, target_app: &Path) {
-    let (Some(source_dir), Some(target_dir)) = (source_app.parent(), target_app.parent()) else {
-        return;
-    };
-    let source = source_dir.join("rune-overlay-poc.exe");
-    let target = target_dir.join("rune-overlay-poc.exe");
-    if source == target {
-        return;
-    }
-    if source.is_file() {
-        let _ = copy_guard(&source, &target, true);
-    } else {
-        let _ = std::fs::remove_file(target);
-    }
 }
 
 fn resolve_admin_user(stored: Option<String>, current: &str) -> Option<String> {

@@ -22,14 +22,6 @@ pub fn local_quit_flag_path() -> Option<PathBuf> {
     std::env::var_os("LOCALAPPDATA").map(|base| Path::new(&base).join("Cue").join("quit.flag"))
 }
 
-pub fn quit_latch_path() -> Option<PathBuf> {
-    elevation::program_dir().map(|d| d.join("quit.latch"))
-}
-
-pub fn local_quit_latch_path() -> Option<PathBuf> {
-    std::env::var_os("LOCALAPPDATA").map(|base| Path::new(&base).join("Cue").join("quit.latch"))
-}
-
 const QUIT_WINDOW_SECS: u64 = 5;
 
 fn write_quit_flag(path: Option<PathBuf>) {
@@ -68,37 +60,7 @@ pub fn set_quit_flag() {
 }
 
 pub fn quit_flag_active() -> bool {
-    quit_latch_active()
-        || read_quit_flag(local_quit_flag_path())
-        || read_quit_flag(quit_flag_path())
-}
-
-fn write_quit_latch(path: Option<PathBuf>) {
-    let Some(path) = path else { return };
-    if let Some(dir) = path.parent() {
-        let _ = std::fs::create_dir_all(dir);
-    }
-    let _ = std::fs::write(path, b"");
-}
-
-fn latch_active(local: Option<PathBuf>, program: Option<PathBuf>) -> bool {
-    local.is_some_and(|path| path.exists()) || program.is_some_and(|path| path.exists())
-}
-
-fn quit_latch_active() -> bool {
-    latch_active(local_quit_latch_path(), quit_latch_path())
-}
-
-/// A manual launch starts a new session; only then may the guard revive future
-/// crashes again. The persistent latch prevents a 5-second flag from expiring
-/// while the service is between checks.
-pub fn clear_quit_latch() {
-    if let Some(path) = local_quit_latch_path() {
-        let _ = std::fs::remove_file(path);
-    }
-    if let Some(path) = quit_latch_path() {
-        let _ = std::fs::remove_file(path);
-    }
+    read_quit_flag(local_quit_flag_path()) || read_quit_flag(quit_flag_path())
 }
 
 fn clear_quit_flag() {
@@ -150,10 +112,6 @@ pub fn remove_marker() -> Result<(), String> {
 /// Normal Quit clears both markers and records the quit flag so the guard and
 /// the SYSTEM watcher stop.
 pub fn disarm() {
-    // This latch outlives the short-lived quit flag and survives the service
-    // checking before the flag is written.
-    write_quit_latch(local_quit_latch_path());
-    write_quit_latch(quit_latch_path());
     set_quit_flag();
     let _ = remove_marker();
     let _ = elevation::remove_program_marker();
@@ -489,21 +447,6 @@ mod tests {
     #[test]
     fn missing_path_is_not_running() {
         assert!(!process_running(Path::new(r"C:\definitely\missing\cue.exe")));
-    }
-
-    #[test]
-    fn quit_latch_survives_until_explicitly_removed() {
-        let path = std::env::temp_dir().join(format!(
-            "cue-quit-latch-test-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        write_quit_latch(Some(path.clone()));
-        assert!(latch_active(None, Some(path.clone())));
-        std::fs::remove_file(path).unwrap();
     }
 
     #[test]

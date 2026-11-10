@@ -10,7 +10,6 @@ mod guard;
 mod led;
 mod meeting;
 mod models;
-mod rune_bridge;
 mod secrets;
 mod shortcut;
 mod tray;
@@ -119,14 +118,7 @@ fn main() {
         // ProgramData copy instead of elevating the install the user launched.
         if let Ok(current) = std::env::current_exe() {
             if let Ok(target) = elevation::admin_app_for(&current) {
-                // UAC relaunch does not reliably carry the environment; keep
-                // the experimental Rune flag as an explicit argument.
-                let extra = if commands::rune_enabled() {
-                    "--admin-check --rune-overlay"
-                } else {
-                    "--admin-check"
-                };
-                let _ = elevation::relaunch_elevated_exe(&target, extra);
+                let _ = elevation::relaunch_elevated_exe(&target, "--admin-check");
                 return;
             }
         }
@@ -216,7 +208,6 @@ fn main() {
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
-            guard::clear_quit_latch();
             if admin_setup {
                 let exe = std::env::current_exe().map_err(|_| "admin")?;
                 if !elevation::is_admin_path(&exe) {
