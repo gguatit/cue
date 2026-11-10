@@ -1,0 +1,13 @@
+[package]
+name = "rune-overlay-poc"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+rune = { git = "https://github.com/anomalyco/rune", rev = "2bc3179d08355a8bb08fa54b9025780fe848b8f6" }
+raw-window-handle = "0.6"
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+] }
