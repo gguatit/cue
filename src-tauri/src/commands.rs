@@ -459,9 +459,11 @@ pub async fn show_overlay(
         .set_position(tauri::PhysicalPosition::new(x, y))
         .map_err(|_| "capture")?;
     let gen = OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    // Clear the previous answer while hidden; otherwise the old content is
+    // visible for a frame before the new overlay-show event lands.
+    let _ = app.emit_to("overlay", "overlay-clear", ());
     let _ = crate::windows::set_tool_window(&overlay, true);
     overlay.show().map_err(|_| "capture")?;
-    let _ = crate::windows::set_tool_window(&overlay, true);
     // Fail closed: never show an answer on a window the OS will capture.
     if protect && crate::windows::capture_affinity(&overlay).ok() != Some(0x11) {
         let _ = overlay.hide();
@@ -524,7 +526,7 @@ pub fn overlay_ready(
 
 #[tauri::command]
 pub fn hide_overlay(app: tauri::AppHandle, state: tauri::State<'_, AppState>) {
-    use tauri::Manager;
+    use tauri::{Emitter, Manager};
     OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     if let Ok(mut delivery) = state.overlay_state.lock() {
         delivery.pending = None;
@@ -532,6 +534,8 @@ pub fn hide_overlay(app: tauri::AppHandle, state: tauri::State<'_, AppState>) {
     if let Some(w) = app.get_webview_window("overlay") {
         let _ = w.hide();
     }
+    // Drop stale answer content before the next show.
+    let _ = app.emit_to("overlay", "overlay-clear", ());
 }
 
 #[tauri::command]

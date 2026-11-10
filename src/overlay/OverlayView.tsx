@@ -25,15 +25,17 @@ export default function OverlayView() {
   const t = useT()
   const [p, setP] = useState<Payload | null>(null)
   useEffect(() => {
-    const un = listenEvent<Payload>('overlay-show', (e) => setP(e.payload))
-    void un.then((off) => {
+    const show = listenEvent<Payload>('overlay-show', (e) => setP(e.payload))
+    const clear = listenEvent<null>('overlay-clear', () => setP(null))
+    void show.then((off) => {
       // The overlay is created on first use. Tell Rust the listener is ready
       // so the first answer is delivered instead of being lost during load.
       void overlayReady().catch(() => {})
       return off
     })
     return () => {
-      void un.then((f) => f())
+      void show.then((f) => f())
+      void clear.then((f) => f())
     }
   }, [])
   if (!p) return null
