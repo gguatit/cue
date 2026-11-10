@@ -91,7 +91,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.4.0**.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.4.1**.
 - 릴리스는 GitHub Actions 없이 수동으로 진행한다.
   1. `npm run check`, `npm test`, Rust 변경 시 `cargo test`.
   2. 서명 키 환경 변수를 설정하고 `npm run tauri build`.
@@ -103,7 +103,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 첫 업데이터 릴리스(0.1.2)는 0.1.0/0.1.1 사용자가 한 번 직접 설치해야 한다. 이후 버전은 설정 → 정보에서 자동으로 확인·설치할 수 있다.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.4.0 코드 검증: `npm run check`, `npm test`(203), `cargo test`(157). Rune PoC는 `cargo test --manifest-path poc/rune-overlay/Cargo.toml`(3)를 함께 확인한다.
+- 0.4.1 코드 검증: `npm run check`, `npm test`(203), `cargo test`(157). Rune PoC는 `cargo test --manifest-path poc/rune-overlay/Cargo.toml`(3)를 함께 확인한다.
 - Rune 오버레이는 **실험 기능**이다. `CUE_RUNE_OVERLAY=1`과 `CUE_RUNE_SIDECAR`가 모두 있을 때만 사용하고, 없거나 실패하면 Tauri 오버레이로 돌아간다. 사이드카는 아직 설치 파일에 패키징되지 않았으므로 0.4.0에서 공개 릴리스하지 않는다.
 - 보안 탭 자동 갱신은 `src/lib/securityAutoRefresh.ts`에서 5분 캐시한다. 새로고침 버튼과 보호 복구는 강제 갱신을 사용한다.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
