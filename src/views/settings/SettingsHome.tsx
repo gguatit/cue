@@ -1,7 +1,9 @@
 import { lazy, Suspense } from 'react'
+import { motion } from 'motion/react'
 import { BookOpen, Crosshair, Info, Settings, Shield, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useT } from '../../i18n'
+import { fade, springSoft } from '../../lib/motion'
 import { useUi } from '../../stores/ui'
 
 const AboutTab = lazy(() => import('./AboutTab'))
@@ -90,18 +92,23 @@ export default function SettingsHome() {
                 aria-label={label}
                 title={label}
                 onClick={() => setTab(id)}
-                className={`flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-[760px]:justify-center max-[760px]:px-0 ${
-                  active
-                    ? 'bg-surface-3/80 font-medium text-ink'
-                    : 'text-ink-2 hover:bg-surface-3/60 hover:text-ink'
+                className={`relative flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-[760px]:justify-center max-[760px]:px-0 ${
+                  active ? 'font-medium text-ink' : 'text-ink-2 hover:bg-surface-3/60 hover:text-ink'
                 }`}
               >
+                {active && (
+                  <motion.span
+                    layoutId="settings-active"
+                    transition={springSoft}
+                    className="absolute inset-0 rounded-[10px] bg-surface-3/80"
+                  />
+                )}
                 <Icon
                   size={17}
                   aria-hidden="true"
-                  className={active ? 'text-accent' : 'text-ink-3'}
+                  className={`relative ${active ? 'text-accent' : 'text-ink-3'}`}
                 />
-                <span className="truncate max-[760px]:hidden">{label}</span>
+                <span className="relative truncate max-[760px]:hidden">{label}</span>
               </button>
             )
           })}
@@ -120,28 +127,35 @@ export default function SettingsHome() {
               {t(...DESCRIPTIONS[activeTab])}
             </p>
           </header>
-          <Suspense
-            fallback={
-              <div className="space-y-3" aria-hidden="true">
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="rounded-[14px] bg-surface p-4 ring-1 ring-separator/70"
-                  >
-                    <div className="h-3 w-24 rounded bg-surface-3" />
-                    <div className="mt-4 h-10 rounded bg-surface-2" />
-                  </div>
-                ))}
-              </div>
-            }
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={fade}
           >
-            {tab === 'general' && <GeneralTab />}
-            {tab === 'mode' && <ModeTab />}
-            {tab === 'ai' && <AiTab />}
-            {tab === 'security' && <SecurityTab />}
-            {tab === 'help' && <HelpTab />}
-            {tab === 'about' && <AboutTab />}
-          </Suspense>
+            <Suspense
+              fallback={
+                <div className="space-y-3" aria-hidden="true">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="rounded-[14px] bg-surface p-4 ring-1 ring-separator/70"
+                    >
+                      <div className="h-3 w-24 rounded bg-surface-3" />
+                      <div className="mt-4 h-10 rounded bg-surface-2" />
+                    </div>
+                  ))}
+                </div>
+              }
+            >
+              {tab === 'general' && <GeneralTab />}
+              {tab === 'mode' && <ModeTab />}
+              {tab === 'ai' && <AiTab />}
+              {tab === 'security' && <SecurityTab />}
+              {tab === 'help' && <HelpTab />}
+              {tab === 'about' && <AboutTab />}
+            </Suspense>
+          </motion.div>
         </div>
       </main>
     </div>

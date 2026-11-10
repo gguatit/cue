@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'motion/react'
 import { listenEvent, overlayReady, type Verification } from '../lib/tauri'
 import { useT } from '../i18n'
+import { fadeFast } from '../lib/motion'
 
 interface Payload {
   answer: string
@@ -40,7 +42,12 @@ export default function OverlayView() {
   const badge = verificationLabel(p.verification, t)
   if (p.style === 'flash') {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black/55">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={fadeFast}
+        className="fixed inset-0 flex items-center justify-center bg-black/55"
+      >
         <span className="font-black leading-none text-white" style={{ fontSize: '22vw' }}>
           {p.answer}
         </span>
@@ -49,14 +56,19 @@ export default function OverlayView() {
             {badge}
           </span>
         )}
-      </div>
+      </motion.div>
     )
   }
   if (p.style === 'text') {
     const text = p.text ?? p.answer
     const long = text.length > 160
     return (
-      <div className="fixed inset-0 p-2">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={fadeFast}
+        className="fixed inset-0 p-2"
+      >
         <div
           className={`overlay-glass h-full w-full overflow-y-auto overscroll-contain whitespace-pre-wrap break-words rounded-xl p-5 text-[#111] leading-relaxed ${
             long ? 'text-[14px]' : 'text-[18px]'
@@ -64,11 +76,16 @@ export default function OverlayView() {
         >
           {text}
         </div>
-      </div>
+      </motion.div>
     )
   }
   return (
-    <div className="fixed inset-0 flex flex-col p-2">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={fadeFast}
+      className="fixed inset-0 flex flex-col p-2"
+    >
       <span className="overlay-glass flex w-full min-w-0 flex-1 items-center justify-center break-words rounded-xl px-2 text-center text-4xl font-bold text-[#0b0b0e]">
         {p.answer}
       </span>
@@ -77,6 +94,6 @@ export default function OverlayView() {
           {badge}
         </span>
       )}
-    </div>
+    </motion.div>
   )
 }

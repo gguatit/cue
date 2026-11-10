@@ -1,9 +1,7 @@
-import type {
-  ButtonHTMLAttributes,
-  InputHTMLAttributes,
-  ReactNode,
-  SelectHTMLAttributes,
-} from 'react'
+import { useId } from 'react'
+import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
+import { motion, type HTMLMotionProps } from 'motion/react'
+import { springSnappy } from '../lib/motion'
 
 const fieldClass =
   'w-full rounded-[10px] border border-separator/80 bg-surface-2 px-3 py-2 text-[13px] text-ink transition-colors placeholder:text-ink-3 focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50'
@@ -11,22 +9,21 @@ const fieldClass =
 type ButtonVariant = 'primary' | 'secondary' | 'danger'
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  primary:
-    'bg-accent text-[var(--color-accent-contrast)] hover:bg-accent-strong active:scale-[0.98]',
-  secondary:
-    'bg-surface-2 text-ink ring-1 ring-separator/70 hover:bg-surface-3 active:scale-[0.98]',
-  danger:
-    'bg-danger/10 text-danger ring-1 ring-danger/20 hover:bg-danger/15 active:scale-[0.98]',
+  primary: 'bg-accent text-[var(--color-accent-contrast)] hover:bg-accent-strong',
+  secondary: 'bg-surface-2 text-ink ring-1 ring-separator/70 hover:bg-surface-3',
+  danger: 'bg-danger/10 text-danger ring-1 ring-danger/20 hover:bg-danger/15',
 }
 
 export function Button({
   variant = 'secondary',
   className = '',
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
+}: HTMLMotionProps<'button'> & { variant?: ButtonVariant }) {
   return (
-    <button
-      className={`inline-flex h-8 items-center justify-center rounded-[9px] px-3 text-[13px] font-medium transition-[background-color,box-shadow,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40 ${BUTTON_STYLES[variant]} ${className}`}
+    <motion.button
+      whileTap={{ scale: 0.98 }}
+      transition={springSnappy}
+      className={`inline-flex h-8 items-center justify-center rounded-[9px] px-3 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40 ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}
     />
   )
@@ -109,10 +106,10 @@ export function Switch({
       className="flex h-[26px] w-[44px] shrink-0 items-center rounded-full border border-separator/70 p-[3px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
       style={{ backgroundColor: checked ? 'var(--color-accent)' : 'var(--color-surface-3)' }}
     >
-      <span
-        className={`h-5 w-5 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform duration-150 ${
-          checked ? 'translate-x-[16px]' : ''
-        }`}
+      <motion.span
+        animate={{ x: checked ? 16 : 0 }}
+        transition={springSnappy}
+        className="h-5 w-5 rounded-full bg-white shadow-sm ring-1 ring-black/5"
       />
     </button>
   )
@@ -129,27 +126,36 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void
   label: string
 }) {
+  const id = useId()
   return (
     <div
       role="group"
       aria-label={label}
       className="inline-flex rounded-[9px] bg-surface-2 p-0.5 ring-1 ring-separator/70"
     >
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={value === option.value}
-          onClick={() => onChange(option.value)}
-          className={`h-7 rounded-[7px] px-2.5 text-[12px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
-            value === option.value
-              ? 'bg-surface-3 font-medium text-ink shadow-sm'
-              : 'text-ink-2 hover:text-ink'
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
+      {options.map((option) => {
+        const selected = value === option.value
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(option.value)}
+            className={`relative h-7 rounded-[7px] px-2.5 text-[12px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
+              selected ? 'font-medium text-ink' : 'text-ink-2 hover:text-ink'
+            }`}
+          >
+            {selected && (
+              <motion.span
+                layoutId={`segmented-${id}`}
+                transition={springSnappy}
+                className="absolute inset-0 rounded-[7px] bg-surface-3 shadow-sm"
+              />
+            )}
+            <span className="relative z-10">{option.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -195,10 +201,10 @@ export function Toggle({
           checked ? 'border-accent bg-accent' : 'border-separator/70 bg-surface-3'
         }`}
       >
-        <span
-          className={`h-5 w-5 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform duration-150 ${
-            checked ? 'translate-x-[16px]' : ''
-          }`}
+        <motion.span
+          animate={{ x: checked ? 16 : 0 }}
+          transition={springSnappy}
+          className="h-5 w-5 rounded-full bg-white shadow-sm ring-1 ring-black/5"
         />
       </span>
     </button>

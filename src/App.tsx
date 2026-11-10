@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
+import { MotionConfig } from 'motion/react'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { isTauri } from './lib/tauri'
 import { useSettings } from './stores/settings'
@@ -19,16 +20,17 @@ export default function App() {
     window.addEventListener('contextmenu', blockContextMenu)
     return () => window.removeEventListener('contextmenu', blockContextMenu)
   }, [])
-  if (isTauri() && getCurrentWebviewWindow().label === 'overlay') {
-    return (
-      <Suspense fallback={null}>
-        <OverlayView />
-      </Suspense>
-    )
-  }
   return (
-    <Suspense fallback={<div className="min-h-screen bg-bg" />}>
-      {onboarded ? <SettingsHome /> : <Onboarding />}
-    </Suspense>
+    <MotionConfig reducedMotion="user">
+      {isTauri() && getCurrentWebviewWindow().label === 'overlay' ? (
+        <Suspense fallback={null}>
+          <OverlayView />
+        </Suspense>
+      ) : (
+        <Suspense fallback={<div className="min-h-screen bg-bg" />}>
+          {onboarded ? <SettingsHome /> : <Onboarding />}
+        </Suspense>
+      )}
+    </MotionConfig>
   )
 }

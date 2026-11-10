@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { AnimatePresence } from 'motion/react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import MouseTriggerCard from '../../components/MouseTriggerCard'
@@ -518,18 +519,20 @@ export default function GeneralTab() {
         )}
         {backupMessage && <p className="text-xs text-ink-2">{backupMessage}</p>}
       </SettingsGroup>
-      {pendingImport && (
-        <ConfirmDialog
-          title={t('Apply imported settings?', '가져온 설정을 적용할까요?')}
-          description={t(
-            'This backup changes the AI endpoint, deletes stored history, or enables the guard. Apply it?',
-            '이 백업은 AI 주소를 바꾸거나 저장된 기록을 삭제하거나 보호 기능을 켭니다. 적용할까요?',
-          )}
-          confirmLabel={t('Apply', '적용')}
-          onCancel={() => setPendingImport(null)}
-          onConfirm={() => void confirmImport()}
-        />
-      )}
+      <AnimatePresence>
+        {pendingImport && (
+          <ConfirmDialog
+            title={t('Apply imported settings?', '가져온 설정을 적용할까요?')}
+            description={t(
+              'This backup changes the AI endpoint, deletes stored history, or enables the guard. Apply it?',
+              '이 백업은 AI 주소를 바꾸거나 저장된 기록을 삭제하거나 보호 기능을 켭니다. 적용할까요?',
+            )}
+            confirmLabel={t('Apply', '적용')}
+            onCancel={() => setPendingImport(null)}
+            onConfirm={() => void confirmImport()}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

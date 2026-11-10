@@ -17,6 +17,7 @@ import {
   type AnswerLanguage,
   type AnswerLevel,
 } from '../../stores/settings'
+import { AnimatePresence } from 'motion/react'
 import { useAnswer } from '../../stores/answer'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { Button, Field, Group, GroupHeader, Input, Select, Toggle } from '../../components/ui'
@@ -756,22 +757,24 @@ export default function AiTab() {
           '바꿔 표현을 켜면 추출된 답변 텍스트가 한 번의 추가 재작성 요청으로 프로바이더에 전송됩니다. 화면에는 정리된 답변만 표시되며, 보이지 않는 워터마크 문자와 HTML 태그는 제거됩니다.',
         )}
       </p>
-      {confirmDelete && (
-        <ConfirmDialog
-          title={t('Delete the stored API key?', '저장된 API 키를 삭제할까요?')}
-          description={t(
-            'The key will be removed from the Windows Credential Manager. You can enter it again later.',
-            'Windows 자격증명 관리자에서 키가 삭제됩니다. 나중에 다시 입력할 수 있습니다.',
-          )}
-          confirmLabel={t('Delete', '삭제')}
-          danger
-          onCancel={() => setConfirmDelete(false)}
-          onConfirm={() => {
-            setConfirmDelete(false)
-            void remove()
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {confirmDelete && (
+          <ConfirmDialog
+            title={t('Delete the stored API key?', '저장된 API 키를 삭제할까요?')}
+            description={t(
+              'The key will be removed from the Windows Credential Manager. You can enter it again later.',
+              'Windows 자격증명 관리자에서 키가 삭제됩니다. 나중에 다시 입력할 수 있습니다.',
+            )}
+            confirmLabel={t('Delete', '삭제')}
+            danger
+            onCancel={() => setConfirmDelete(false)}
+            onConfirm={() => {
+              setConfirmDelete(false)
+              void remove()
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

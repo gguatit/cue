@@ -1,5 +1,13 @@
 # 변경 기록
 
+## 0.4.6 — 2026-11-10
+
+UI/UX
+- 설정·온보딩·도움말·다이얼로그에 Motion 기반 spring, layout, presence, interactive motion을 추가했습니다.
+- 사이드바 활성 표시와 세그먼트 선택은 spring layout으로 이동하고, 버튼·토글·다이얼로그·단계 전환은 짧은 spring/fade로 정리했습니다.
+- 답변 오버레이는 은폐성과 지연을 위해 120ms fade만 적용했습니다.
+- `prefers-reduced-motion`에서는 layout/spring을 끄고 최소 fade만 사용합니다.
+
 ## 0.4.5 — 2026-11-10
 
 되돌림

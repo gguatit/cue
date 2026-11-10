@@ -1,5 +1,7 @@
 import { useEffect, useId } from 'react'
+import { motion } from 'motion/react'
 import { useT } from '../i18n'
+import { fadeFast, springSnappy } from '../lib/motion'
 import { Button } from './ui'
 
 export default function ConfirmDialog({
@@ -36,12 +38,23 @@ export default function ConfirmDialog({
   }, [busy, onCancel])
 
   return (
-    <div
+    <motion.div
+      variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 }, exit: { opacity: 0 } }}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={fadeFast}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       role="presentation"
       onClick={() => !busy && onCancel()}
     >
-      <div
+      <motion.div
+        variants={{
+          hidden: { opacity: 0, scale: 0.98, y: 8 },
+          visible: { opacity: 1, scale: 1, y: 0 },
+          exit: { opacity: 0, scale: 0.98, y: 4 },
+        }}
+        transition={springSnappy}
         className="w-full max-w-md rounded-xl border border-zinc-700 bg-surface p-5 shadow-2xl"
         role="dialog"
         aria-modal="true"
@@ -68,7 +81,7 @@ export default function ConfirmDialog({
             {confirmLabel}
           </Button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }

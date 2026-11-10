@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
 import { Button, Field, Group, Input, SectionTitle, Select } from '../../components/ui'
 import { useT } from '../../i18n'
@@ -135,7 +136,16 @@ export default function Onboarding() {
             />
           ))}
         </div>
-        <Group className="space-y-4 p-4">
+        <Group className="p-4">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              className="space-y-4"
+            >
           {step === 0 && (
             <>
               <SectionTitle>{t('Keep the tray icon visible', '트레이 아이콘을 항상 보이게')}</SectionTitle>
@@ -244,6 +254,8 @@ export default function Onboarding() {
               </div>
             </>
           )}
+            </motion.div>
+          </AnimatePresence>
         </Group>
         <div className="flex justify-between px-1">
           <Button

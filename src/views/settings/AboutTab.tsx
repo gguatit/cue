@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AnimatePresence } from 'motion/react'
 import { Button, Group, GroupHeader, Toggle } from '../../components/ui'
 import UpdateConfirmDialog from '../../components/UpdateConfirmDialog'
 import { useT, errorMessage } from '../../i18n'
@@ -275,17 +276,19 @@ export default function AboutTab() {
           </ul>
         )}
       </Group>
-      {confirming && available && (
-        <UpdateConfirmDialog
-          version={available.version}
-          busy={installing}
-          onCancel={() => setConfirming(false)}
-          onConfirm={() => {
-            setConfirming(false)
-            void install()
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {confirming && available && (
+          <UpdateConfirmDialog
+            version={available.version}
+            busy={installing}
+            onCancel={() => setConfirming(false)}
+            onConfirm={() => {
+              setConfirming(false)
+              void install()
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
