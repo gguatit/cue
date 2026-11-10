@@ -62,6 +62,27 @@ The PoC is a single Rune process. Cue 0.3.1 was measured at 134.1MB WS /
 The integrated sidecar would add a process while the main WebView remains until
 Phase 5, so a net resource win is not established.
 
+## Control-channel harness (stdio, not yet named pipe)
+
+`scripts/bridge-test.ps1` starts the release sidecar with `--stdio` and exercises
+the future host/sidecar messages. This validates message semantics and the
+offscreen lifecycle, not the final named-pipe transport.
+
+| Measurement | Result |
+|---|---|
+| `ready` | 1,376ms (includes Rune startup + 350ms hardening) |
+| `show` ack | 265ms (includes 150ms style-settle wait) |
+| `hide` ack | 63ms (includes 20ms settle) |
+| Show state | affinity `0x11`, `visible=true` |
+| Hide state | affinity `0x11`, `visible=false` |
+| Sidecar WS / private | 135.7MB / 124.8MB |
+| Sidecar CPU at ready | 0.266s |
+| Sidecar process count | 1 |
+
+The 265ms show ack is not the real UI latency; the harness deliberately waits
+for Rune's queued show styles to drain before acknowledging. Production should
+use an event-driven ack instead of a fixed sleep.
+
 ## Decision
 
 **PARTIAL.** The main Windows overlay path is proven, including lazy/prewarm via
@@ -71,6 +92,7 @@ offscreen creation and native hide/show. These gates remain:
 - Measure the integrated sidecar + Tauri host, not the standalone PoC.
 - Decide whether long text needs interactive scrolling or only wrapping.
 - Design the bridge lifecycle/fallback around the offscreen prewarm model.
+- Replace the stdio harness with the named-pipe transport and event-driven ack.
 
-Do not proceed to Phase 1 implementation until the multi-monitor and integrated
-resource gates are reviewed.
+Do not proceed to Phase 2 production integration until the multi-monitor and
+integrated resource gates are reviewed.

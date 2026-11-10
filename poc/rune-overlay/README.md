@@ -40,6 +40,25 @@ The selected lifecycle is:
 The result is **PARTIAL**: multi-monitor, interactive text scrolling, and the
 integrated sidecar resource cost remain unverified. See `RESULTS.md`.
 
+## Control-channel harness
+
+`--stdio` runs only the overlay and accepts line commands on stdin:
+
+```text
+show -> ack show affinity=0x11 visible=true
+hide -> ack hide affinity=0x11 visible=false
+ping -> pong
+quit
+```
+
+The harness validates the future host/sidecar message semantics without a
+production Tauri change.
+
+```powershell
+cargo build --release --manifest-path poc/rune-overlay/Cargo.toml
+powershell -ExecutionPolicy Bypass -File poc/rune-overlay/scripts/bridge-test.ps1
+```
+
 ## Test switches
 
 - `RUNE_POC_MODE=offscreen` (default), `visible`, or `hidden`

@@ -1,3 +1,4 @@
+use std::io::{BufRead, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -9,8 +10,8 @@ use rune::{
 };
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::{
-    GWL_EXSTYLE, GetWindowDisplayAffinity, GetWindowLongPtrW, SWP_FRAMECHANGED, SWP_NOACTIVATE,
-    SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, SetWindowDisplayAffinity,
+    GWL_EXSTYLE, GetWindowDisplayAffinity, GetWindowLongPtrW, IsWindowVisible, SWP_FRAMECHANGED,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, SetWindowDisplayAffinity,
     SetWindowLongPtrW, SetWindowPos, ShowWindow, WDA_EXCLUDEFROMCAPTURE, WS_EX_APPWINDOW,
     WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT,
 };
@@ -51,6 +52,7 @@ struct OverlayEntry {
 
 static OVERLAY_HANDLES: OnceLock<Mutex<Vec<OverlayEntry>>> = OnceLock::new();
 static LIVE_OVERLAY: OnceLock<Mutex<Option<WindowHandle>>> = OnceLock::new();
+static LIVE_HWND: OnceLock<Mutex<Option<isize>>> = OnceLock::new();
 static HARDEN_AT: OnceLock<Instant> = OnceLock::new();
 static REHARDEN_AT: OnceLock<Mutex<Option<Instant>>> = OnceLock::new();
 static HARDENED: AtomicBool = AtomicBool::new(false);
@@ -58,18 +60,23 @@ static NO_WDA: AtomicBool = AtomicBool::new(false);
 static AUTO_HIDE: AtomicBool = AtomicBool::new(false);
 static AUTO_STAGE: AtomicBool = AtomicBool::new(false);
 static AUTO_DONE: AtomicBool = AtomicBool::new(false);
+static STDIO: AtomicBool = AtomicBool::new(false);
+static STDIO_READY: AtomicBool = AtomicBool::new(false);
+
+fn live_hwnd() -> Option<HWND> {
+    let raw = LIVE_HWND
+        .get()
+        .and_then(|slot| slot.lock().expect("live hwnd").to_owned())?;
+    Some(HWND(raw as *mut _))
+}
 
 fn set_live_visible(visible: bool) {
-    let Some(slot) = LIVE_OVERLAY.get() else {
-        log("no live overlay");
-        return;
-    };
-    let Some(window) = slot.lock().expect("live overlay").clone() else {
-        log("no live overlay handle");
+    let Some(hwnd) = live_hwnd() else {
+        log("no live hwnd");
         return;
     };
     let start = Instant::now();
-    let result = with_hwnd(&window, |hwnd| unsafe {
+    unsafe {
         let _ = ShowWindow(
             hwnd,
             if visible {
@@ -78,23 +85,79 @@ fn set_live_visible(visible: bool) {
                 SW_HIDE
             },
         );
-        Ok(())
-    });
-    match result {
-        Ok(Ok(())) => {
-            log(&format!(
-                "overlay {} native in {:?}",
-                if visible { "show" } else { "hide" },
-                start.elapsed()
-            ));
-            if visible {
-                // Rune's queued show rewrites the EX styles; harden again after
-                // the show has been drained.
-                *REHARDEN_AT.get_or_init(|| Mutex::new(None)).lock().expect("reharden") =
-                    Some(Instant::now());
-            }
+    }
+    log(&format!(
+        "overlay {} native in {:?}",
+        if visible { "show" } else { "hide" },
+        start.elapsed()
+    ));
+    if visible {
+        // Rune's queued show rewrites the EX styles; harden again after the
+        // show has been drained. Use the stored HWND because WindowHandle's
+        // raw handle is only available on the Rune UI thread.
+        *REHARDEN_AT.get_or_init(|| Mutex::new(None)).lock().expect("reharden") =
+            Some(Instant::now());
+    }
+}
+
+fn live_state() -> Option<(u32, bool)> {
+    let hwnd = live_hwnd()?;
+    unsafe {
+        let mut affinity = 0u32;
+        if GetWindowDisplayAffinity(hwnd, &mut affinity).is_err() {
+            return None;
         }
-        Ok(Err(error)) | Err(error) => log(&format!("overlay visibility failed: {error}")),
+        Some((affinity, IsWindowVisible(hwnd).as_bool()))
+    }
+}
+
+fn write_line(line: &str) {
+    let mut out = std::io::stdout().lock();
+    let _ = writeln!(out, "{line}");
+    let _ = out.flush();
+}
+
+fn signal_stdio_ready() {
+    if STDIO.load(Ordering::SeqCst) && !STDIO_READY.swap(true, Ordering::SeqCst) {
+        write_line("ready");
+    }
+}
+
+fn stdio_loop() {
+    let stdin = std::io::stdin();
+    for line in stdin.lock().lines() {
+        let Ok(line) = line else {
+            break;
+        };
+        match line.trim() {
+            "show" => {
+                set_live_visible(true);
+                // Rune's queued show resets the EX styles; wait for it to drain
+                // before reporting that the protected overlay is usable.
+                std::thread::sleep(Duration::from_millis(150));
+                reharden_live();
+                match live_state() {
+                    Some((affinity, visible)) => write_line(&format!(
+                        "ack show affinity=0x{affinity:x} visible={visible}"
+                    )),
+                    None => write_line("ack show affinity=0x0 visible=false"),
+                }
+            }
+            "hide" => {
+                set_live_visible(false);
+                std::thread::sleep(Duration::from_millis(20));
+                match live_state() {
+                    Some((affinity, visible)) => write_line(&format!(
+                        "ack hide affinity=0x{affinity:x} visible={visible}"
+                    )),
+                    None => write_line("ack hide affinity=0x0 visible=false"),
+                }
+            }
+            "ping" => write_line("pong"),
+            "quit" => std::process::exit(0),
+            "" => {}
+            other => write_line(&format!("error unknown_command={other}")),
+        }
     }
 }
 
@@ -175,7 +238,9 @@ fn apply_overlay_styles() {
             // first frame has had a chance to build.
             window.show();
         }
+        let mut raw_hwnd = 0isize;
         let result = with_hwnd(&window, |hwnd| unsafe {
+            raw_hwnd = hwnd.0 as isize;
             let current = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
             let next = (current
                 | WS_EX_LAYERED.0
@@ -224,7 +289,13 @@ fn apply_overlay_styles() {
                     .lock()
                     .expect("live overlay")
                     .replace(window.clone());
+                LIVE_HWND
+                    .get_or_init(|| Mutex::new(None))
+                    .lock()
+                    .expect("live hwnd")
+                    .replace(raw_hwnd);
                 log("apply_overlay_styles ok");
+                signal_stdio_ready();
             }
             Ok(Err(error)) | Err(error) => {
                 log(&format!("overlay hardening failed: {error}"));
@@ -236,13 +307,10 @@ fn apply_overlay_styles() {
 }
 
 fn reharden_live() {
-    let Some(window) = LIVE_OVERLAY
-        .get()
-        .and_then(|slot| slot.lock().expect("live overlay").clone())
-    else {
+    let Some(hwnd) = live_hwnd() else {
         return;
     };
-    let result = with_hwnd(&window, |hwnd| unsafe {
+    let result = (|| unsafe {
         let current = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
         let next = (current
             | WS_EX_LAYERED.0
@@ -265,13 +333,15 @@ fn reharden_live() {
             SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
                 .map_err(|error| format!("set display affinity: {error}"))?;
         }
-        Ok(())
-    });
+        Ok::<(), String>(())
+    })();
     match result {
-        Ok(Ok(())) => log("reharden_live ok"),
-        Ok(Err(error)) | Err(error) => {
+        Ok(()) => log("reharden_live ok"),
+        Err(error) => {
             log(&format!("reharden_live failed: {error}"));
-            window.hide();
+            unsafe {
+                let _ = ShowWindow(hwnd, SW_HIDE);
+            }
         }
     }
 }
@@ -458,10 +528,19 @@ fn spec() -> AppSpec<State> {
 
 fn main() {
     let mode = OverlayMode::from_env();
+    let stdio = std::env::args().any(|arg| arg == "--stdio");
+    STDIO.store(stdio, Ordering::SeqCst);
     NO_WDA.store(std::env::var_os("RUNE_POC_NO_WDA").is_some(), Ordering::SeqCst);
     AUTO_HIDE.store(std::env::var_os("RUNE_POC_AUTOHIDE").is_some(), Ordering::SeqCst);
+    if stdio {
+        std::thread::spawn(stdio_loop);
+    }
     run_windows(move |displays| {
-        let mut windows = vec![WindowSpec::new("controls", spec()).state(init())];
+        let mut windows = if stdio {
+            Vec::new()
+        } else {
+            vec![WindowSpec::new("controls", spec()).state(init())]
+        };
 
         for (index, display) in displays.iter().enumerate() {
             let home = display.position;
