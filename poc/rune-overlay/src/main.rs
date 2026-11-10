@@ -1,8 +1,12 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use raw_window_handle::RawWindowHandle;
-use rune::{AppSpec, Color, Cx, El, WindowHandle, WindowOptions, WindowSpec, col, el, run_windows, text};
+use rune::{
+    AppSpec, Color, Cx, El, ScrollSpec, WindowHandle, WindowOptions, WindowSpec, col, el,
+    run_windows, text,
+};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::{
     GWL_EXSTYLE, GetWindowDisplayAffinity, GetWindowLongPtrW, SWP_FRAMECHANGED, SWP_NOACTIVATE,
@@ -22,9 +26,38 @@ fn log(message: &str) {
     }
 }
 
-static OVERLAY_HANDLES: OnceLock<Mutex<Vec<WindowHandle>>> = OnceLock::new();
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum OverlayMode {
+    Visible,
+    Hidden,
+    Offscreen,
+}
+
+impl OverlayMode {
+    fn from_env() -> Self {
+        match std::env::var("RUNE_POC_MODE").as_deref() {
+            Ok("hidden") => Self::Hidden,
+            Ok("visible") => Self::Visible,
+            _ => Self::Offscreen,
+        }
+    }
+}
+
+struct OverlayEntry {
+    window: WindowHandle,
+    home: (i32, i32),
+    mode: OverlayMode,
+}
+
+static OVERLAY_HANDLES: OnceLock<Mutex<Vec<OverlayEntry>>> = OnceLock::new();
 static LIVE_OVERLAY: OnceLock<Mutex<Option<WindowHandle>>> = OnceLock::new();
 static HARDEN_AT: OnceLock<Instant> = OnceLock::new();
+static REHARDEN_AT: OnceLock<Mutex<Option<Instant>>> = OnceLock::new();
+static HARDENED: AtomicBool = AtomicBool::new(false);
+static NO_WDA: AtomicBool = AtomicBool::new(false);
+static AUTO_HIDE: AtomicBool = AtomicBool::new(false);
+static AUTO_STAGE: AtomicBool = AtomicBool::new(false);
+static AUTO_DONE: AtomicBool = AtomicBool::new(false);
 
 fn set_live_visible(visible: bool) {
     let Some(slot) = LIVE_OVERLAY.get() else {
@@ -36,29 +69,31 @@ fn set_live_visible(visible: bool) {
         return;
     };
     let start = Instant::now();
-    let result = window.with_raw_handle(|handle| {
-        let RawWindowHandle::Win32(win32) = handle.as_raw() else {
-            return Err("not a Win32 window".to_string());
-        };
-        let hwnd = HWND(win32.hwnd.get() as *mut _);
-        unsafe {
-            let _ = ShowWindow(
-                hwnd,
-                if visible {
-                    SW_SHOWNOACTIVATE
-                } else {
-                    SW_HIDE
-                },
-            );
-        }
+    let result = with_hwnd(&window, |hwnd| unsafe {
+        let _ = ShowWindow(
+            hwnd,
+            if visible {
+                SW_SHOWNOACTIVATE
+            } else {
+                SW_HIDE
+            },
+        );
         Ok(())
     });
     match result {
-        Ok(Ok(())) => log(&format!(
-            "overlay {} native in {:?}",
-            if visible { "show" } else { "hide" },
-            start.elapsed()
-        )),
+        Ok(Ok(())) => {
+            log(&format!(
+                "overlay {} native in {:?}",
+                if visible { "show" } else { "hide" },
+                start.elapsed()
+            ));
+            if visible {
+                // Rune's queued show rewrites the EX styles; harden again after
+                // the show has been drained.
+                *REHARDEN_AT.get_or_init(|| Mutex::new(None)).lock().expect("reharden") =
+                    Some(Instant::now());
+            }
+        }
         Ok(Err(error)) | Err(error) => log(&format!("overlay visibility failed: {error}")),
     }
 }
@@ -73,14 +108,55 @@ fn init() -> State {
     State::default()
 }
 
-fn queue_overlay(window: WindowHandle) {
-    log("queue_overlay");
-    window.show();
+fn with_hwnd<R>(window: &WindowHandle, f: impl FnOnce(HWND) -> R) -> Result<R, String> {
+    window.with_raw_handle(|handle| {
+        let RawWindowHandle::Win32(win32) = handle.as_raw() else {
+            return Err("not a Win32 window".to_string());
+        };
+        Ok(f(HWND(win32.hwnd.get() as *mut _)))
+    })?
+}
+
+fn protect_now(window: &WindowHandle) -> Result<(), String> {
+    if NO_WDA.load(Ordering::SeqCst) {
+        log("WDA skipped for visual capture");
+        return Ok(());
+    }
+    with_hwnd(window, |hwnd| unsafe {
+        SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+            .map_err(|error| format!("set display affinity: {error}"))?;
+        let mut affinity = 0u32;
+        GetWindowDisplayAffinity(hwnd, &mut affinity)
+            .map_err(|error| format!("get display affinity: {error}"))?;
+        log(&format!("initial display affinity {affinity:#x}"));
+        if affinity != WDA_EXCLUDEFROMCAPTURE.0 {
+            return Err(format!("unexpected display affinity {affinity:#x}"));
+        }
+        Ok(())
+    })?
+}
+
+fn queue_overlay(window: WindowHandle, home: (i32, i32), mode: OverlayMode) {
+    log(&format!(
+        "queue_overlay mode={} home={home:?}",
+        match mode {
+            OverlayMode::Visible => "visible",
+            OverlayMode::Hidden => "hidden",
+            OverlayMode::Offscreen => "offscreen",
+        }
+    ));
+    // WDA must be on before any pixel can reach the display. This is safe while
+    // the window is still offscreen or hidden.
+    if let Err(error) = protect_now(&window) {
+        log(&format!("initial WDA failed: {error}"));
+        window.hide();
+        return;
+    }
     OVERLAY_HANDLES
         .get_or_init(|| Mutex::new(Vec::new()))
         .lock()
         .expect("overlay handles")
-        .push(window);
+        .push(OverlayEntry { window, home, mode });
     HARDEN_AT.get_or_init(Instant::now);
 }
 
@@ -88,39 +164,41 @@ fn apply_overlay_styles() {
     let Some(handles) = OVERLAY_HANDLES.get() else {
         return;
     };
-    let drained: Vec<WindowHandle> = {
+    let drained: Vec<OverlayEntry> = {
         let mut guard = handles.lock().expect("overlay handles");
         guard.drain(..).collect()
     };
-    for window in drained {
-        let result = window.with_raw_handle(|handle| {
-            let RawWindowHandle::Win32(win32) = handle.as_raw() else {
-                return Err("not a Win32 window".to_string());
-            };
-            let hwnd = HWND(win32.hwnd.get() as *mut _);
-            unsafe {
-                let current = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
-                let next = (current
-                    | WS_EX_LAYERED.0
-                    | WS_EX_TRANSPARENT.0
-                    | WS_EX_TOOLWINDOW.0
-                    | WS_EX_NOACTIVATE.0)
-                    & !WS_EX_APPWINDOW.0;
-                log(&format!(
-                    "hwnd {:?} current {current:#x} next {next:#x}",
-                    win32.hwnd
-                ));
-                SetWindowLongPtrW(hwnd, GWL_EXSTYLE, next as isize);
-                SetWindowPos(
-                    hwnd,
-                    None,
-                    0,
-                    0,
-                    0,
-                    0,
-                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-                )
-                .map_err(|error| format!("set window pos: {error}"))?;
+    for entry in drained {
+        let OverlayEntry { window, home, mode } = entry;
+        if mode == OverlayMode::Hidden {
+            // Rune's hidden window path is under test: show it only after the
+            // first frame has had a chance to build.
+            window.show();
+        }
+        let result = with_hwnd(&window, |hwnd| unsafe {
+            let current = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
+            let next = (current
+                | WS_EX_LAYERED.0
+                | WS_EX_TRANSPARENT.0
+                | WS_EX_TOOLWINDOW.0
+                | WS_EX_NOACTIVATE.0)
+                & !WS_EX_APPWINDOW.0;
+            log(&format!(
+                "hwnd {:?} current {current:#x} next {next:#x}",
+                hwnd.0
+            ));
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, next as isize);
+            SetWindowPos(
+                hwnd,
+                None,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            )
+            .map_err(|error| format!("set window pos: {error}"))?;
+            if !NO_WDA.load(Ordering::SeqCst) {
                 SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
                     .map_err(|error| format!("set display affinity: {error}"))?;
                 let mut affinity = 0u32;
@@ -135,6 +213,12 @@ fn apply_overlay_styles() {
         });
         match result {
             Ok(Ok(())) => {
+                if mode == OverlayMode::Offscreen {
+                    // The first offscreen frame is built and protected; only
+                    // now move the window over the target display.
+                    window.set_position(home);
+                    log(&format!("moved overlay onscreen to {home:?}"));
+                }
                 LIVE_OVERLAY
                     .get_or_init(|| Mutex::new(None))
                     .lock()
@@ -148,16 +232,99 @@ fn apply_overlay_styles() {
             }
         }
     }
+    HARDENED.store(true, Ordering::SeqCst);
+}
+
+fn reharden_live() {
+    let Some(window) = LIVE_OVERLAY
+        .get()
+        .and_then(|slot| slot.lock().expect("live overlay").clone())
+    else {
+        return;
+    };
+    let result = with_hwnd(&window, |hwnd| unsafe {
+        let current = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
+        let next = (current
+            | WS_EX_LAYERED.0
+            | WS_EX_TRANSPARENT.0
+            | WS_EX_TOOLWINDOW.0
+            | WS_EX_NOACTIVATE.0)
+            & !WS_EX_APPWINDOW.0;
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, next as isize);
+        SetWindowPos(
+            hwnd,
+            None,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+        )
+        .map_err(|error| format!("set window pos: {error}"))?;
+        if !NO_WDA.load(Ordering::SeqCst) {
+            SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+                .map_err(|error| format!("set display affinity: {error}"))?;
+        }
+        Ok(())
+    });
+    match result {
+        Ok(Ok(())) => log("reharden_live ok"),
+        Ok(Err(error)) | Err(error) => {
+            log(&format!("reharden_live failed: {error}"));
+            window.hide();
+        }
+    }
 }
 
 fn poll(_: &mut State, _: f64, tx: &mut rune::Tx) -> bool {
     match HARDEN_AT.get() {
-        Some(at) if at.elapsed() >= Duration::from_millis(350) => apply_overlay_styles(),
-        Some(_) => tx.wake_after(Duration::from_millis(50)),
-        None => {}
+        Some(at) if !HARDENED.load(Ordering::SeqCst) && at.elapsed() >= Duration::from_millis(350) => {
+            apply_overlay_styles()
+        }
+        Some(_) if !HARDENED.load(Ordering::SeqCst) => {
+            tx.wake_after(Duration::from_millis(50));
+            return false;
+        }
+        _ => {}
+    }
+    if let Some(slot) = REHARDEN_AT.get() {
+        let due = *slot.lock().expect("reharden");
+        if let Some(at) = due {
+            if at.elapsed() >= Duration::from_millis(120) {
+                reharden_live();
+                *slot.lock().expect("reharden") = None;
+            } else {
+                tx.wake_after(Duration::from_millis(30));
+            }
+        }
+    }
+    if AUTO_HIDE.load(Ordering::SeqCst) && !AUTO_DONE.load(Ordering::SeqCst) {
+        let at = HARDEN_AT.get().expect("harden time");
+        if !AUTO_STAGE.load(Ordering::SeqCst) && at.elapsed() >= Duration::from_millis(800) {
+            set_live_visible(false);
+            AUTO_STAGE.store(true, Ordering::SeqCst);
+        } else if AUTO_STAGE.load(Ordering::SeqCst) && at.elapsed() >= Duration::from_millis(1400) {
+            set_live_visible(true);
+            AUTO_DONE.store(true, Ordering::SeqCst);
+        } else {
+            tx.wake_after(Duration::from_millis(50));
+        }
     }
     false
 }
+
+const LONG_TEXT: &str = "정답은 B입니다. 긴 설명 텍스트의 줄바꿈과 스크롤을 확인합니다. \
+이 문장은 한국어와 English text를 섞어서 표시합니다. The quick brown fox jumps over the lazy dog. \
+문제의 보기가 길어지거나 설명이 여러 줄이 되더라도 카드 안에서 읽을 수 있어야 합니다. \
+Rune의 텍스트 레이아웃과 스크롤 뷰포트가 실제 오버레이 크기에서 동작하는지 확인하는 샘플입니다. \
+정답은 B입니다. 긴 설명 텍스트의 줄바꿈과 스크롤을 확인합니다. \
+이 문장은 한국어와 English text를 섞어서 표시합니다. The quick brown fox jumps over the lazy dog. \
+문제의 보기가 길어지거나 설명이 여러 줄이 되더라도 카드 안에서 읽을 수 있어야 합니다. \
+Rune의 텍스트 레이아웃과 스크롤 뷰포트가 실제 오버레이 크기에서 동작하는지 확인하는 샘플입니다. \
+정답은 B입니다. 긴 설명 텍스트의 줄바꿈과 스크롤을 확인합니다. \
+이 문장은 한국어와 English text를 섞어서 표시합니다. The quick brown fox jumps over the lazy dog. \
+문제의 보기가 길어지거나 설명이 여러 줄이 되더라도 카드 안에서 읽을 수 있어야 합니다. \
+Rune의 텍스트 레이아웃과 스크롤 뷰포트가 실제 오버레이 크기에서 동작하는지 확인하는 샘플입니다.";
 
 fn view(s: &State, _: &mut Cx<State>) -> El {
     if s.overlay {
@@ -165,10 +332,11 @@ fn view(s: &State, _: &mut Cx<State>) -> El {
             .w_full()
             .h_full()
             .child(
-                el()
+                col()
                     .w(900.0)
                     .h(600.0)
                     .padding(16.0)
+                    .gap(12.0)
                     .radius(10.0)
                     .fill(Color { r: 1.0, g: 1.0, b: 1.0, a: 0.55 })
                     .child(
@@ -179,6 +347,24 @@ fn view(s: &State, _: &mut Cx<State>) -> El {
                                 b: 0.02,
                                 a: 1.0,
                             }),
+                    )
+                    .child(
+                        el()
+                            .w_full()
+                            .grow(1.0)
+                            .min_h(0.0)
+                            .scroll(ScrollSpec { stick_bottom: false })
+                            .child(
+                                text(LONG_TEXT)
+                                    .wrap()
+                                    .w_full()
+                                    .color(Color {
+                                        r: 0.02,
+                                        g: 0.02,
+                                        b: 0.02,
+                                        a: 1.0,
+                                    }),
+                            ),
                     ),
             );
     }
@@ -271,11 +457,27 @@ fn spec() -> AppSpec<State> {
 }
 
 fn main() {
-    run_windows(|displays| {
+    let mode = OverlayMode::from_env();
+    NO_WDA.store(std::env::var_os("RUNE_POC_NO_WDA").is_some(), Ordering::SeqCst);
+    AUTO_HIDE.store(std::env::var_os("RUNE_POC_AUTOHIDE").is_some(), Ordering::SeqCst);
+    run_windows(move |displays| {
         let mut windows = vec![WindowSpec::new("controls", spec()).state(init())];
 
         for (index, display) in displays.iter().enumerate() {
-            let options = WindowOptions::overlay(display);
+            let home = display.position;
+            let mut options = WindowOptions::overlay(display);
+            match mode {
+                OverlayMode::Hidden => options.visible = false,
+                OverlayMode::Offscreen => {
+                    // Leave the display: the first frame is built and protected
+                    // offscreen, then moved onscreen after hardening.
+                    options.position = Some((
+                        display.position.0 - display.size.0 as i32 - 64,
+                        display.position.1,
+                    ));
+                }
+                OverlayMode::Visible => {}
+            }
             windows.push(
                 WindowSpec::new(format!("overlay-{index}"), spec())
                     .state(State {
@@ -283,9 +485,9 @@ fn main() {
                         click_count: 0,
                     })
                     .options(options)
-                    .on_created(|window| {
+                    .on_created(move |window| {
                         log("overlay on_created");
-                        queue_overlay(window);
+                        queue_overlay(window, home, mode);
                     }),
             );
         }

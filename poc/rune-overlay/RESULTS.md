@@ -3,7 +3,7 @@
 **Date:** 2026-11-10  
 **Rune rev:** `2bc3179d08355a8bb08fa54b9025780fe848b8f6`  
 **Machine:** Windows 10/11 x64, 1707×1067 primary display, 144 DPI (150%)  
-**Result:** **PARTIAL — core overlay path works; do not integrate yet.**
+**Result:** **PARTIAL — offscreen prewarm and hide/show pass; multi-monitor and integrated sidecar resources remain unverified.**
 
 ## Task results
 
@@ -11,16 +11,19 @@
 |---|---|---|
 | 1. Scaffold + API gate | PASS | `cargo check` and `cargo build` pass; pinned Rune rev |
 | 2. Transparency | PASS | Semi-transparent card; desktop visible behind it |
-| 2. Click-through | PASS | Overlay covered the control button; count incremented to 1 |
+| 2. Click-through | PASS | Overlay covered the control button; count incremented |
 | 2. Topmost/no-activate | PASS after native fix | `Topmost=True`, `NoActivate=True`, `ToolWindow=True`, `APPWINDOW` removed |
 | 3. WDA | PASS | `GetWindowDisplayAffinity = 0x11`; screen capture contained no overlay |
 | 4. DPI | PASS on single display | 1707×1067 physical, 144 DPI, full-display overlay at 0,0 |
 | 4. Multi-monitor | NOT VERIFIED | Only one display available |
-| 5. Native hide/show | PASS (API only) | hide 1.9ms, show 1.1ms |
-| 5. First visible frame | NOT MEASURED | Native timing does not include Rune's first frame |
-| 5. Long/Korean text | PARTIAL | Korean rendered in the initial visible overlay; long wrapped text not verified |
-| 6. Resources | PARTIAL | Idle release process: 169.0MB WS, 145.5MB private, 0 CPU seconds/30s |
-| 7. Decision | PARTIAL | Keep PoC; fix render/first-frame gates before Phase 1 |
+| 5. Lazy/prewarm creation | PASS via offscreen workaround | Create visible offscreen, build first frame, then move onscreen |
+| 5. Hidden `visible=false` path | REJECTED for integration | Delayed show renders, but Rune's show resets EX styles |
+| 5. First visible frame | PASS | WDA is applied before the offscreen window is moved onscreen |
+| 5. Hide/show | PASS | `ShowWindow` + 120ms reharden; final EX style stays `0x080801B8` |
+| 5. Long/Korean text | PASS for wrapping | Korean/English long text wraps inside the card |
+| 5. Text scrolling | NOT VERIFIED | Click-through intentionally passes pointer/wheel input |
+| 6. Resources | PARTIAL | Idle release process: ~169MB WS, ~145MB private, 0 CPU seconds/30s |
+| 7. Decision | PARTIAL | Keep PoC; multi-monitor and integrated sidecar resources remain |
 
 ## Critical findings
 
@@ -31,14 +34,14 @@
 
 2. **Rune's show path overwrites native styles.**
    Applying styles inside `on_created` was overwritten when Rune processed its
-   queued show. Styles must be applied after Rune's show event. The PoC applies
-   them from the app poll 350ms after creation.
+   queued show. The PoC applies styles after creation and re-applies them after
+   a later `ShowWindow(SW_SHOWNOACTIVATE)`.
 
-3. **A hidden-created overlay (`visible = false`) produced no visible card in this PoC.**
-   With `visible = false`, then `WindowHandle::show()`, the window was visible but
-   no overlay content appeared in captures. `visible = true` rendered the card.
-   The integration design must solve lazy creation / prewarm and first-frame
-   protection without relying on this path.
+3. **Hidden creation is not a safe lazy path.**
+   `visible=false` followed by show can render, but Rune's show resets the
+   native styles and leaves a first-pixel/style gap. The PoC instead creates the
+   overlay **visible offscreen**, builds the first frame, applies WDA and styles,
+   then moves it to the display.
 
 4. **WDA works on the Rune window.**
    The actual screenshot with `WDA_EXCLUDEFROMCAPTURE` showed no overlay card.
@@ -48,9 +51,9 @@
    A click on the overlay card over the control window incremented the control
    counter. No additional hit-test workaround was needed.
 
-6. **Korean text rendered.**
-   The initial visible overlay displayed the Korean string. The long-text panel
-   still needs a dedicated scroll/wrap test.
+6. **Korean text and wrapping render.**
+   Short and long Korean/English text rendered and wrapped. Interactive
+   scrolling is not available while click-through is enabled.
 
 ## Resource note
 
@@ -61,12 +64,13 @@ Phase 5, so a net resource win is not established.
 
 ## Decision
 
-**PARTIAL.** The core overlay proves feasible, but these gates remain:
+**PARTIAL.** The main Windows overlay path is proven, including lazy/prewarm via
+offscreen creation and native hide/show. These gates remain:
 
-- Fix hidden/lazy creation and first visible frame timing.
-- Prove WDA remains applied before the first visible pixel.
-- Add a real long-text scroll/wrap panel and verify Korean/English.
 - Verify multi-monitor and negative coordinates on a two-display system.
-- Measure integrated sidecar + Tauri host resources, not the standalone PoC.
+- Measure the integrated sidecar + Tauri host, not the standalone PoC.
+- Decide whether long text needs interactive scrolling or only wrapping.
+- Design the bridge lifecycle/fallback around the offscreen prewarm model.
 
-Do not proceed to Phase 1 bridge implementation until these pass.
+Do not proceed to Phase 1 implementation until the multi-monitor and integrated
+resource gates are reviewed.

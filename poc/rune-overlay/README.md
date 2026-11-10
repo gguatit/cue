@@ -25,6 +25,25 @@ Verified against the pinned Rune revision:
 
 ## Status
 
-Core transparency, click-through, topmost/no-activate, WDA, and single-monitor DPI pass.
-The result is **PARTIAL**: hidden/lazy overlay creation, long-text scrolling, multi-monitor,
-and first-visible-frame timing remain unverified. See `RESULTS.md`.
+Core transparency, click-through, topmost/no-activate, WDA, single-monitor DPI,
+offscreen lazy/prewarm creation, native hide/show with rehardening, and Korean
+long-text wrapping pass.
+
+The selected lifecycle is:
+
+1. Create the overlay **visible offscreen**.
+2. Apply WDA before moving it onscreen.
+3. Build/harden the first frame.
+4. Move it to the target display.
+5. Hide/show with `ShowWindow` and reapply styles after show.
+
+The result is **PARTIAL**: multi-monitor, interactive text scrolling, and the
+integrated sidecar resource cost remain unverified. See `RESULTS.md`.
+
+## Test switches
+
+- `RUNE_POC_MODE=offscreen` (default), `visible`, or `hidden`
+- `RUNE_POC_NO_WDA=1` to make the overlay visible in screenshots
+- `RUNE_POC_AUTOHIDE=1` to hide/show automatically for lifecycle testing
+- `scripts/inspect-window.ps1` prints Win32 styles, position, and WDA
+- `scripts/capture-screen.ps1` saves a desktop screenshot
