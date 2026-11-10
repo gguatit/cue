@@ -295,7 +295,7 @@ pub async fn capture_and_answer(
     let work = async {
     crate::ai::validate_base_url(&preset, &base_url)?;
     let key = provider_key(&preset, &base_url)?;
-    if prepare_overlay {
+    if prepare_overlay && !rune_enabled() {
         // Create the overlay on the main thread without blocking capture/AI.
         let overlay_app = app.clone();
         let _ = app.run_on_main_thread(move || {

@@ -981,6 +981,9 @@ fn check_spec(
 }
 
 fn prewarm_overlay(ctx: &HookCtx) {
+    if crate::commands::rune_enabled() {
+        return;
+    }
     let app = ctx.app.clone();
     let overlay_app = app.clone();
     let _ = app.run_on_main_thread(move || {
