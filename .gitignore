@@ -23,6 +23,7 @@ public/test-exam.html
 
 # local build artifacts kept for convenience
 artifacts/
+src-tauri/binaries/*.exe
 
 # IDE / OS
 .vscode/

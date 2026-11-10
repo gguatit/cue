@@ -10,6 +10,7 @@
     "check": "tsc --noEmit",
     "test": "vitest run",
     "tauri": "tauri",
+    "sidecar": "powershell -ExecutionPolicy Bypass -File scripts/build-sidecar.ps1",
     "icon": "node scripts/make-icon.mjs && tauri icon app-icon.png"
   },
   "dependencies": {
