@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
 import { motion, type HTMLMotionProps } from 'motion/react'
-import { springSnappy } from '../lib/motion'
+import { layoutSpring, micro } from '../lib/motion'
 
 const fieldClass =
   'w-full rounded-[10px] border border-separator/80 bg-surface-2 px-3 py-2 text-[13px] text-ink transition-colors placeholder:text-ink-3 focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50'
@@ -21,8 +21,8 @@ export function Button({
 }: HTMLMotionProps<'button'> & { variant?: ButtonVariant }) {
   return (
     <motion.button
-      whileTap={{ scale: 0.98 }}
-      transition={springSnappy}
+      whileTap={{ scale: 0.975 }}
+      transition={micro}
       className={`inline-flex h-8 items-center justify-center rounded-[9px] px-3 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40 ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}
     />
@@ -108,7 +108,7 @@ export function Switch({
     >
       <motion.span
         animate={{ x: checked ? 16 : 0 }}
-        transition={springSnappy}
+        transition={micro}
         className="h-5 w-5 rounded-full bg-white shadow-sm ring-1 ring-black/5"
       />
     </button>
@@ -148,7 +148,7 @@ export function SegmentedControl<T extends string>({
             {selected && (
               <motion.span
                 layoutId={`segmented-${id}`}
-                transition={springSnappy}
+                transition={layoutSpring}
                 className="absolute inset-0 rounded-[7px] bg-surface-3 shadow-sm"
               />
             )}
@@ -203,7 +203,7 @@ export function Toggle({
       >
         <motion.span
           animate={{ x: checked ? 16 : 0 }}
-          transition={springSnappy}
+          transition={micro}
           className="h-5 w-5 rounded-full bg-white shadow-sm ring-1 ring-black/5"
         />
       </span>

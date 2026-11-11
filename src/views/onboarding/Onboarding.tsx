@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
 import { Button, Field, Group, Input, SectionTitle, Select } from '../../components/ui'
 import { useT } from '../../i18n'
@@ -7,6 +7,7 @@ import { hasApiKey, openTaskbarSettings, setApiKey, trayIconShown } from '../../
 import { isLoopbackUrl } from '../../lib/localEndpoint'
 import { PRESETS, useSettings } from '../../stores/settings'
 import { useAnswer } from '../../stores/answer'
+import { layoutSpring } from '../../lib/motion'
 
 const STEPS = 4
 
@@ -127,23 +128,27 @@ export default function Onboarding() {
           </button>
         </div>
         <div className="flex gap-1.5 px-1">
-          {Array.from({ length: STEPS }, (_, i) => (
-            <span
-              key={i}
-              className={`h-1.5 rounded-full transition-all ${
-                i === step ? 'w-6 bg-accent' : i < step ? 'w-1.5 bg-accent/40' : 'w-1.5 bg-surface-3'
-              }`}
-            />
-          ))}
+          <LayoutGroup>
+            {Array.from({ length: STEPS }, (_, i) => (
+              <motion.span
+                key={i}
+                layout
+                transition={layoutSpring}
+                className={`h-1.5 rounded-full ${
+                  i === step ? 'w-6 bg-accent' : i < step ? 'w-1.5 bg-accent/40' : 'w-1.5 bg-surface-3'
+                }`}
+              />
+            ))}
+          </LayoutGroup>
         </div>
         <Group className="p-4">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={step}
-              initial={{ opacity: 0, x: 8 }}
+              initial={{ opacity: 0, x: 6 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
+              exit={{ opacity: 0, x: -6, transition: { duration: 0.12, ease: 'easeIn' } }}
+              transition={{ duration: 0.14, ease: 'easeOut' }}
               className="space-y-4"
             >
           {step === 0 && (

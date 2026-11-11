@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { useT } from '../i18n'
-import { fadeFast, springSnappy } from '../lib/motion'
+import { exit, fade, panel } from '../lib/motion'
 import { Button } from './ui'
 
 export default function UpdateConfirmDialog({
@@ -18,22 +18,18 @@ export default function UpdateConfirmDialog({
 
   return (
     <motion.div
-      variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 }, exit: { opacity: 0 } }}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      transition={fadeFast}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: exit }}
+      transition={fade}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       role="presentation"
       onClick={() => !busy && onCancel()}
     >
       <motion.div
-        variants={{
-          hidden: { opacity: 0, scale: 0.98, y: 8 },
-          visible: { opacity: 1, scale: 1, y: 0 },
-          exit: { opacity: 0, scale: 0.98, y: 4 },
-        }}
-        transition={springSnappy}
+        initial={{ opacity: 0, scale: 0.985, y: 6 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={panel}
         className="w-full max-w-md rounded-xl border border-zinc-700 bg-surface p-5 shadow-2xl"
         role="dialog"
         aria-modal="true"

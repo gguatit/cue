@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { AnimatePresence } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { Button, Group, GroupHeader, Toggle } from '../../components/ui'
 import UpdateConfirmDialog from '../../components/UpdateConfirmDialog'
+import { Presence } from '../../components/Presence'
+import { layoutSpring } from '../../lib/motion'
 import { useT, errorMessage } from '../../i18n'
 import { cleanupUpdateFiles, openExternal, preflightUpdate, type UpdatePreflight } from '../../lib/tauri'
 import { formatBytes } from '../../lib/updates'
@@ -157,13 +159,17 @@ export default function AboutTab() {
                 )}
               </p>
             )}
-            {preflightError && <p className="mt-2 text-xs text-danger">{preflightError}</p>}
+            <Presence show={Boolean(preflightError)} className="mt-2 text-xs text-danger">
+              {preflightError}
+            </Presence>
             {installing && (
               <div className="mt-3">
                 <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
-                  <div
-                    className="h-full rounded-full bg-accent transition-[width]"
-                    style={{ width: `${progress ?? 0}%` }}
+                  <motion.div
+                    className="h-full w-full origin-left rounded-full bg-accent"
+                    initial={false}
+                    animate={{ scaleX: (progress ?? 0) / 100 }}
+                    transition={layoutSpring}
                   />
                 </div>
                 <p className="mt-1 text-xs text-ink-3">
@@ -180,9 +186,9 @@ export default function AboutTab() {
             {t('You are on the latest version.', '최신 버전입니다.')}
           </p>
         )}
-        {updateError && (
-          <p className="text-xs text-warning">{errorMessage(updateError)}</p>
-        )}
+        <Presence show={Boolean(updateError)} className="text-xs text-warning">
+          {updateError ? errorMessage(updateError) : ''}
+        </Presence>
         <Toggle
           checked={updatePrefs.autoCheck}
           onChange={(autoCheck) => setUpdates({ autoCheck })}
@@ -208,17 +214,19 @@ export default function AboutTab() {
             {cleaning ? t('Deleting…', '삭제 중…') : t('Delete now', '즉시 삭제')}
           </Button>
         </div>
-        {cleanupResult && (
-          <p className="text-xs text-ink-2">
-            {cleanupResult.removed > 0
+        <Presence show={Boolean(cleanupResult)} className="text-xs text-ink-2">
+          {cleanupResult
+            ? cleanupResult.removed > 0
               ? t(
                   `Deleted ${cleanupResult.removed} file(s) (${formatBytes(cleanupResult.bytes)}).`,
                   `${cleanupResult.removed}개 파일(${formatBytes(cleanupResult.bytes)})을 삭제했습니다.`,
                 )
-              : t('No downloaded update files to delete.', '삭제할 업데이트 파일이 없습니다.')}
-          </p>
-        )}
-        {cleanupError && <p className="text-xs text-warning">{cleanupError}</p>}
+              : t('No downloaded update files to delete.', '삭제할 업데이트 파일이 없습니다.')
+            : ''}
+        </Presence>
+        <Presence show={Boolean(cleanupError)} className="text-xs text-warning">
+          {cleanupError}
+        </Presence>
         <p className="text-xs text-ink-3">
           {t(
             'Updates are signed. Cue will not run an installer whose signature does not match.',

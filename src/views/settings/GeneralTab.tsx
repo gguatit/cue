@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { AnimatePresence } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import { Presence } from '../../components/Presence'
+import { exit, fade } from '../../lib/motion'
 import MouseTriggerCard from '../../components/MouseTriggerCard'
 import ExamReadiness from './ExamReadiness'
 import {
@@ -493,31 +495,40 @@ export default function GeneralTab() {
         </div>
         {profiles.length > 0 && (
           <ul className="space-y-1">
-            {profiles.map((profile) => (
-              <li
-                key={profile.id}
-                className="flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-ink"
-              >
-                <span className="min-w-0 truncate">{profile.name}</span>
-                <span className="flex shrink-0 gap-1">
-                  <button
-                    className="text-xs text-ink-2 transition-colors hover:text-ink"
-                    onClick={() => void applyProfile(profile)}
-                  >
-                    {t('Apply', '적용')}
-                  </button>
-                  <button
-                    className="text-xs text-ink-3 transition-colors hover:text-danger"
-                    onClick={() => removeProfile(profile)}
-                  >
-                    {t('Delete', '삭제')}
-                  </button>
-                </span>
-              </li>
-            ))}
+            <AnimatePresence initial={false}>
+              {profiles.map((profile) => (
+                <motion.li
+                  key={profile.id}
+                  layout="position"
+                  initial={{ opacity: 0, x: -4 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 4, transition: exit }}
+                  transition={fade}
+                  className="flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-ink"
+                >
+                  <span className="min-w-0 truncate">{profile.name}</span>
+                  <span className="flex shrink-0 gap-1">
+                    <button
+                      className="text-xs text-ink-2 transition-colors hover:text-ink"
+                      onClick={() => void applyProfile(profile)}
+                    >
+                      {t('Apply', '적용')}
+                    </button>
+                    <button
+                      className="text-xs text-ink-3 transition-colors hover:text-danger"
+                      onClick={() => removeProfile(profile)}
+                    >
+                      {t('Delete', '삭제')}
+                    </button>
+                  </span>
+                </motion.li>
+              ))}
+            </AnimatePresence>
           </ul>
         )}
-        {backupMessage && <p className="text-xs text-ink-2">{backupMessage}</p>}
+        <Presence show={Boolean(backupMessage)} className="text-xs text-ink-2">
+          {backupMessage}
+        </Presence>
       </SettingsGroup>
       <AnimatePresence>
         {pendingImport && (

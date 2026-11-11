@@ -17,9 +17,11 @@ import {
   type AnswerLanguage,
   type AnswerLevel,
 } from '../../stores/settings'
-import { AnimatePresence } from 'motion/react'
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import { useAnswer } from '../../stores/answer'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import { Presence } from '../../components/Presence'
+import { micro } from '../../lib/motion'
 import { Button, Field, Group, GroupHeader, Input, Select, Toggle } from '../../components/ui'
 
 function ModelChips({
@@ -33,22 +35,26 @@ function ModelChips({
 }) {
   if (models.length === 0) return null
   return (
-    <div className="mt-2 flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
-      {models.map((m) => (
-        <button
-          key={m}
-          type="button"
-          onClick={() => onSelect(m)}
-          className={`rounded-md border px-2 py-1 text-xs transition-colors ${
-            m === selected
-              ? 'border-accent bg-accent/10 text-accent'
-              : 'border-separator bg-surface-2 text-ink hover:border-ink-3'
-          }`}
-        >
-          {m}
-        </button>
-      ))}
-    </div>
+    <LayoutGroup>
+      <div className="mt-2 flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
+        {models.map((m) => (
+          <motion.button
+            key={m}
+            layout="position"
+            transition={micro}
+            type="button"
+            onClick={() => onSelect(m)}
+            className={`rounded-md border px-2 py-1 text-xs transition-colors ${
+              m === selected
+                ? 'border-accent bg-accent/10 text-accent'
+                : 'border-separator bg-surface-2 text-ink hover:border-ink-3'
+            }`}
+          >
+            {m}
+          </motion.button>
+        ))}
+      </div>
+    </LayoutGroup>
   )
 }
 
@@ -723,9 +729,10 @@ export default function AiTab() {
         <Button variant="primary" disabled={countdown > 0} onClick={realTest}>
           {countdown > 0 ? `${countdown}s` : t('Full test in 5s', '5초 후 실전 테스트')}
         </Button>
-        <span
+        <Presence
+          show={Boolean(status)}
           role="status"
-          aria-live="polite"
+          live="polite"
           className={`text-sm ${
             statusKind === 'err'
               ? 'text-danger'
@@ -737,7 +744,7 @@ export default function AiTab() {
           }`}
         >
           {status}
-        </span>
+        </Presence>
       </div>
       <p className="text-xs text-ink-3">
         {t(
