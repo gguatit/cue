@@ -11,6 +11,7 @@ import {
   setPanicShortcut,
   setShortcut,
   setTrayMenuLabels,
+  quitApp,
   shortcutInstalled,
 } from './tauri'
 import { trayMenuLabels } from '../i18n'
@@ -58,6 +59,13 @@ export async function runStartup(): Promise<void> {
     listenEvent('main-blurred', () => {
       if (isBlurGuarded() || !useSettings.getState().stealth.hideOnBlur) return
       void hideMain().catch(() => {})
+    }).catch(() => {}),
+    listenEvent('quit-requested', () => {
+      void useAnswer
+        .getState()
+        .clearForQuit()
+        .catch(() => {})
+        .then(() => quitApp().catch(() => {}))
     }).catch(() => {}),
   ])
 

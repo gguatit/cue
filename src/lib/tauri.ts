@@ -41,6 +41,7 @@ export const setTrayMenuLabels = (
 export const copyText = (text: string) => invoke<void>('copy_text', { text })
 export const cancelAnswer = () => invoke<void>('cancel_answer')
 export const clearClipboard = () => invoke<void>('clear_clipboard')
+export const quitApp = () => invoke<void>('quit_app')
 export const setShortcut = (accelerator: string, click: boolean, button: MouseButton) =>
   invoke<void>('set_shortcut', { accelerator, click, button })
 export const setFreeShortcut = (enabled: boolean, button: MouseButton) =>
@@ -111,8 +112,8 @@ export interface Verification {
 }
 
 export type CaptureResult =
-  | { kind: 'choice'; answers: string[]; verification?: Verification }
-  | { kind: 'text'; text: string }
+  | { kind: 'choice'; answers: string[]; verification?: Verification; fallback?: boolean }
+  | { kind: 'text'; text: string; fallback?: boolean }
   | { kind: 'none'; reason: string }
 
 export const captureAndAnswer = (

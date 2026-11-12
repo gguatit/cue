@@ -452,6 +452,38 @@ export default function GeneralTab() {
             '로그를 끄면 저장된 항목이 지워집니다. 어디에도 전송되지 않습니다.',
           )}
         </p>
+        <div className="mt-3 space-y-2 border-t border-separator pt-3">
+          <p className="text-[12px] font-medium text-ink-2">
+            {t('Quit cleanup', '종료 시 정리')}
+          </p>
+          <Toggle
+            checked={storage.clearOnQuit.history}
+            onChange={(history) =>
+              setStorage({ clearOnQuit: { ...storage.clearOnQuit, history } })
+            }
+            label={t('Clear answer history on quit', '종료 시 답변 기록 지우기')}
+          />
+          <Toggle
+            checked={storage.clearOnQuit.errors}
+            onChange={(errors) =>
+              setStorage({ clearOnQuit: { ...storage.clearOnQuit, errors } })
+            }
+            label={t('Clear error log on quit', '종료 시 오류 로그 지우기')}
+          />
+          <Toggle
+            checked={storage.clearOnQuit.clipboard}
+            onChange={(clipboard) =>
+              setStorage({ clearOnQuit: { ...storage.clearOnQuit, clipboard } })
+            }
+            label={t('Clear clipboard on quit', '종료 시 클립보드 지우기')}
+          />
+          <p className="text-xs text-ink-3">
+            {t(
+              'Runs when Cue is quit from the app or tray. Forced termination may skip cleanup.',
+              'Cue를 앱이나 트레이에서 종료할 때 실행됩니다. 강제 종료는 정리를 건너뛸 수 있습니다.',
+            )}
+          </p>
+        </div>
       </SettingsGroup>
       <SettingsGroup title={t('Settings backup', '설정 백업')} className="space-y-3">
         <div className="flex flex-wrap gap-2">

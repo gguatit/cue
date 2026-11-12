@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { defaults, mergePersisted, mergeSettings, PRESETS, useSettings } from './settings'
 
 describe('mergeSettings', () => {
@@ -22,7 +22,7 @@ describe('mergeSettings', () => {
     expect(merged.answer.language).toBe('auto')
     expect(merged.answer.level).toBe('normal')
     expect(merged.privacy.crop).toBe(false)
-    expect(merged.storage).toEqual({ history: true, errors: true })
+    expect(merged.storage).toEqual({ history: true, errors: true, clearOnQuit: { history: false, errors: false, clipboard: false } })
     expect(merged.updates.autoCheck).toBe(true)
   })
 
@@ -76,13 +76,26 @@ describe('mergeSettings', () => {
   })
 
   it('merges stored storage preferences', () => {
-    expect(defaults.storage).toEqual({ history: true, errors: true })
+    expect(defaults.storage).toEqual({ history: true, errors: true, clearOnQuit: { history: false, errors: false, clipboard: false } })
     const merged = mergeSettings({ storage: { history: false } })
-    expect(merged.storage).toEqual({ history: false, errors: true })
+    expect(merged.storage).toEqual({ history: false, errors: true, clearOnQuit: { history: false, errors: false, clipboard: false } })
     expect(mergeSettings({ storage: { errors: false } }).storage).toEqual({
       history: true,
       errors: false,
+      clearOnQuit: { history: false, errors: false, clipboard: false },
     })
+  })
+
+  it('merges quit cleanup flags', () => {
+    expect(mergeSettings({ storage: { clearOnQuit: { history: true } } }).storage.clearOnQuit).toEqual({
+      history: true,
+      errors: false,
+      clipboard: false,
+    })
+    expect(
+      mergeSettings({ storage: { clearOnQuit: { history: 'yes', errors: 1, clipboard: true } } })
+        .storage.clearOnQuit,
+    ).toEqual({ history: false, errors: false, clipboard: true })
   })
 
   it('merges stored display durations', () => {
@@ -260,9 +273,9 @@ describe('setStorage', () => {
   it('stores history and error log preferences', () => {
     useSettings.setState({ storage: structuredClone(defaults.storage) })
     useSettings.getState().setStorage({ history: false })
-    expect(useSettings.getState().storage).toEqual({ history: false, errors: true })
+    expect(useSettings.getState().storage).toEqual({ history: false, errors: true, clearOnQuit: { history: false, errors: false, clipboard: false } })
     useSettings.getState().setStorage({ errors: false })
-    expect(useSettings.getState().storage).toEqual({ history: false, errors: false })
+    expect(useSettings.getState().storage).toEqual({ history: false, errors: false, clearOnQuit: { history: false, errors: false, clipboard: false } })
   })
 })
 

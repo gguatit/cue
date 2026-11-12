@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   isTauri: vi.fn(() => true),
@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   setTrayIdle: vi.fn(async () => {}),
   setTrayError: vi.fn(async () => {}),
   setTrayVisible: vi.fn(async () => {}),
+  quitApp: vi.fn(async () => {}),
 }))
 
 vi.mock('./tauri', () => ({
@@ -37,6 +38,7 @@ vi.mock('./tauri', () => ({
   copyText: vi.fn(async () => {}),
   cancelAnswer: vi.fn(async () => {}),
   clearClipboard: vi.fn(async () => {}),
+  quitApp: mocks.quitApp,
   meetingActive: vi.fn(async () => false),
 }))
 vi.mock('./trayDisplay', () => ({
@@ -179,5 +181,20 @@ describe('runStartup tray menu', () => {
     const copyLast = vi.spyOn(useAnswer.getState(), 'copyLast').mockResolvedValue(undefined)
     copyHandler!()
     expect(copyLast).toHaveBeenCalledTimes(1)
+  })
+
+  it('cleans up and quits on quit-requested', async () => {
+    let handler: ((...args: unknown[]) => void) | undefined
+    mocks.listenEvent.mockImplementation(async (event: string, cb?: (...args: unknown[]) => void) => {
+      if (event === 'quit-requested') handler = cb
+      return () => {}
+    })
+    await runStartup()
+    const clear = vi.spyOn(useAnswer.getState(), 'clearForQuit').mockResolvedValue(undefined)
+    handler!()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(clear).toHaveBeenCalledTimes(1)
+    expect(mocks.quitApp).toHaveBeenCalledTimes(1)
   })
 })

@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../lib/tauri', () => ({
   captureAndAnswer: vi.fn(),
@@ -31,7 +31,7 @@ import {
   showOverlay,
 } from '../lib/tauri'
 import { setTrayAnswer, setTrayError, setTrayIdle, setTrayLoading, setTrayVisible } from '../lib/trayDisplay'
-import { startMeetingWatch, useAnswer } from './answer'
+import { historyAfterAdd, startMeetingWatch, useAnswer } from './answer'
 import { defaults, useSettings } from './settings'
 
 let stopMeeting: (() => void) | undefined
@@ -697,7 +697,7 @@ describe('answer store', () => {
 
   it('does not record or persist history while storage is off', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
-    useSettings.setState({ storage: { history: false, errors: false } })
+    useSettings.setState({ storage: { history: false, errors: false, clearOnQuit: { history: false, errors: false, clipboard: false } } })
     await useAnswer.getState().run(false)
     expect(useAnswer.getState().history).toEqual([])
     expect(localStorage.getItem('cue-history')).toBeNull()
@@ -763,13 +763,13 @@ describe('answer store', () => {
   it('clears the stored key when storage is turned off', () => {
     useAnswer.setState({ history: [{ ts: 1, answers: ['B'] }], log: [{ ts: 1, code: 'parse' }] })
     expect(localStorage.getItem('cue-history')).not.toBeNull()
-    useSettings.getState().setStorage({ history: false, errors: false })
+    useSettings.getState().setStorage({ history: false, errors: false, clearOnQuit: { history: false, errors: false, clipboard: false } })
     expect(localStorage.getItem('cue-history')).toBeNull()
     expect(localStorage.getItem('cue-errors')).toBeNull()
   })
 
   it('does not write while storage is off', async () => {
-    useSettings.getState().setStorage({ history: false, errors: false })
+    useSettings.getState().setStorage({ history: false, errors: false, clearOnQuit: { history: false, errors: false, clipboard: false } })
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
     await useAnswer.getState().run(false)
     await useAnswer.getState().logError('parse')
@@ -854,5 +854,58 @@ describe('answer store', () => {
 
     expect(showOverlay).toHaveBeenCalledWith('B', 'badge', 8000, verification)
     expect(useAnswer.getState().history[0].verification).toEqual(verification)
+  })
+})
+
+describe('practical history tools', () => {
+  it('keeps pinned entries when unpinned history rotates', () => {
+    const pinned = { ts: 1, answers: ['A'], pinned: true }
+    const many = Array.from({ length: 10 }, (_, i) => ({ ts: 10 + i, answers: [String(i)] }))
+    const result = historyAfterAdd(many, pinned)
+    expect(result).toHaveLength(10)
+    expect(result).toContainEqual(pinned)
+  })
+
+  it('copies, removes, and toggles a history row', async () => {
+    useAnswer.setState({
+      history: [
+        { ts: 2, answers: ['A', 'C'] },
+        { ts: 1, answers: [], text: '설명' },
+      ],
+    })
+    await useAnswer.getState().copyHistory(0)
+    expect(copyText).toHaveBeenCalledWith('A, C')
+    useAnswer.getState().toggleHistoryPin(1)
+    expect(useAnswer.getState().history.find((h) => h.ts === 1)?.pinned).toBe(true)
+    useAnswer.getState().removeHistory(0)
+    expect(useAnswer.getState().history).toHaveLength(1)
+    expect(useAnswer.getState().history[0].ts).toBe(1)
+  })
+
+  it('clears selected data for quit without changing settings', async () => {
+    useAnswer.setState({ history: [{ ts: 1, answers: ['B'] }], log: [{ ts: 1, code: 'parse' }] })
+    useSettings.setState({
+      storage: {
+        history: true,
+        errors: true,
+        clearOnQuit: { history: true, errors: true, clipboard: true },
+      },
+    })
+    await useAnswer.getState().clearForQuit()
+    expect(useAnswer.getState().history).toEqual([])
+    expect(useAnswer.getState().log).toEqual([])
+    expect(clearClipboard).toHaveBeenCalled()
+    expect(useSettings.getState().storage.clearOnQuit.clipboard).toBe(true)
+  })
+
+  it('records last request metadata for a real answer', async () => {
+    vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
+    await useAnswer.getState().run(false)
+    expect(useAnswer.getState().lastRequest).toMatchObject({
+      kind: 'choice',
+      provider: defaults.provider.preset,
+      model: defaults.provider.model,
+    })
+    expect(useAnswer.getState().lastRequest?.ms).toBeGreaterThanOrEqual(0)
   })
 })

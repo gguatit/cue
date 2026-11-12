@@ -35,11 +35,23 @@ export interface LogEntry {
   code: string
 }
 
+export interface LastRequest {
+  at: number
+  ms: number
+  kind: 'choice' | 'text' | 'none' | 'error'
+  provider: string
+  model: string
+  fallback?: boolean
+  verification?: Verification
+  error?: string
+}
+
 export interface AnswerHistoryEntry {
   ts: number
   answers: string[]
   text?: string
   verification?: Verification
+  pinned?: boolean
 }
 
 export const HISTORY_KEY = 'cue-history'
@@ -54,6 +66,7 @@ interface AnswerState {
   panicHidden: boolean
   log: LogEntry[]
   history: AnswerHistoryEntry[]
+  lastRequest: LastRequest | null
   run: (sample: boolean, mode?: 'exam' | 'free') => Promise<void>
   showLast: () => Promise<void>
   copyLast: () => Promise<void>
@@ -61,6 +74,10 @@ interface AnswerState {
   clearTray: () => void
   clearHistory: () => void
   clearErrors: () => void
+  copyHistory: (index: number) => Promise<void>
+  removeHistory: (index: number) => void
+  toggleHistoryPin: (index: number) => void
+  clearForQuit: () => Promise<void>
   logError: (code: string) => Promise<void>
 }
 
@@ -91,8 +108,21 @@ function isHistoryEntry(v: unknown): v is AnswerHistoryEntry {
     Array.isArray(e.answers) &&
     e.answers.every((a) => typeof a === 'string') &&
     (e.text === undefined || typeof e.text === 'string') &&
-    (e.verification === undefined || isVerification(e.verification))
+    (e.verification === undefined || isVerification(e.verification)) &&
+    (e.pinned === undefined || typeof e.pinned === 'boolean')
   )
+}
+
+export function historyAfterAdd(
+  history: AnswerHistoryEntry[],
+  entry: AnswerHistoryEntry,
+): AnswerHistoryEntry[] {
+  const sorted = [entry, ...history].sort((a, b) => b.ts - a.ts)
+  const pinned = sorted.filter((h) => h.pinned)
+  const unpinned = sorted.filter((h) => !h.pinned)
+  const keptPinned = pinned.slice(0, MAX_HISTORY)
+  const keptUnpinned = unpinned.slice(0, Math.max(0, MAX_HISTORY - keptPinned.length))
+  return [...keptPinned, ...keptUnpinned].sort((a, b) => b.ts - a.ts)
 }
 
 function loadStored<T>(key: string, valid: (v: unknown) => v is T): T[] {
@@ -327,6 +357,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
     panicHidden: false,
     log: initialLog,
     history: initialHistory,
+    lastRequest: null,
     panicClear: () => {
       seq++
       runSeq++
@@ -347,6 +378,32 @@ export const useAnswer = create<AnswerState>()((set, get) => {
     clearErrors: () => {
       set({ log: [] })
       removeStored(ERRORS_KEY)
+    },
+    copyHistory: async (index) => {
+      const entry = get().history[index]
+      if (!entry) return
+      try {
+        await copyText(entry.text ?? entry.answers.join(', '))
+      } catch {
+        void get().logError('clipboard')
+      }
+    },
+    removeHistory: (index) => {
+      set((s) => ({ history: s.history.filter((_, i) => i !== index) }))
+    },
+    toggleHistoryPin: (index) => {
+      set((s) => ({
+        history: historyAfterAdd(
+          s.history.filter((_, i) => i !== index),
+          { ...s.history[index], pinned: !s.history[index]?.pinned },
+        ),
+      }))
+    },
+    clearForQuit: async () => {
+      const clear = useSettings.getState().storage.clearOnQuit
+      if (clear.history) get().clearHistory()
+      if (clear.errors) get().clearErrors()
+      if (clear.clipboard) await clearClipboard().catch(() => {})
     },
     clearTray: () => {
       seq++
@@ -403,6 +460,22 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       const { provider, answer, privacy, display: displaySettings } = useSettings.getState()
       const freeMode = mode === 'free'
       const textMode = freeMode || provider.answerType === 'text'
+      const requestProvider = provider.preset
+      const requestModel = provider.model
+      const started = performance.now()
+      const recordRequest = (kind: LastRequest['kind'], extra: Partial<LastRequest> = {}) => {
+        if (sample) return
+        set({
+          lastRequest: {
+            at: Date.now(),
+            ms: Math.round(performance.now() - started),
+            kind,
+            provider: requestProvider,
+            model: requestModel,
+            ...extra,
+          },
+        })
+      }
       try {
         const hiddenAtStart = await hiddenByMeeting()
         if (seq !== my) return
@@ -466,27 +539,27 @@ export const useAnswer = create<AnswerState>()((set, get) => {
         const hidden = await hiddenByMeeting()
         if (seq !== my) return
         if (result.kind === 'none') {
+          recordRequest('none', { error: result.reason })
           set({ mode: { kind: 'none', reason: result.reason } })
           await setTrayIdle().catch(() => {})
           return
         }
         if (result.kind === 'text') {
           const text = result.text
+          recordRequest('text', { fallback: result.fallback })
           if (useSettings.getState().storage.history) {
             set((s) => ({
-              history: [{ ts: Date.now(), answers: [], text }, ...s.history].slice(0, MAX_HISTORY),
+              history: historyAfterAdd(s.history, { ts: Date.now(), answers: [], text }),
             }))
           }
           await displayText(text, my, hidden)
         } else {
           const answers = result.answers
           const verification = result.verification
+          recordRequest('choice', { fallback: result.fallback, verification })
           if (useSettings.getState().storage.history) {
             set((s) => ({
-              history: [{ ts: Date.now(), answers, verification }, ...s.history].slice(
-                0,
-                MAX_HISTORY,
-              ),
+              history: historyAfterAdd(s.history, { ts: Date.now(), answers, verification }),
             }))
           }
           await display(answers, my, hidden, verification)
@@ -494,6 +567,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       } catch (e) {
         if (seq !== my) return
         const code = typeof e === 'string' && e ? e : 'parse'
+        recordRequest('error', { error: code })
         set((s) => ({
           mode: { kind: 'error', code },
           log: useSettings.getState().storage.errors

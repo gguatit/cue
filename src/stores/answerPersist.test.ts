@@ -49,7 +49,13 @@ describe('answer store hydration', () => {
 
   it('drops stale keys when storage is disabled in settings', async () => {
     const { useSettings } = await import('./settings')
-    useSettings.setState({ storage: { history: false, errors: false } })
+    useSettings.setState({
+      storage: {
+        history: false,
+        errors: false,
+        clearOnQuit: { history: false, errors: false, clipboard: false },
+      },
+    })
     localStorage.setItem('cue-history', JSON.stringify([{ ts: 1, answers: ['B'] }]))
     localStorage.setItem('cue-errors', JSON.stringify([{ ts: 1, code: 'parse' }]))
     const { useAnswer } = await import('./answer')

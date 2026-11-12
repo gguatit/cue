@@ -40,6 +40,12 @@ export type MouseTrigger = {
   holdCooldownMs: number
 }
 
+export interface ClearOnQuit {
+  history: boolean
+  errors: boolean
+  clipboard: boolean
+}
+
 export interface Settings {
   shortcut: { accelerator: string; display: string; click: boolean; button: MouseButton }
   free: { enabled: boolean; button: MouseButton; instruction: string }
@@ -81,7 +87,7 @@ export interface Settings {
     meetingPolicy: MeetingPolicy
     admin: boolean
   }
-  storage: { history: boolean; errors: boolean }
+  storage: { history: boolean; errors: boolean; clearOnQuit: ClearOnQuit }
   updates: { autoCheck: boolean }
   onboarded: boolean
 }
@@ -158,7 +164,11 @@ export const defaults: Settings = {
   answer: { language: 'auto', level: 'normal' },
   privacy: { crop: false },
   stealth: { contentProtection: true, skipTaskbar: true, hideOnBlur: true, guard: false, meetingSafe: true, meetingPolicy: 'both', admin: false },
-  storage: { history: true, errors: true },
+  storage: {
+    history: true,
+    errors: true,
+    clearOnQuit: { history: false, errors: false, clipboard: false },
+  },
   updates: { autoCheck: true },
   onboarded: false,
 }
@@ -274,6 +284,11 @@ export function mergeSettings(persisted: unknown): Settings {
     storage: {
       history: bool(p.storage?.history, defaults.storage.history),
       errors: bool(p.storage?.errors, defaults.storage.errors),
+      clearOnQuit: {
+        history: bool(p.storage?.clearOnQuit?.history, defaults.storage.clearOnQuit.history),
+        errors: bool(p.storage?.clearOnQuit?.errors, defaults.storage.clearOnQuit.errors),
+        clipboard: bool(p.storage?.clearOnQuit?.clipboard, defaults.storage.clearOnQuit.clipboard),
+      },
     },
     updates: { autoCheck: bool(p.updates?.autoCheck, defaults.updates.autoCheck) },
     onboarded: bool(p.onboarded, defaults.onboarded),
@@ -378,7 +393,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 21,
+      version: 22,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

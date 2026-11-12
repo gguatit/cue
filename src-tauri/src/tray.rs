@@ -53,8 +53,13 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
                 let _ = app.emit("tray-clear", ());
             }
             "quit" => {
-                crate::guard::disarm();
-                app.exit(0);
+                let _ = app.emit("quit-requested", ());
+                let handle = app.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(800));
+                    crate::guard::disarm();
+                    handle.exit(0);
+                });
             }
             _ => {}
         })

@@ -15,8 +15,12 @@ export default function AboutTab() {
   const t = useT()
   const log = useAnswer((s) => s.log)
   const history = useAnswer((s) => s.history)
+  const lastRequest = useAnswer((s) => s.lastRequest)
   const clearHistory = useAnswer((s) => s.clearHistory)
   const clearErrors = useAnswer((s) => s.clearErrors)
+  const copyHistory = useAnswer((s) => s.copyHistory)
+  const removeHistory = useAnswer((s) => s.removeHistory)
+  const toggleHistoryPin = useAnswer((s) => s.toggleHistoryPin)
   const storage = useSettings((s) => s.storage)
   const updatePrefs = useSettings((s) => s.updates)
   const setUpdates = useSettings((s) => s.setUpdates)
@@ -234,6 +238,37 @@ export default function AboutTab() {
           )}
         </p>
       </Group>
+      {lastRequest && (
+        <Group className="p-4">
+          <h2 className="text-xs font-semibold tracking-wide text-ink-3">
+            {t('Last request', '마지막 요청')}
+          </h2>
+          <div className="mt-2 space-y-1 text-xs text-ink-2">
+            <p>
+              {new Date(lastRequest.at).toLocaleTimeString()} · {lastRequest.ms}ms ·{' '}
+              {lastRequest.provider} / {lastRequest.model}
+            </p>
+            <p>
+              {lastRequest.kind === 'choice'
+                ? t('Multiple choice', '객관식')
+                : lastRequest.kind === 'text'
+                  ? t('Descriptive', '서술형')
+                  : lastRequest.kind === 'none'
+                    ? t('No answer', '답 없음')
+                    : t('Failed', '실패')}
+              {lastRequest.fallback && ` · ${t('Fallback used', '대체 모델 사용')}`}
+            </p>
+            {lastRequest.verification && (
+              <p>
+                {lastRequest.verification.matched
+                  ? t('Models agree', '모델 일치')
+                  : t('Models disagree', '모델 불일치')}
+              </p>
+            )}
+            {lastRequest.error && <p className="text-warning">{errorMessage(lastRequest.error)}</p>}
+          </div>
+        </Group>
+      )}
       <Group className="p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xs font-semibold tracking-wide text-ink-3">
@@ -252,8 +287,39 @@ export default function AboutTab() {
         ) : (
           <ul className="space-y-1 select-text">
             {history.map((h, i) => (
-              <li key={i} className="rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-ink-2">
-                {new Date(h.ts).toLocaleTimeString()} · {h.text ?? h.answers.join(', ')}
+              <li
+                key={`${h.ts}-${i}`}
+                className="flex items-start justify-between gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-ink-2"
+              >
+                <span className="min-w-0 break-words">
+                  {new Date(h.ts).toLocaleTimeString()} · {h.text ?? h.answers.join(', ')}
+                  {h.pinned && (
+                    <span className="ml-1 text-accent">{t('Pinned', '고정됨')}</span>
+                  )}
+                </span>
+                <span className="flex shrink-0 gap-1">
+                  <button
+                    className="text-xs text-ink-3 transition-colors hover:text-ink"
+                    aria-label={t('Copy answer', '답변 복사')}
+                    onClick={() => void copyHistory(i)}
+                  >
+                    {t('Copy', '복사')}
+                  </button>
+                  <button
+                    className="text-xs text-ink-3 transition-colors hover:text-ink"
+                    aria-label={h.pinned ? t('Unpin answer', '고정 해제') : t('Pin answer', '답변 고정')}
+                    onClick={() => toggleHistoryPin(i)}
+                  >
+                    {h.pinned ? t('Unpin', '해제') : t('Pin', '고정')}
+                  </button>
+                  <button
+                    className="text-xs text-ink-3 transition-colors hover:text-danger"
+                    aria-label={t('Delete answer', '답변 삭제')}
+                    onClick={() => removeHistory(i)}
+                  >
+                    {t('Delete', '삭제')}
+                  </button>
+                </span>
               </li>
             ))}
           </ul>
