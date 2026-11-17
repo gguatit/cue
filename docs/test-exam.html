@@ -216,6 +216,9 @@
   #watermark.on { display: block; }
   #watermark.level-2 { opacity: .3; background-size: 190px 88px; }
   #watermark.level-3 { opacity: .45; background-size: 140px 64px; filter: contrast(1.25); }
+  #watermark.enhanced { opacity: .24; filter: none; background-size: 420px 150px; }
+  #watermark.enhanced.level-2 { opacity: .3; }
+  #watermark.enhanced.level-3 { opacity: .38; }
   @media (max-width: 560px) {
     body { padding: 12px 8px 48px; }
     main { padding: 22px 16px 32px; }
@@ -254,6 +257,7 @@
     <button id="fullscreen" type="button">전체 화면</button>
     <button id="toggle-watermark" type="button">워터마크 켜기</button>
     <button id="watermark-strength" type="button">워터마크 강도 1</button>
+    <button id="watermark-enhanced" type="button">강화 워터마크</button>
   </div>
   <div id="check-result" class="check-result" role="status" aria-live="polite"></div>
 
@@ -1862,11 +1866,21 @@
   const watermark = document.getElementById('watermark')
   const watermarkToggle = document.getElementById('toggle-watermark')
   const watermarkStrength = document.getElementById('watermark-strength')
+  const watermarkEnhanced = document.getElementById('watermark-enhanced')
   let watermarkLevel = 1
+  let watermarkEnhancedOn = false
+  const enhancedWatermarkSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="150"><text x="210" y="78" text-anchor="middle" transform="rotate(-24 210 75)" fill="#b45309" font-family="Malgun Gothic, sans-serif" font-size="16" font-weight="600">시험문제를 AI로 풀지 마세요</text></svg>`
+  const enhancedWatermarkBg = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(enhancedWatermarkSvg)}")`
   function applyWatermarkLevel() {
     watermark.classList.toggle('level-2', watermarkLevel === 2)
     watermark.classList.toggle('level-3', watermarkLevel === 3)
     watermarkStrength.textContent = `워터마크 강도 ${watermarkLevel}`
+  }
+  function applyWatermarkEnhanced() {
+    watermark.classList.toggle('enhanced', watermarkEnhancedOn)
+    watermark.style.backgroundImage = watermarkEnhancedOn ? enhancedWatermarkBg : ''
+    watermark.style.backgroundSize = watermarkEnhancedOn ? '420px 150px' : ''
+    watermarkEnhanced.textContent = watermarkEnhancedOn ? '강화 워터마크 끄기' : '강화 워터마크'
   }
   watermarkToggle.addEventListener('click', () => {
     const on = watermark.classList.toggle('on')
@@ -1874,13 +1888,24 @@
   })
   watermarkStrength.addEventListener('click', () => {
     watermarkLevel = (watermarkLevel % 3) + 1
+    watermarkEnhancedOn = false
     if (!watermark.classList.contains('on')) {
       watermark.classList.add('on')
       watermarkToggle.textContent = '워터마크 끄기'
     }
     applyWatermarkLevel()
+    applyWatermarkEnhanced()
+  })
+  watermarkEnhanced.addEventListener('click', () => {
+    watermarkEnhancedOn = !watermarkEnhancedOn
+    if (watermarkEnhancedOn && !watermark.classList.contains('on')) {
+      watermark.classList.add('on')
+      watermarkToggle.textContent = '워터마크 끄기'
+    }
+    applyWatermarkEnhanced()
   })
   applyWatermarkLevel()
+  applyWatermarkEnhanced()
 
   const indexEl = document.getElementById('index')
   const groupsEl = document.getElementById('index-groups')
