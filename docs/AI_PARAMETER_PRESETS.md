@@ -26,7 +26,7 @@
 | `messages` | Cue의 프롬프트·이미지·보정 대화가 관리 |
 | `input` | Responses API의 입력 |
 | `contents` | Google API의 입력 |
-| `stream` | Cue는 전체 응답을 받아 파싱 |
+| `stream` | Cue가 서술형·자유 모드에서만 제어하고, 객관식·검증은 전체 응답을 파싱 |
 
 ### 1.3 토큰 필드 이름
 
@@ -53,8 +53,8 @@
 | 항목 | 판단 |
 |---|---|
 | `tools`, `tool_choice` | API는 지원하지만 Cue의 답변 파서를 깨뜨릴 수 있음. 사용 금지 |
-| `stream` | Cue가 차단. 사용 금지 |
-| `stream_options` | 스트리밍 전용. Cue에서는 400 위험 |
+| `stream` | Cue가 모드에 따라 제어. 사용 금지 |
+| `stream_options` | Cue가 공식 OpenAI에서만 내부 사용. 직접 지정 금지 |
 | `n` | 답변 후보가 여러 개면 Cue 파서가 혼란. 사용 금지 |
 | `temperature` | Cue 예약 필드. 변경 불가 |
 | `response_format` | DeepSeek/OpenAI Chat에서는 가능. Anthropic에는 없음 |
@@ -182,8 +182,8 @@ Cue에 DeepSeek 전용 프리셋은 없으므로 **Custom**을 사용합니다.
 | `frequency_penalty` | thinking에서 무효 | 넣지 말 것 |
 | `logprobs` / `top_logprobs` | 토큰 확률 | Cue가 사용하지 않음 |
 | `tools` / `tool_choice` | 함수 호출 | **Cue에서 사용 금지** |
-| `stream` | SSE 스트리밍 | **Cue 차단** |
-| `stream_options` | stream 전용 | **Cue에서 400 위험** |
+| `stream` | SSE 스트리밍 | **Cue가 모드에 따라 제어** |
+| `stream_options` | stream 전용 | **공식 OpenAI에서만 Cue 내부 사용** |
 | `model`, `messages` | 모델·대화 | **Cue 예약 필드** |
 | `n`, `seed`, `max_completion_tokens` | 현재 DeepSeek Chat 문서에 없음 | 사용하지 말 것 |
 
@@ -348,7 +348,7 @@ OpenCode Go/Zen에서 `gpt-*` 모델은 Cue가 Responses API로 라우팅합니�
 | `logprobs` / `top_logprobs` | Chat | 확률 반환 | Cue가 사용하지 않음 |
 | `store` | Chat/Responses | 응답 저장 | privacy를 위해 `false` 권장. 프록시 지원 확인 |
 | `tools` / `tool_choice` | 공통 | 함수 호출 | **Cue에서 사용 금지** |
-| `stream` | 공통 | 스트리밍 | **Cue 차단** |
+| `stream` | 공통 | 스트리밍 | **Cue가 모드에 따라 제어** |
 | `n` | Chat | 다중 후보 | **Cue에서 사용 금지** |
 | `temperature` | 공통 | 샘플링 | **Cue 예약 필드** |
 | `service_tier` | Responses | 처리 등급 | 비권장. 지연·비용 정책에 영향 |
@@ -493,7 +493,7 @@ OpenCode Go/Zen에서 `gpt-*` 모델은 Cue가 Responses API로 라우팅합니�
 | `top_p`, `top_k` | 구형 모델 샘플링 | 최신 모델은 무시. temperature만 Cue가 차단 |
 | `temperature` | 구형 모델 샘플링 | **Cue 예약 필드** |
 | `tools` / `tool_choice` | tool use | **Cue에서 사용 금지** |
-| `stream` | SSE | **Cue 차단** |
+| `stream` | SSE | **Cue가 모드에 따라 제어** |
 | `cache_control` | 프롬프트 캐시 | 1회성 캡처에는 이득 적음 |
 | `container`, `diagnostics`, `inference_geo` | 신규·고급 기능 | Cue 용도에 비권장 |
 | `user_profile_id`, `workspace_id` | SDK 헤더 전용 | body에 넣지 말 것 |

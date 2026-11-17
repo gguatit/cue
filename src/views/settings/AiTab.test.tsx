@@ -25,4 +25,10 @@ describe('AiTab key management', () => {
     expect(html).toContain('설명형')
     expect(html).not.toContain('답변을 한 번 바꿔 표현')
   })
+
+  it('shows streaming and token usage toggles', () => {
+    const html = renderToStaticMarkup(<AiTab />)
+    expect(html).toContain('서술형 스트리밍')
+    expect(html).toContain('토큰 사용량 표시')
+  })
 })

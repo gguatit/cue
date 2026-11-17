@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { answerGlyph } from './trayIcon'
+import { CAMOUFLAGE_COMPONENTS } from './camouflage'
+import { CAMOUFLAGE_SVGS } from './camouflageSvg'
+
+describe('camouflage icons', () => {
+  it('keeps the static tray markup in sync with the UI icons', () => {
+    expect(Object.keys(CAMOUFLAGE_SVGS).sort()).toEqual(
+      Object.keys(CAMOUFLAGE_COMPONENTS).sort(),
+    )
+  })
+})
 
 describe('answerGlyph', () => {
   it('falls back to the answer text when the slot maps to char', () => {

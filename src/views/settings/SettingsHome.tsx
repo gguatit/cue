@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { motion } from 'motion/react'
+import { MotionConfig, motion } from 'motion/react'
 import { BookOpen, Crosshair, Info, Settings, Shield, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useT } from '../../i18n'
@@ -68,6 +68,7 @@ export default function SettingsHome() {
   const activeTab: Tab = (TABS as readonly string[]).includes(tab) ? (tab as Tab) : 'general'
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex h-screen overflow-hidden bg-bg text-ink">
       <aside className="flex w-[200px] shrink-0 flex-col border-r border-separator/70 bg-surface/40 px-2.5 py-4 max-[760px]:w-[64px] max-[760px]:px-2">
         <div className="mb-5 flex items-center gap-2.5 px-2 max-[760px]:justify-center max-[760px]:px-0">
@@ -159,5 +160,6 @@ export default function SettingsHome() {
         </div>
       </main>
     </div>
+    </MotionConfig>
   )
 }

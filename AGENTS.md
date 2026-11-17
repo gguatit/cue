@@ -36,7 +36,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - Rust (`src-tauri/src/`): `main.rs`(CLI 모드 `--background`, `--elevated`, `--guard`, `--system`, `--service`, `--admin-setup`, `--admin-prepare`, `--admin-teardown`, single-instance, setup), `commands.rs`(invoke 커맨드·`AppState`·HTTP 클라이언트), `updates.rs`(GitHub Releases 업데이트 확인·다운로드·서명 설치), `ai.rs`(프롬프트·프리셋/API 라우팅·base URL 검증·HTTP·파싱·재시도), `capture.rs`(GDI 캡처·커서 모니터·축소·크롭), `shortcut.rs`(저수준 키보드 훅, Tauri 플러그인 아님), `guard.rs`/`elevation.rs`(워치독·예약 작업·서비스·UAC·ProgramData 상태), `windows.rs`(main/overlay 창·DPI·스텔스·캡처 보호), `tray.rs`, `meeting.rs`, `led.rs`, `brightness.rs`, `models.rs`, `secrets.rs`.
 - Frontend: `src/lib/tauri.ts`의 래퍼로만 invoke한다(컴포넌트 직접 invoke 금지). `src/App.tsx`가 main/overlay를 label로 분기. 설정 탭은 `src/views/settings/*`, 오버레이는 `src/overlay/*`.
 - 홍보 사이트: `site/` 별도 Vite + React 19 + Tailwind v4 + shadcn/ui 프로젝트. Cloudflare Worker `cue-site`의 static assets로 배포한다(`cd site; npm run deploy`). 사이트는 `https://cue.neikos.kr`이며 시험 규정 경고를 유지한다. 디자인은 `#f8f9fa` 페이퍼 그리드, 검정 타이포, 컬러 커서를 쓴다. `CursorIntro`가 3.6초(모바일 2.8초) 동안 18개 커서로 인트로를 보여주고 즉시 스킵을 허용한다. `PageBuilder`가 실제 DOM의 `[data-build]` 내부의 h/p/li/a/button/pre/img 등 162개 타깃을 스크롤에 따라 40→96개 커서로 생성한다(text/code/box/media 타깃). 페이지 생성 중에는 커서가 자유 이동하며 그리기·탐색을 하고, 스크롤 속도가 빠르면 기본 동시 생성 20개, 스크롤 시 최대 28개까지 늘어나며 0.62~0.84초 단위로 `build-tick`을 남긴다. 생성이 끝난 뒤 마우스가 4초 이상 멈춰 있으면 포인터 주변 둥근 삼각형 레일(반지름 180/90, 속도 120/90px/s, 2.5px 물결)로 천천히 모인다. 마우스를 움직이면 대형에서 벗어나 자유 링으로 이동하고, 속도에 따라 반지름·공전 속도가 약간 커진다. 삼각형 중심은 실제 포인터를 따라가며 접촉 시 튕기는 충격은 없다. 이동·충돌 파티클은 없고 클릭 파티클만 표시된다. 빌드 중 크로스헤어·좌표 라벨·선택 핸들을 표시하며, 커서끼리 추격·로밍·상호작용은 하지 않는다. 스냅샷, 전체 화면 커버, 고정 재생, 고정 리플레이 버튼은 없다. 스크롤을 잠그지 않으며 `prefers-reduced-motion`에서는 인트로와 커서 없이 전체 표시한다. 하단 왼쪽 `EffectsPanel`에서 커서/파티클을 각각 끌 수 있고 `cue-site-effects`에 저장한다. 커서를 끄면 인트로를 생략하고 162개 빌드 타깃을 즉시 표시한다. 인트로의 18개 커서 좌표는 `PageBuilder`로 핸드오프해 끊김 없이 이어지고, 2.5px 이하 포인터 미세 움직임은 무시한다. 생성 중에는 자유 링으로 흩어지고, 4초 이상 멈춰 있으면 삼각형으로 모인다. Swarm 사이트의 코드·에셋·문구는 복사하지 않고 동작만 참고한다.
-- 저장소: 설정은 zustand persist `cue-settings`(`src/stores/settings.ts`, `version: 22`, `mergeSettings`). 자유 모드(`free`), 마우스 전용 트리거(`mouse`: hold/shake, ms/px 값), 교차 검증(`provider.consensus`/`verifyModel`), 대체 모델(`provider.fallbackModel`), 회의 감지 기준(`stealth.meetingPolicy`), 포커스 손실 숨김(`stealth.hideOnBlur`), 테마·강조 색(`appearance.theme`: dark/light/system, `appearance.accent`: system/amber/blue/violet) 설정을 포함한다. 답변 기록/오류 로그는 `cue-history`/`cue-errors`. 프로필은 `cue-profiles`(`src/lib/settingsBackup.ts`). 업데이트 UI 상태는 `src/stores/updates.ts`, 마지막 확인 시각은 localStorage `cue-update-check`.
+- 저장소: 설정은 zustand persist `cue-settings`(`src/stores/settings.ts`, `version: 23`, `mergeSettings`). 자유 모드(`free`), 마우스 전용 트리거(`mouse`: hold/shake, ms/px 값), 교차 검증(`provider.consensus`/`verifyModel`), 대체 모델(`provider.fallbackModel`), 서술형 스트리밍(`provider.streaming`), 토큰 사용량 표시(`answer.showUsage`), 회의 감지 기준(`stealth.meetingPolicy`), 포커스 손실 숨김(`stealth.hideOnBlur`), 테마·강조 색(`appearance.theme`: dark/light/system, `appearance.accent`: system/amber/blue/violet) 설정을 포함한다. 답변 기록/오류 로그는 `cue-history`/`cue-errors`. 프로필은 `cue-profiles`(`src/lib/settingsBackup.ts`). 업데이트 UI 상태는 `src/stores/updates.ts`, 마지막 확인 시각은 localStorage `cue-update-check`.
 - 오류: Rust는 문자열 코드(`no_key`, `busy`, `http_401`, `config`, `defender` …)로 반환하고 `src/i18n.ts::ERRORS`에서 en/ko로 매핑한다. **새 오류 코드는 반드시 `ERRORS`에 쌍으로 추가** — 없으면 raw 코드가 UI에 노출된다.
 - NSIS 훅: `src-tauri/windows/hooks.nsh`. 설치/제거 시 Run 키·예약 작업·서비스·ProgramData 정리를 유지한다. 업데이트는 `/UPDATE`라 `PREUNINSTALL`/`POSTUNINSTALL`은 실행되지 않고 `PREINSTALL`/`POSTINSTALL`만 실행된다. `POSTINSTALL`의 `--admin-prepare` 실패는 업데이트 모드에서 `admin-prepare.failed` 마커로 남긴다.
 - 문서: 사용법 `README.md`, 변경 기록 `docs/CHANGELOG.md`, AI 파라미터 프리셋 `docs/AI_PARAMETER_PRESETS.md`, 제외 범위 `docs/OUT_OF_SCOPE.md`, 사이트 개발/배포 `site/README.md`.
@@ -45,7 +45,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 불변식
 
 - **보안/네트워크**: 내장 프리셋(opencode/OpenAI/Google/Anthropic)의 키와 캡처는 `ai.rs::validate_base_url` 덕분에 공식 엔드포인트로만 전송된다. 이 검증을 느슨하게 하거나 프리셋 base URL을 사용자 입력으로 덮어쓰게 만들지 말 것. 커스텀 URL은 HTTPS 또는 루프백 HTTP만 허용하고, HTTP 클라이언트는 리다이렉트를 추적하지 않는다(`commands.rs`). 모델 목록 URL 예외는 `models.rs`. 키 없는 요청은 `custom` + 루프백 URL에만 허용하고(`ai.rs::key_may_be_empty`), 원격 HTTPS·내장 프리셋에 빈 키를 허용하지 말 것. 서버·계정·텔레메트리·분석 호출을 추가하지 말 것. API 키는 keyring에만 저장하고 로그·설정 내보내기에 포함하지 말 것.
-- **AI 요청**: OpenCode/Anthropic 네이티브 엔드포인트는 `temperature`를 거부한다. 요청 바디에 넣지 말 것. `extraJson`은 `temperature`, `model`, `messages`, `input`, `contents`, `stream`을 덮어쓸 수 없다(`ai.rs::merge_extra`).
+- **AI 요청**: OpenCode/Anthropic 네이티브 엔드포인트는 `temperature`를 거부한다. 요청 바디에 넣지 말 것. `extraJson`은 `temperature`, `model`, `messages`, `input`, `contents`, `stream`, `stream_options`를 덮어쓸 수 없다(`ai.rs::merge_extra`). 스트리밍은 서술형·자유 모드에만 쓰고, `stream_options.include_usage`는 공식 OpenAI 프리셋에만 넣는다(OpenCode는 400 위험).
 - **캡처**: 커서가 있는 모니터만, 장변 1920 이하로 축소하고 커서 좌표도 같은 비율로 변환한다. 크롭은 1600×1000, `capture_in_flight`로 중복 실행을 막는다. 픽셀 상한은 40M(`capture::capture_fits`), GDI 비트맵은 `GetDIBits` 전에 DC에서 선택 해제한다.
 - **오버레이 DPI**: 배지/텍스트 크기는 창의 `scale_factor`가 아니라 대상 모니터의 DPI(`windows::monitor_scale`)로 계산한다.
 - **설정 마이그레이션**: shape를 바꾸면 `defaults` + `mergeSettings` + `version`을 함께 올리고 `settings.test.ts`를 갱신한다. 기존 사용자 설정이 깨지면 안 된다.
@@ -91,7 +91,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.4.9**.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.5.0**.
 - 릴리스는 GitHub Actions 없이 수동으로 진행한다.
   1. `npm run check`, `npm test`, Rust 변경 시 `cargo test`.
   2. 서명 키 환경 변수를 설정하고 `npm run tauri build`.
@@ -103,13 +103,13 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 첫 업데이터 릴리스(0.1.2)는 0.1.0/0.1.1 사용자가 한 번 직접 설치해야 한다. 이후 버전은 설정 → 정보에서 자동으로 확인·설치할 수 있다.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.4.9 코드 검증: `npm run check`, `npm test`(209), `cargo test`(158). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
+- 0.5.0 코드 검증: `npm run check`, `npm test`(221), `cargo test`(166). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
 - 보안 탭 자동 갱신은 `src/lib/securityAutoRefresh.ts`에서 5분 캐시한다. 새로고침 버튼과 보호 복구는 강제 갱신을 사용한다.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
 - README의 시험 규정·제재 경고는 의도된 내용이므로 삭제하거나 약화하지 말 것.
 - 워치독·관리자 모드·회의 감지·LED/밝기·언인스톨은 헤드리스로 검증 불가. 릴리스 전 수동으로 확인한다.
 - NSIS는 perMachine, WebView2 offline installer, `windows/hooks.nsh`를 쓴다. 설치/제거 경로를 바꾸면 수동으로 확인한다.
-- 리소스 최적화: 회의 감지 프로세스 스냅샷은 3초 캐시, 포그라운드 창은 매 poll·전체 창 열거는 2초 간격, 보안 탭의 Defender·보호 상태는 탭을 열 때 자동 조회(주기적 폴링 없음), WebView2 `BROWSER_ARGS`의 백그라운드 네트워킹 차단, guard는 실행 파일 이름으로 먼저 필터링, 캡처는 CatmullRom 리사이즈, 오버레이는 첫 표시 때 지연 생성하되 오버레이가 필요한 설정에서만 단축키 보조키 입력 시 prewarm한다. 오버레이/설정 탭은 지연 로드 청크로 분리되어 있다.
+- 리소스 최적화: 회의 감지 프로세스 스냅샷은 3초 캐시, 포그라운드 창은 매 poll·전체 창 열거는 2초 간격, 보안 탭의 Defender·보호 상태는 탭을 열 때 자동 조회(주기적 폴링 없음), WebView2 `BROWSER_ARGS`의 백그라운드 네트워킹 차단, guard는 실행 파일 이름으로 먼저 필터링, 캡처는 CatmullRom 리사이즈, 오버레이는 첫 표시 때 지연 생성하되 오버레이가 필요한 설정에서만 단축키 보조키 입력 시 prewarm한다. 오버레이/설정 탭은 지연 로드 청크로 분리되어 있다. 초기 번들에는 `react-dom/server`와 `motion`을 넣지 않는다(트레이는 `camouflageSvg.ts` 정적 SVG, 모션은 설정·오버레이 청크). 관리자 모드의 `watch_guard`는 5분마다 작업을 유지보수하고, 시작 시 보호 복구·업데이트 확인·회의 첫 폴링은 창 표시 뒤로 미룬다.
 - 입력 훅과 트레이는 메인 스레드에서 60초마다 재등록·복구한다. 명령 스레드에서 `SetWindowsHookEx`를 호출하지 않는다. 캡처 보호는 fail-closed: `show_overlay`가 WDA 적용 실패 또는 affinity != 0x11을 확인하면 답변을 표시하지 않고 숨긴다.
 - 테마: 설정 창은 iOS/Fluent 하이브리드 셸(`SettingsHome` 사이드바, `Group`/`Row`/`Switch`/`SegmentedControl`). `appearance.theme`은 dark/light/system이며 `src/lib/appearance.ts`가 `data-theme`, `color-scheme`, DWM 제목 표시줄 테마를 적용한다. `appearance.accent`가 `system`이면 `commands::system_accent`가 DWM 색을 읽고 `--color-accent*`를 적용한다. 오버레이·트레이는 항상 다크다.
 

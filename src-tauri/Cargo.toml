@@ -1,6 +1,6 @@
 [package]
 name = "cue"
-version = "0.4.9"
+version = "0.5.0"
 authors = ["kalpha (최재영)"]
 edition = "2021"
 

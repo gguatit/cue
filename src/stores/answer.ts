@@ -10,6 +10,7 @@ import {
   meetingActive,
   showOverlay,
   type CaptureResult,
+  type TokenUsage,
   type Verification,
 } from '../lib/tauri'
 import {
@@ -43,6 +44,7 @@ export interface LastRequest {
   model: string
   fallback?: boolean
   verification?: Verification
+  usage?: TokenUsage
   error?: string
 }
 
@@ -51,6 +53,7 @@ export interface AnswerHistoryEntry {
   answers: string[]
   text?: string
   verification?: Verification
+  usage?: TokenUsage
   pinned?: boolean
 }
 
@@ -99,6 +102,17 @@ function isVerification(v: unknown): v is Verification {
   )
 }
 
+function isUsage(v: unknown): v is TokenUsage {
+  const u = v as TokenUsage
+  return (
+    !!u &&
+    typeof u === 'object' &&
+    (u.input === undefined || typeof u.input === 'number') &&
+    (u.output === undefined || typeof u.output === 'number') &&
+    (u.total === undefined || typeof u.total === 'number')
+  )
+}
+
 function isHistoryEntry(v: unknown): v is AnswerHistoryEntry {
   const e = v as AnswerHistoryEntry
   return (
@@ -109,6 +123,7 @@ function isHistoryEntry(v: unknown): v is AnswerHistoryEntry {
     e.answers.every((a) => typeof a === 'string') &&
     (e.text === undefined || typeof e.text === 'string') &&
     (e.verification === undefined || isVerification(e.verification)) &&
+    (e.usage === undefined || isUsage(e.usage)) &&
     (e.pinned === undefined || typeof e.pinned === 'boolean')
   )
 }
@@ -244,8 +259,8 @@ export function startMeetingWatch(): () => void {
     meetingPolling = false
   }
   if (meetingTimer) return stop
+  // The first check enumerates processes/windows; let the window paint first.
   meetingTimer = setInterval(() => { void pollMeeting() }, MEETING_POLL_MS)
-  void pollMeeting()
   return stop
 }
 
@@ -324,6 +339,18 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       setTimeout(() => {
         if (seq === my) get().clearTray()
       }, d.badgeMs)
+    }
+  }
+
+  const displayStreamedText = async (
+    text: string,
+    hidden: boolean,
+  ): Promise<void> => {
+    traySeq++
+    set({ mode: { kind: 'text', text } })
+    await setTrayIdle().catch(() => {})
+    if (hidden || meetingBlocked()) {
+      hideForMeeting()
     }
   }
 
@@ -463,6 +490,8 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       const requestProvider = provider.preset
       const requestModel = provider.model
       const started = performance.now()
+      const keepUsage = (usage?: TokenUsage) =>
+        useSettings.getState().answer.showUsage ? usage : undefined
       const recordRequest = (kind: LastRequest['kind'], extra: Partial<LastRequest> = {}) => {
         if (sample) return
         set({
@@ -533,6 +562,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
             provider.verifyModel,
             provider.fallbackModel,
             textMode || displaySettings.overlay || displaySettings.flash,
+            provider.streaming && textMode && !provider.paraphrase && !hiddenAtStart,
           )
         }
         if (seq !== my) return
@@ -546,20 +576,33 @@ export const useAnswer = create<AnswerState>()((set, get) => {
         }
         if (result.kind === 'text') {
           const text = result.text
-          recordRequest('text', { fallback: result.fallback })
+          const usage = keepUsage(result.usage)
+          recordRequest('text', { fallback: result.fallback, usage })
           if (useSettings.getState().storage.history) {
             set((s) => ({
-              history: historyAfterAdd(s.history, { ts: Date.now(), answers: [], text }),
+              history: historyAfterAdd(s.history, {
+                ts: Date.now(),
+                answers: [],
+                text,
+                usage,
+              }),
             }))
           }
-          await displayText(text, my, hidden)
+          if (result.streamed) await displayStreamedText(text, hidden)
+          else await displayText(text, my, hidden)
         } else {
           const answers = result.answers
           const verification = result.verification
-          recordRequest('choice', { fallback: result.fallback, verification })
+          const usage = keepUsage(result.usage)
+          recordRequest('choice', { fallback: result.fallback, verification, usage })
           if (useSettings.getState().storage.history) {
             set((s) => ({
-              history: historyAfterAdd(s.history, { ts: Date.now(), answers, verification }),
+              history: historyAfterAdd(s.history, {
+                ts: Date.now(),
+                answers,
+                verification,
+                usage,
+              }),
             }))
           }
           await display(answers, my, hidden, verification)

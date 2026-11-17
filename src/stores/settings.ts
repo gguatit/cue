@@ -75,8 +75,9 @@ export interface Settings {
     consensus: boolean
     verifyModel: string
     fallbackModel: string
+    streaming: boolean
   }
-  answer: { language: AnswerLanguage; level: AnswerLevel }
+  answer: { language: AnswerLanguage; level: AnswerLevel; showUsage: boolean }
   privacy: { crop: boolean }
   stealth: {
     contentProtection: boolean
@@ -160,8 +161,9 @@ export const defaults: Settings = {
     consensus: false,
     verifyModel: '',
     fallbackModel: '',
+    streaming: true,
   },
-  answer: { language: 'auto', level: 'normal' },
+  answer: { language: 'auto', level: 'normal', showUsage: true },
   privacy: { crop: false },
   stealth: { contentProtection: true, skipTaskbar: true, hideOnBlur: true, guard: false, meetingSafe: true, meetingPolicy: 'both', admin: false },
   storage: {
@@ -198,6 +200,7 @@ export function mergeSettings(persisted: unknown): Settings {
     consensus: bool(providerRaw.consensus, false),
     verifyModel: str(providerRaw.verifyModel, ''),
     fallbackModel: str(providerRaw.fallbackModel, ''),
+    streaming: bool(providerRaw.streaming, true),
   }
   const shortcutAccel = str(p.shortcut?.accelerator, defaults.shortcut.accelerator)
   const shortcut = {
@@ -266,6 +269,7 @@ export function mergeSettings(persisted: unknown): Settings {
     answer: {
       language: oneOf(p.answer?.language, ['auto', 'ko', 'en'] as const, 'auto'),
       level: oneOf(p.answer?.level, ['concise', 'normal', 'detailed'] as const, 'normal'),
+      showUsage: bool(p.answer?.showUsage, true),
     },
     privacy: { crop: bool(p.privacy?.crop, defaults.privacy.crop) },
     stealth: {
@@ -393,7 +397,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 22,
+      version: 23,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

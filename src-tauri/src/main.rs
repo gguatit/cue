@@ -61,14 +61,15 @@ fn watch_guard(app: PathBuf) {
             if !guard::armed() {
                 continue;
             }
-            if !guard::guard_running()
+            if !elevation::is_elevated()
+                && !guard::guard_running()
                 && !elevation::service_running()
-                && !elevation::is_elevated()
             {
                 let _ = guard::spawn_guard(&app);
             }
             ticks += 1;
-            if ticks % 6 == 0 && elevation::is_elevated() && elevation::program_marker_exists() {
+            // Task repair is a maintenance job; every 5 minutes is enough.
+            if ticks % 30 == 0 && elevation::is_elevated() && elevation::program_marker_exists() {
                 if let Ok(exe) = std::env::current_exe() {
                     if elevation::service_running() {
                         let _ = elevation::install_elevated_task(&exe);
@@ -166,6 +167,7 @@ fn main() {
             commands::cancel_answer,
             commands::clear_clipboard,
             commands::show_overlay,
+            commands::stream_done,
             commands::overlay_ready,
             commands::hide_overlay,
             commands::hide_main,

@@ -22,6 +22,7 @@ export default function AboutTab() {
   const removeHistory = useAnswer((s) => s.removeHistory)
   const toggleHistoryPin = useAnswer((s) => s.toggleHistoryPin)
   const storage = useSettings((s) => s.storage)
+  const showUsage = useSettings((s) => s.answer.showUsage)
   const updatePrefs = useSettings((s) => s.updates)
   const setUpdates = useSettings((s) => s.setUpdates)
   const checking = useUpdates((s) => s.checking)
@@ -41,6 +42,12 @@ export default function AboutTab() {
   const [preflight, setPreflight] = useState<UpdatePreflight | null>(null)
   const [preflightError, setPreflightError] = useState('')
   const [preflightBusy, setPreflightBusy] = useState(false)
+
+  const usageText = (usage: { input?: number; output?: number; total?: number }) =>
+    t(
+      `Tokens ${usage.input ?? '—'} in / ${usage.output ?? '—'} out / ${usage.total ?? '—'} total`,
+      `토큰 입력 ${usage.input ?? '—'} / 출력 ${usage.output ?? '—'} / 합계 ${usage.total ?? '—'}`,
+    )
 
   const confirmInstall = async () => {
     setPreflightBusy(true)
@@ -265,6 +272,7 @@ export default function AboutTab() {
                   : t('Models disagree', '모델 불일치')}
               </p>
             )}
+            {showUsage && lastRequest.usage && <p>{usageText(lastRequest.usage)}</p>}
             {lastRequest.error && <p className="text-warning">{errorMessage(lastRequest.error)}</p>}
           </div>
         </Group>
@@ -295,6 +303,11 @@ export default function AboutTab() {
                   {new Date(h.ts).toLocaleTimeString()} · {h.text ?? h.answers.join(', ')}
                   {h.pinned && (
                     <span className="ml-1 text-accent">{t('Pinned', '고정됨')}</span>
+                  )}
+                  {showUsage && h.usage && (
+                    <span className="mt-0.5 block text-[11px] text-ink-3">
+                      {usageText(h.usage)}
+                    </span>
                   )}
                 </span>
                 <span className="flex shrink-0 gap-1">

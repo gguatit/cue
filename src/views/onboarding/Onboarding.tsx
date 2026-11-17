@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
+import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
 import { Button, Field, Group, Input, SectionTitle, Select } from '../../components/ui'
 import { useT } from '../../i18n'
@@ -111,6 +111,7 @@ export default function Onboarding() {
   }
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex min-h-screen items-center justify-center bg-bg p-6 text-ink">
       <div className="w-full max-w-xl space-y-4">
         <div className="flex items-center justify-between px-1">
@@ -284,5 +285,6 @@ export default function Onboarding() {
         </div>
       </div>
     </div>
+    </MotionConfig>
   )
 }

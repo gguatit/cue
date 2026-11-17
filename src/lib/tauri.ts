@@ -111,9 +111,21 @@ export interface Verification {
   error?: string
 }
 
+export interface TokenUsage {
+  input?: number
+  output?: number
+  total?: number
+}
+
 export type CaptureResult =
-  | { kind: 'choice'; answers: string[]; verification?: Verification; fallback?: boolean }
-  | { kind: 'text'; text: string; fallback?: boolean }
+  | {
+      kind: 'choice'
+      answers: string[]
+      verification?: Verification
+      usage?: TokenUsage
+      fallback?: boolean
+    }
+  | { kind: 'text'; text: string; usage?: TokenUsage; streamed?: boolean; fallback?: boolean }
   | { kind: 'none'; reason: string }
 
 export const captureAndAnswer = (
@@ -132,6 +144,7 @@ export const captureAndAnswer = (
   verifyModel = '',
   fallbackModel = '',
   prepareOverlay = false,
+  stream = false,
 ) =>
   invoke<CaptureResult>('capture_and_answer', {
     preset,
@@ -149,6 +162,7 @@ export const captureAndAnswer = (
     verifyModel,
     fallbackModel,
     prepareOverlay,
+    stream,
   })
 export const showOverlay = (
   answer: string,
@@ -163,6 +177,8 @@ export const showOverlay = (
     verification: verification ?? null,
   })
 export const overlayReady = () => invoke<void>('overlay_ready')
+export const streamDone = (id: number, durationMs: number) =>
+  invoke<void>('stream_done', { id, durationMs })
 export const hideOverlay = () => invoke<void>('hide_overlay')
 export const hideMain = () => invoke<void>('hide_main')
 export type MeetingPolicy = 'both' | 'window' | 'process'

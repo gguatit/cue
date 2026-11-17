@@ -1,6 +1,4 @@
-import React from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
-import { CAMOUFLAGE_COMPONENTS } from './camouflage'
+import { CAMOUFLAGE_SVGS } from './camouflageSvg'
 import { slotFor } from '../lib/answer'
 import alyacIconUrl from '../assets/alyac-icon.ico'
 
@@ -14,8 +12,8 @@ export interface TrayIconSpec {
 const cache = new Map<string, Promise<HTMLImageElement>>()
 
 function iconImage(name: string): Promise<HTMLImageElement> | null {
-  const Comp = CAMOUFLAGE_COMPONENTS[name]
-  if (!Comp && name !== 'alyac') return null
+  const inner = CAMOUFLAGE_SVGS[name]
+  if (!inner && name !== 'alyac') return null
   let p = cache.get(name)
   if (!p) {
     const src =
@@ -23,9 +21,7 @@ function iconImage(name: string): Promise<HTMLImageElement> | null {
         ? alyacIconUrl
         : 'data:image/svg+xml;charset=utf-8,' +
           encodeURIComponent(
-            renderToStaticMarkup(
-              React.createElement(Comp, { size: 18, color: '#ffffff', strokeWidth: 2.2 }),
-            ),
+            `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`,
           )
     p = new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image()

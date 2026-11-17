@@ -633,6 +633,25 @@ export default function AiTab() {
             </label>
           </>
         )}
+        <GroupHeader className="px-0 pb-0 pt-2">{t('Answer behavior', '응답 동작')}</GroupHeader>
+        <Toggle
+          checked={provider.streaming}
+          onChange={(streaming) => setProvider({ streaming })}
+          label={t('Stream descriptive answers', '서술형 스트리밍')}
+          hint={t(
+            'Shows descriptive and free-mode answers as they arrive with smooth pacing. Not used while paraphrasing.',
+            '설명형·자유 모드 답변을 도착하는 대로 부드럽게 표시합니다. 패러프레이즈가 켜져 있으면 적용되지 않습니다.',
+          )}
+        />
+        <Toggle
+          checked={answer.showUsage}
+          onChange={(showUsage) => setAnswer({ showUsage })}
+          label={t('Show token usage', '토큰 사용량 표시')}
+          hint={t(
+            'Shows input and output tokens for the last request and answer history. Stored locally only.',
+            '마지막 요청과 답변 기록에 입력·출력 토큰 수를 표시합니다. 로컬에만 저장됩니다.',
+          )}
+        />
       </Group>
       <Group className="space-y-3 p-4">
         <GroupHeader className="px-0 pb-0 pt-0">{t('API key', 'API 키')}</GroupHeader>

@@ -19,8 +19,10 @@ describe('mergeSettings', () => {
     expect(merged.panic).toEqual(defaults.panic)
     expect(merged.provider.answerType).toBe('choice')
     expect(merged.provider.paraphrase).toBe(false)
+    expect(merged.provider.streaming).toBe(true)
     expect(merged.answer.language).toBe('auto')
     expect(merged.answer.level).toBe('normal')
+    expect(merged.answer.showUsage).toBe(true)
     expect(merged.privacy.crop).toBe(false)
     expect(merged.storage).toEqual({ history: true, errors: true, clearOnQuit: { history: false, errors: false, clipboard: false } })
     expect(merged.updates.autoCheck).toBe(true)
@@ -128,6 +130,18 @@ describe('mergeSettings', () => {
     const merged = mergeSettings({ answer: { language: 'en', level: 'detailed' } })
     expect(merged.answer.language).toBe('en')
     expect(merged.answer.level).toBe('detailed')
+  })
+
+  it('merges streaming and usage toggles and rejects wrong types', () => {
+    const merged = mergeSettings({ provider: { streaming: false }, answer: { showUsage: false } })
+    expect(merged.provider.streaming).toBe(false)
+    expect(merged.answer.showUsage).toBe(false)
+    const invalid = mergeSettings({
+      provider: { streaming: 'yes' },
+      answer: { showUsage: 1 },
+    })
+    expect(invalid.provider.streaming).toBe(true)
+    expect(invalid.answer.showUsage).toBe(true)
   })
 
   it('merges a stored cursor crop setting', () => {
@@ -256,7 +270,11 @@ describe('answer and privacy setters', () => {
     })
     useSettings.getState().setAnswer({ language: 'ko', level: 'concise' })
     useSettings.getState().setPrivacy({ crop: true })
-    expect(useSettings.getState().answer).toEqual({ language: 'ko', level: 'concise' })
+    expect(useSettings.getState().answer).toEqual({
+      language: 'ko',
+      level: 'concise',
+      showUsage: true,
+    })
     expect(useSettings.getState().privacy).toEqual({ crop: true })
   })
 })

@@ -129,7 +129,7 @@ async fn answers_with_fallback(
     cy: i32,
     w: u32,
     h: u32,
-) -> Result<Vec<String>, String> {
+) -> Result<(Vec<String>, Option<crate::ai::Usage>), String> {
     match crate::ai::request_answers(client, provider, b64, cx, cy, w, h).await {
         Ok(answers) => Ok(answers),
         Err(error)
@@ -149,7 +149,7 @@ async fn text_with_fallback(
     paraphrase: bool,
     language: &str,
     level: &str,
-) -> Result<String, String> {
+) -> Result<(String, Option<crate::ai::Usage>), String> {
     match crate::ai::request_text(client, provider, capture, paraphrase, language, level).await {
         Ok(text) => Ok(text),
         Err(error)
@@ -178,7 +178,7 @@ async fn free_with_fallback(
     instruction: &str,
     language: &str,
     level: &str,
-) -> Result<String, String> {
+) -> Result<(String, Option<crate::ai::Usage>), String> {
     match crate::ai::request_free(
         client,
         provider,
@@ -209,6 +209,120 @@ async fn free_with_fallback(
     }
 }
 
+async fn streamed_text(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    provider: &crate::ai::Provider<'_>,
+    fallback: Option<&crate::ai::Provider<'_>>,
+    capture: &crate::capture::Capture,
+    free_instruction: Option<&str>,
+    language: &str,
+    level: &str,
+) -> Result<(String, Option<crate::ai::Usage>, bool), String> {
+    let mut stream_id: Option<u64> = None;
+    let mut start_failed = false;
+    let mut last_emit = std::time::Instant::now();
+    let mut sink = |text: &str| {
+        if text.is_empty() {
+            return;
+        }
+        match stream_id {
+            None => {
+                if start_failed {
+                    return;
+                }
+                match show_overlay_stream_start(app, state, text) {
+                    Ok(id) => {
+                        stream_id = Some(id);
+                        last_emit = std::time::Instant::now();
+                    }
+                    Err(_) => start_failed = true,
+                }
+            }
+            Some(id) => {
+                if last_emit.elapsed() >= std::time::Duration::from_millis(80) {
+                    let _ = emit_overlay_stream(app, state, text, id, false);
+                    last_emit = std::time::Instant::now();
+                }
+            }
+        }
+    };
+    let result = match free_instruction {
+        Some(instruction) => {
+            crate::ai::request_free_stream(
+                &state.http,
+                provider,
+                capture,
+                instruction,
+                language,
+                level,
+                &mut sink,
+            )
+            .await
+        }
+        None => {
+            crate::ai::request_text_stream(
+                &state.http,
+                provider,
+                capture,
+                language,
+                level,
+                &mut sink,
+            )
+            .await
+        }
+    };
+    drop(sink);
+    match result {
+        Ok(result) => {
+            if let Some(id) = stream_id {
+                let _ = emit_overlay_stream(app, state, &result.text, id, true);
+                Ok((result.text, result.usage, true))
+            } else {
+                Ok((result.text, result.usage, false))
+            }
+        }
+        Err(_) => {
+            let fallback_result = match free_instruction {
+                Some(instruction) => {
+                    free_with_fallback(
+                        &state.http,
+                        provider,
+                        fallback,
+                        capture,
+                        false,
+                        instruction,
+                        language,
+                        level,
+                    )
+                    .await
+                }
+                None => {
+                    text_with_fallback(
+                        &state.http,
+                        provider,
+                        fallback,
+                        capture,
+                        false,
+                        language,
+                        level,
+                    )
+                    .await
+                }
+            };
+            match fallback_result {
+                Ok((text, usage)) => Ok((text, usage, false)),
+                Err(error) => {
+                    if stream_id.is_some() {
+                        hide_overlay_now(app, state);
+                    }
+                    Err(error)
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum AnswerPayload {
@@ -216,9 +330,14 @@ pub enum AnswerPayload {
         answers: Vec<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         verification: Option<Verification>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        usage: Option<crate::ai::Usage>,
     },
     Text {
         text: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        usage: Option<crate::ai::Usage>,
+        streamed: bool,
     },
     None {
         reason: String,
@@ -244,6 +363,7 @@ pub async fn capture_and_answer(
     verify_model: String,
     fallback_model: String,
     prepare_overlay: bool,
+    stream: bool,
 ) -> Result<AnswerPayload, String> {
     if state.capture_in_flight.swap(true, Ordering::SeqCst) {
         return Err("busy".into());
@@ -291,6 +411,30 @@ pub async fn capture_and_answer(
     let fallback = (!fallback_name.is_empty() && fallback_name != model)
         .then(|| verify_provider(&preset, &base_url, fallback_name, &key));
     if mode == "free" {
+        if stream && !paraphrase {
+            return match streamed_text(
+                &app,
+                state.inner(),
+                &provider,
+                fallback.as_ref(),
+                &cap,
+                Some(&free_instruction),
+                &language,
+                &level,
+            )
+            .await
+            {
+                Ok((text, usage, streamed)) => Ok(AnswerPayload::Text {
+                    text,
+                    usage,
+                    streamed,
+                }),
+                Err(error) if error == "empty_text" => {
+                    Ok(AnswerPayload::None { reason: error })
+                }
+                Err(error) => Err(error),
+            };
+        }
         return match free_with_fallback(
             &state.http,
             &provider,
@@ -303,7 +447,11 @@ pub async fn capture_and_answer(
         )
         .await
         {
-            Ok(text) => Ok(AnswerPayload::Text { text }),
+            Ok((text, usage)) => Ok(AnswerPayload::Text {
+                text,
+                usage,
+                streamed: false,
+            }),
             Err(error) if error == "empty_text" => Ok(AnswerPayload::None { reason: error }),
             Err(error) => Err(error),
         };
@@ -334,7 +482,14 @@ pub async fn capture_and_answer(
                         cap.img_h,
                     ),
                 );
-                let consensus = match crate::ai::merge_consensus(primary, secondary) {
+                let usage = crate::ai::merge_usage(
+                    primary.as_ref().ok().and_then(|(_, usage)| *usage),
+                    secondary.as_ref().ok().and_then(|(_, usage)| *usage),
+                );
+                let consensus = match crate::ai::merge_consensus(
+                    primary.map(|(answers, _)| answers),
+                    secondary.map(|(answers, _)| answers),
+                ) {
                     Ok(consensus) => consensus,
                     Err(error) if error == "empty" => {
                         return Ok(AnswerPayload::None { reason: error })
@@ -349,9 +504,10 @@ pub async fn capture_and_answer(
                         secondary: consensus.secondary,
                         error: consensus.error,
                     }),
+                    usage,
                 });
             }
-            let answers = match answers_with_fallback(
+            let (answers, usage) = match answers_with_fallback(
                 &state.http,
                 &provider,
                 fallback.as_ref(),
@@ -372,23 +528,54 @@ pub async fn capture_and_answer(
             Ok(AnswerPayload::Choice {
                 answers,
                 verification: None,
+                usage,
             })
         }
-        "text" => match text_with_fallback(
-            &state.http,
-            &provider,
-            fallback.as_ref(),
-            &cap,
-            paraphrase,
-            &language,
-            &level,
-        )
-        .await
-        {
-            Ok(text) => Ok(AnswerPayload::Text { text }),
-            Err(error) if error == "empty_text" => Ok(AnswerPayload::None { reason: error }),
-            Err(error) => Err(error),
-        },
+        "text" => {
+            if stream && !paraphrase {
+                return match streamed_text(
+                    &app,
+                    state.inner(),
+                    &provider,
+                    fallback.as_ref(),
+                    &cap,
+                    None,
+                    &language,
+                    &level,
+                )
+                .await
+                {
+                    Ok((text, usage, streamed)) => Ok(AnswerPayload::Text {
+                        text,
+                        usage,
+                        streamed,
+                    }),
+                    Err(error) if error == "empty_text" => {
+                        Ok(AnswerPayload::None { reason: error })
+                    }
+                    Err(error) => Err(error),
+                };
+            }
+            match text_with_fallback(
+                &state.http,
+                &provider,
+                fallback.as_ref(),
+                &cap,
+                paraphrase,
+                &language,
+                &level,
+            )
+            .await
+            {
+                Ok((text, usage)) => Ok(AnswerPayload::Text {
+                    text,
+                    usage,
+                    streamed: false,
+                }),
+                Err(error) if error == "empty_text" => Ok(AnswerPayload::None { reason: error }),
+                Err(error) => Err(error),
+            }
+        }
         _ => Err("config".into()),
     }
     };
@@ -410,6 +597,49 @@ pub(crate) fn ensure_overlay(app: &tauri::AppHandle) -> Result<tauri::WebviewWin
     crate::windows::create_overlay(app).map_err(|_| "capture".to_string())
 }
 
+fn deliver_overlay(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    payload: serde_json::Value,
+) -> Result<(), String> {
+    use tauri::Emitter;
+    let deliver_now = {
+        let mut delivery = state.overlay_state.lock().map_err(|_| "capture")?;
+        if delivery.ready {
+            true
+        } else {
+            delivery.pending = Some(payload.clone());
+            false
+        }
+    };
+    if deliver_now {
+        let _ = app.emit_to("overlay", "overlay-show", payload);
+    }
+    Ok(())
+}
+
+fn start_hide_timer(app: tauri::AppHandle, duration_ms: u64, gen: u64) {
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(duration_ms));
+        if OVERLAY_GEN.load(std::sync::atomic::Ordering::SeqCst) == gen {
+            if let Some(w) = tauri::Manager::get_webview_window(&app, "overlay") {
+                let _ = w.hide();
+            }
+        }
+    });
+}
+
+fn hide_overlay_now(app: &tauri::AppHandle, state: &AppState) {
+    use tauri::Manager;
+    OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    if let Ok(mut delivery) = state.overlay_state.lock() {
+        delivery.pending = None;
+    }
+    if let Some(w) = app.get_webview_window("overlay") {
+        let _ = w.hide();
+    }
+}
+
 #[tauri::command]
 pub async fn show_overlay(
     app: tauri::AppHandle,
@@ -419,7 +649,6 @@ pub async fn show_overlay(
     duration_ms: u64,
     verification: Option<Verification>,
 ) -> Result<(), String> {
-    use tauri::Emitter;
     let overlay = ensure_overlay(&app)?;
     let protect = state.content_protection.load(Ordering::SeqCst);
     if crate::windows::set_capture_protection(&overlay, protect).is_err() {
@@ -481,28 +710,85 @@ pub async fn show_overlay(
             "verification": verification,
         })
     };
-    let deliver_now = {
-        let mut delivery = state.overlay_state.lock().map_err(|_| "capture")?;
-        if delivery.ready {
-            true
-        } else {
-            delivery.pending = Some(payload.clone());
-            false
-        }
-    };
-    if deliver_now {
-        let _ = app.emit_to("overlay", "overlay-show", payload);
-    }
-    let app2 = app.clone();
-    std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(duration_ms));
-        if OVERLAY_GEN.load(std::sync::atomic::Ordering::SeqCst) == gen {
-            if let Some(w) = tauri::Manager::get_webview_window(&app2, "overlay") {
-                let _ = w.hide();
-            }
-        }
-    });
+    deliver_overlay(&app, state.inner(), payload)?;
+    start_hide_timer(app.clone(), duration_ms, gen);
     Ok(())
+}
+
+const STREAM_PANEL_CHARS: usize = 600;
+
+fn show_overlay_stream_start(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    text: &str,
+) -> Result<u64, String> {
+    let id = OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    let overlay = ensure_overlay(app)?;
+    let protect = state.content_protection.load(Ordering::SeqCst);
+    if crate::windows::set_capture_protection(&overlay, protect).is_err() {
+        let _ = overlay.hide();
+        return Err("stealth".into());
+    }
+    let last = *state
+        .last_capture
+        .lock()
+        .map_err(|_| "capture".to_string())?;
+    let (_, mon) = crate::capture::resolve_anchor(last, crate::capture::cursor_monitor)?;
+    let size = crate::windows::text_size(
+        crate::windows::monitor_scale(mon),
+        STREAM_PANEL_CHARS,
+        mon,
+    );
+    let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
+    let (x, y) = crate::windows::text_position(mon, size);
+    overlay
+        .set_size(tauri::PhysicalSize::new(size.0 as u32, size.1 as u32))
+        .map_err(|_| "capture")?;
+    overlay
+        .set_position(tauri::PhysicalPosition::new(x, y))
+        .map_err(|_| "capture")?;
+    let _ = crate::windows::set_tool_window(&overlay, true);
+    overlay.show().map_err(|_| "capture")?;
+    let _ = crate::windows::set_tool_window(&overlay, true);
+    if protect && crate::windows::capture_affinity(&overlay).ok() != Some(0x11) {
+        let _ = overlay.hide();
+        return Err("stealth".into());
+    }
+    let payload = serde_json::json!({
+        "answer": "",
+        "style": "text",
+        "text": text,
+        "stream": true,
+        "final": false,
+        "id": id,
+    });
+    deliver_overlay(app, state, payload)?;
+    Ok(id)
+}
+
+fn emit_overlay_stream(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    text: &str,
+    id: u64,
+    final_chunk: bool,
+) -> Result<(), String> {
+    let payload = serde_json::json!({
+        "answer": "",
+        "style": "text",
+        "text": text,
+        "stream": true,
+        "final": final_chunk,
+        "id": id,
+    });
+    deliver_overlay(app, state, payload)
+}
+
+#[tauri::command]
+pub fn stream_done(app: tauri::AppHandle, id: u64, duration_ms: u64) {
+    if OVERLAY_GEN.load(std::sync::atomic::Ordering::SeqCst) == id {
+        start_hide_timer(app, duration_ms, id);
+    }
 }
 
 #[tauri::command]
@@ -524,14 +810,7 @@ pub fn overlay_ready(
 
 #[tauri::command]
 pub fn hide_overlay(app: tauri::AppHandle, state: tauri::State<'_, AppState>) {
-    use tauri::Manager;
-    OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    if let Ok(mut delivery) = state.overlay_state.lock() {
-        delivery.pending = None;
-    }
-    if let Some(w) = app.get_webview_window("overlay") {
-        let _ = w.hide();
-    }
+    hide_overlay_now(&app, state.inner());
 }
 
 #[tauri::command]
@@ -1415,6 +1694,7 @@ mod tests {
         let choice = AnswerPayload::Choice {
             answers: vec!["B".to_string()],
             verification: None,
+            usage: None,
         };
         assert_eq!(
             serde_json::to_value(&choice).unwrap(),
@@ -1428,6 +1708,7 @@ mod tests {
                 secondary: vec!["C".to_string()],
                 error: None,
             }),
+            usage: None,
         };
         assert_eq!(
             serde_json::to_value(&verified).unwrap(),
@@ -1450,10 +1731,12 @@ mod tests {
         );
         let text = AnswerPayload::Text {
             text: "설명형 답변".to_string(),
+            usage: None,
+            streamed: false,
         };
         assert_eq!(
             serde_json::to_value(&text).unwrap(),
-            serde_json::json!({ "kind": "text", "text": "설명형 답변" })
+            serde_json::json!({ "kind": "text", "text": "설명형 답변", "streamed": false })
         );
     }
 

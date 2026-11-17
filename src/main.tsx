@@ -26,7 +26,7 @@ if (!overlayView) {
   void runStartup()
   if (isTauri()) {
     startMeetingWatch()
-    setTimeout(() => void maybeCheckForUpdates(), 5000)
+    setTimeout(() => void maybeCheckForUpdates(), 15000)
   }
 }
 

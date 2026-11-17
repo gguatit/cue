@@ -57,6 +57,7 @@ beforeEach(() => {
     running: false,
     log: [],
     history: [],
+    lastRequest: null,
     meetingHidden: false,
     panicHidden: false,
   })
@@ -87,6 +88,7 @@ describe('answer store', () => {
         consensus: false,
         verifyModel: '',
         fallbackModel: '',
+        streaming: false,
       },
     })
     await useAnswer.getState().run(false)
@@ -106,6 +108,7 @@ describe('answer store', () => {
       '',
       '',
       false,
+      false,
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'answer', answers: ['C'] })
   })
@@ -115,7 +118,7 @@ describe('answer store', () => {
     useSettings.setState({
       provider: { ...defaults.provider, answerType: 'text' },
       privacy: { crop: true },
-      answer: { language: 'en', level: 'detailed' },
+      answer: { language: 'en', level: 'detailed', showUsage: true },
     })
     await useAnswer.getState().run(false)
     expect(captureAndAnswer).toHaveBeenCalledWith(
@@ -133,6 +136,7 @@ describe('answer store', () => {
       false,
       '',
       '',
+      true,
       true,
     )
   })
@@ -319,6 +323,7 @@ describe('answer store', () => {
         consensus: false,
         verifyModel: '',
         fallbackModel: '',
+        streaming: false,
       },
     })
     await useAnswer.getState().run(false)
@@ -338,6 +343,7 @@ describe('answer store', () => {
       '',
       '',
       true,
+      false,
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'text', text: '광합성입니다.' })
     expect(setTrayLoading).toHaveBeenCalled()
@@ -352,6 +358,43 @@ describe('answer store', () => {
     await vi.advanceTimersByTimeAsync(30000)
     expect(useAnswer.getState().mode).toEqual({ kind: 'text', text: '광합성입니다.' })
     expect(hideOverlay).toHaveBeenCalled()
+  })
+
+  it('does not redisplay text that the overlay already streamed', async () => {
+    vi.mocked(captureAndAnswer).mockResolvedValueOnce({
+      kind: 'text',
+      text: '스트리밍 답변',
+      streamed: true,
+    })
+    useSettings.setState({ provider: { ...defaults.provider, answerType: 'text' } })
+    await useAnswer.getState().run(false)
+    expect(showOverlay).not.toHaveBeenCalled()
+    expect(useAnswer.getState().mode).toEqual({ kind: 'text', text: '스트리밍 답변' })
+    expect(useAnswer.getState().history[0]).toMatchObject({
+      answers: [],
+      text: '스트리밍 답변',
+    })
+  })
+
+  it('keeps token usage only while the usage toggle is on', async () => {
+    vi.mocked(captureAndAnswer).mockResolvedValueOnce({
+      kind: 'choice',
+      answers: ['B'],
+      usage: { input: 10, output: 5, total: 15 },
+    })
+    await useAnswer.getState().run(false)
+    expect(useAnswer.getState().lastRequest?.usage).toEqual({ input: 10, output: 5, total: 15 })
+    expect(useAnswer.getState().history[0].usage).toEqual({ input: 10, output: 5, total: 15 })
+
+    useSettings.setState({ answer: { ...defaults.answer, showUsage: false } })
+    vi.mocked(captureAndAnswer).mockResolvedValueOnce({
+      kind: 'text',
+      text: '설명',
+      usage: { input: 20, output: 6, total: 26 },
+    })
+    await useAnswer.getState().run(false)
+    expect(useAnswer.getState().lastRequest?.usage).toBeUndefined()
+    expect(useAnswer.getState().history[0].usage).toBeUndefined()
   })
 
   it('showLast redisplays a text history entry in the text panel', async () => {
@@ -527,7 +570,7 @@ describe('answer store', () => {
 
     vi.mocked(meetingActive).mockResolvedValue(true)
     stopMeeting = startMeetingWatch()
-    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1500)
 
     expect(useAnswer.getState().meetingHidden).toBe(true)
     expect(setTrayVisible).toHaveBeenCalledWith(false)
@@ -540,7 +583,7 @@ describe('answer store', () => {
   it('keeps hiding the tray while a meeting is active', async () => {
     vi.mocked(meetingActive).mockResolvedValue(true)
     stopMeeting = startMeetingWatch()
-    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1500)
 
     await setTrayVisible(true)
     await vi.advanceTimersByTimeAsync(1500)
@@ -551,7 +594,7 @@ describe('answer store', () => {
   it('restores the tray when the meeting ends', async () => {
     vi.mocked(meetingActive).mockResolvedValueOnce(true).mockResolvedValue(false)
     stopMeeting = startMeetingWatch()
-    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1500)
 
     expect(useAnswer.getState().meetingHidden).toBe(true)
     expect(setTrayVisible).toHaveBeenCalledWith(false)
@@ -567,7 +610,7 @@ describe('answer store', () => {
     useSettings.setState({ stealth: { ...defaults.stealth, meetingSafe: false } })
     vi.mocked(meetingActive).mockResolvedValue(true)
     stopMeeting = startMeetingWatch()
-    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1500)
 
     expect(useAnswer.getState().meetingHidden).toBe(false)
     expect(setTrayVisible).not.toHaveBeenCalledWith(false)
@@ -821,6 +864,7 @@ describe('answer store', () => {
       true,
       'verify',
       '',
+      true,
       true,
     )
     expect(showOverlay).toHaveBeenCalledWith('Explanation', 'text', 12000)

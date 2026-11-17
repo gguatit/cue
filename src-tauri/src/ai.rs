@@ -267,6 +267,72 @@ pub struct Provider<'a> {
     pub key: &'a str,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Usage {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total: Option<u64>,
+}
+
+pub struct TextResult {
+    pub text: String,
+    pub usage: Option<Usage>,
+}
+
+impl Usage {
+    pub fn new(input: Option<u64>, output: Option<u64>, total: Option<u64>) -> Option<Self> {
+        let total = total.or_else(|| match (input, output) {
+            (Some(i), Some(o)) => Some(i + o),
+            _ => None,
+        });
+        if input.is_none() && output.is_none() && total.is_none() {
+            return None;
+        }
+        Some(Self {
+            input,
+            output,
+            total,
+        })
+    }
+
+    pub fn add(&mut self, other: Usage) {
+        self.input = add_opt(self.input, other.input);
+        self.output = add_opt(self.output, other.output);
+        self.total = add_opt(self.total, other.total).or_else(|| match (self.input, self.output) {
+            (Some(i), Some(o)) => Some(i + o),
+            _ => None,
+        });
+    }
+}
+
+fn add_opt(a: Option<u64>, b: Option<u64>) -> Option<u64> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(a + b),
+        (Some(v), None) | (None, Some(v)) => Some(v),
+        (None, None) => None,
+    }
+}
+
+pub fn merge_usage(a: Option<Usage>, b: Option<Usage>) -> Option<Usage> {
+    match (a, b) {
+        (Some(mut a), Some(b)) => {
+            a.add(b);
+            Some(a)
+        }
+        (Some(a), None) => Some(a),
+        (None, Some(b)) => Some(b),
+        (None, None) => None,
+    }
+}
+
+fn flatten_usage(parts: Vec<Option<Usage>>) -> Option<Usage> {
+    parts.into_iter().fold(None, merge_usage)
+}
+
 /// OpenCode Zen exposes different native APIs per model family.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Api {
@@ -391,6 +457,19 @@ fn endpoint_for(base_url: &str, model: &str, api: Api) -> String {
     }
 }
 
+fn endpoint_for_stream(base_url: &str, model: &str, api: Api) -> String {
+    match api {
+        Api::Google => {
+            let root = base_url
+                .trim_end_matches('/')
+                .strip_suffix("/openai/v1")
+                .unwrap_or_else(|| base_url.trim_end_matches('/'));
+            format!("{root}/google/v1beta/models/{model}:streamGenerateContent?alt=sse")
+        }
+        _ => endpoint_for(base_url, model, api),
+    }
+}
+
 fn api_headers(api: Api, preset: &str, key: &str) -> Vec<(&'static str, String)> {
     if key.is_empty() {
         return Vec::new();
@@ -425,8 +504,15 @@ fn image_data(b64: &str) -> String {
     format!("data:image/jpeg;base64,{b64}")
 }
 
-const RESERVED_EXTRA: [&str; 6] =
-    ["temperature", "model", "messages", "input", "contents", "stream"];
+const RESERVED_EXTRA: [&str; 7] = [
+    "temperature",
+    "model",
+    "messages",
+    "input",
+    "contents",
+    "stream",
+    "stream_options",
+];
 
 pub fn merge_extra(base: &mut Value, extra: &str) -> Result<(), String> {
     if extra.trim().is_empty() {
@@ -491,6 +577,34 @@ pub fn build_body(api: Api, model: &str, prompt: &str, b64: &str, extra: &str) -
         }),
     };
     merge_extra(&mut body, extra)?;
+    Ok(body)
+}
+
+pub fn build_stream_body(
+    api: Api,
+    preset: &str,
+    model: &str,
+    prompt: &str,
+    b64: &str,
+    extra: &str,
+) -> Result<Value, String> {
+    let mut body = build_body(api, model, prompt, b64, extra)?;
+    let obj = body.as_object_mut().ok_or("config")?;
+    match api {
+        Api::Chat => {
+            obj.insert("stream".into(), Value::Bool(true));
+            // OpenCode documents stream_options as a 400 risk, so only the
+            // official OpenAI preset asks for usage in the stream.
+            if preset == "openai" {
+                obj.insert("stream_options".into(), json!({ "include_usage": true }));
+            }
+        }
+        Api::Anthropic | Api::Responses => {
+            obj.insert("stream".into(), Value::Bool(true));
+        }
+        // Google native streaming uses the streamGenerateContent endpoint.
+        Api::Google => {}
+    }
     Ok(body)
 }
 
@@ -641,6 +755,155 @@ pub fn extract_content(api: Api, v: &Value) -> Result<String, String> {
     };
     text.ok_or_else(|| "parse".into())
 }
+
+fn u64_at(v: &Value, paths: &[&str]) -> Option<u64> {
+    paths
+        .iter()
+        .find_map(|path| v.pointer(path).and_then(|n| n.as_u64()))
+}
+
+/// Provider-reported token usage for one response or one stream event.
+pub fn extract_usage(api: Api, v: &Value) -> Option<Usage> {
+    match api {
+        Api::Chat => Usage::new(
+            u64_at(v, &["/usage/prompt_tokens"]),
+            u64_at(v, &["/usage/completion_tokens"]),
+            u64_at(v, &["/usage/total_tokens"]),
+        ),
+        Api::Anthropic => Usage::new(
+            u64_at(
+                v,
+                &["/message/usage/input_tokens", "/usage/input_tokens"],
+            ),
+            u64_at(
+                v,
+                &["/message/usage/output_tokens", "/usage/output_tokens"],
+            ),
+            None,
+        ),
+        Api::Google => Usage::new(
+            u64_at(v, &["/usageMetadata/promptTokenCount"]),
+            u64_at(v, &["/usageMetadata/candidatesTokenCount"]),
+            u64_at(v, &["/usageMetadata/totalTokenCount"]),
+        ),
+        Api::Responses => Usage::new(
+            u64_at(v, &["/response/usage/input_tokens", "/usage/input_tokens"]),
+            u64_at(v, &["/response/usage/output_tokens", "/usage/output_tokens"]),
+            u64_at(v, &["/response/usage/total_tokens", "/usage/total_tokens"]),
+        ),
+    }
+}
+
+fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack.windows(needle.len()).position(|w| w == needle)
+}
+
+fn sse_boundary(buf: &[u8]) -> Option<(usize, usize)> {
+    let mut best: Option<(usize, usize)> = None;
+    for (pattern, len) in [(b"\r\n\r\n".as_slice(), 4), (b"\n\n".as_slice(), 2)] {
+        if let Some(index) = find_subslice(buf, pattern) {
+            if best.map_or(true, |(current, _)| index < current) {
+                best = Some((index, len));
+            }
+        }
+    }
+    best
+}
+
+fn sse_data(block: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(block);
+    let data: Vec<&str> = text
+        .lines()
+        .filter_map(|line| line.strip_prefix("data:"))
+        .map(|line| line.strip_prefix(' ').unwrap_or(line))
+        .collect();
+    (!data.is_empty()).then(|| data.join("\n"))
+}
+
+fn drain_sse(buf: &mut Vec<u8>) -> Vec<String> {
+    let mut out = Vec::new();
+    while let Some((index, len)) = sse_boundary(buf) {
+        let block: Vec<u8> = buf.drain(..index + len).collect();
+        if let Some(data) = sse_data(&block[..index]) {
+            out.push(data);
+        }
+    }
+    out
+}
+
+fn flush_sse(buf: &mut Vec<u8>) -> Vec<String> {
+    if buf.is_empty() {
+        return Vec::new();
+    }
+    sse_data(&std::mem::take(buf)).into_iter().collect()
+}
+
+fn text_value(v: &Value) -> Option<String> {
+    if let Some(s) = v.as_str() {
+        return Some(s.to_string());
+    }
+    let parts = v.as_array()?;
+    join_texts(
+        parts
+            .iter()
+            .filter_map(|part| part.get("text").and_then(|t| t.as_str()))
+            .map(|s| s.to_string()),
+    )
+}
+
+/// Text carried by one streaming event, if the event is a text delta.
+pub fn stream_delta(api: Api, v: &Value) -> Option<String> {
+    match api {
+        Api::Chat => v
+            .pointer("/choices/0/delta/content")
+            .and_then(text_value),
+        Api::Anthropic => {
+            if v.get("type").and_then(|t| t.as_str()) != Some("content_block_delta") {
+                return None;
+            }
+            v.pointer("/delta/text")
+                .and_then(|t| t.as_str())
+                .map(|s| s.to_string())
+        }
+        Api::Google => v
+            .pointer("/candidates/0/content/parts")
+            .and_then(text_value),
+        Api::Responses => {
+            if v.get("type").and_then(|t| t.as_str()) != Some("response.output_text.delta") {
+                return None;
+            }
+            v.get("delta")
+                .and_then(|t| t.as_str())
+                .map(|s| s.to_string())
+        }
+    }
+}
+
+fn apply_sse_event(
+    api: Api,
+    data: &str,
+    raw: &mut String,
+    usage: &mut Option<Usage>,
+    on_text: &mut (dyn FnMut(&str) + Send),
+) {
+    if data.trim() == "[DONE]" {
+        return;
+    }
+    let Ok(value) = serde_json::from_str::<Value>(data) else {
+        return;
+    };
+    if let Some(delta) = stream_delta(api, &value) {
+        if !delta.is_empty() {
+            raw.push_str(&delta);
+            let text = sanitize_text(raw);
+            if !text.is_empty() {
+                on_text(&text);
+            }
+        }
+    }
+    *usage = merge_usage(*usage, extract_usage(api, &value));
+}
+
 pub const REQUEST_BUDGET: Duration = Duration::from_secs(90);
 
 pub fn budget_left(started: Instant, now: Instant, budget: Duration) -> Option<Duration> {
@@ -802,7 +1065,7 @@ async fn post_once(
     api: Api,
     body: &Value,
     timeout: Duration,
-) -> Result<String, PostError> {
+) -> Result<(String, Option<Usage>), PostError> {
     let url = endpoint_for(p.base_url, p.model, api);
     let mut req = client.post(url).timeout(timeout);
     for (name, value) in api_headers(api, p.preset, p.key) {
@@ -838,10 +1101,121 @@ async fn post_once(
         code: "parse",
         retry_after: None,
     })?;
-    extract_content(api, &v).map_err(|_| PostError {
+    let usage = extract_usage(api, &v);
+    let content = extract_content(api, &v).map_err(|_| PostError {
         code: "parse",
         retry_after: None,
-    })
+    })?;
+    Ok((content, usage))
+}
+
+async fn post_stream_once(
+    client: &reqwest::Client,
+    p: &Provider<'_>,
+    api: Api,
+    body: &Value,
+    started: Instant,
+    on_text: &mut (dyn FnMut(&str) + Send),
+) -> Result<TextResult, PostError> {
+    let Some(left) = budget_left(started, Instant::now(), REQUEST_BUDGET) else {
+        return Err(PostError {
+            code: "timeout",
+            retry_after: None,
+        });
+    };
+    let url = endpoint_for_stream(p.base_url, p.model, api);
+    let mut req = client.post(url).timeout(left.min(Duration::from_secs(60)));
+    for (name, value) in api_headers(api, p.preset, p.key) {
+        req = req.header(name, value);
+    }
+    if p.preset == "opencode-go" {
+        req = req
+            .header("x-opencode-session", session_id())
+            .header("user-agent", concat!("cue/", env!("CARGO_PKG_VERSION")));
+    }
+    let mut resp = req.json(body).send().await.map_err(|_| PostError {
+        code: "network",
+        retry_after: None,
+    })?;
+    let status = resp.status();
+    if !status.is_success() {
+        let retry_after = resp
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.trim().parse::<u64>().ok());
+        let body = resp.text().await.unwrap_or_default();
+        return Err(PostError {
+            code: error_code(status.as_u16(), &body),
+            retry_after,
+        });
+    }
+    let is_sse = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.contains("text/event-stream"))
+        .unwrap_or(false);
+    if !is_sse {
+        let text = resp.text().await.map_err(|_| PostError {
+            code: "network",
+            retry_after: None,
+        })?;
+        let value: Value = serde_json::from_str(&text).map_err(|_| PostError {
+            code: "parse",
+            retry_after: None,
+        })?;
+        let content = extract_content(api, &value).map_err(|_| PostError {
+            code: "parse",
+            retry_after: None,
+        })?;
+        let text = sanitize_text(&content);
+        if text.is_empty() {
+            return Err(PostError {
+                code: "empty_text",
+                retry_after: None,
+            });
+        }
+        on_text(&text);
+        return Ok(TextResult {
+            text,
+            usage: extract_usage(api, &value),
+        });
+    }
+
+    let mut buf = Vec::new();
+    let mut raw = String::new();
+    let mut usage = None;
+    loop {
+        if budget_left(started, Instant::now(), REQUEST_BUDGET).is_none() {
+            return Err(PostError {
+                code: "timeout",
+                retry_after: None,
+            });
+        }
+        let chunk = resp.chunk().await.map_err(|_| PostError {
+            code: "network",
+            retry_after: None,
+        })?;
+        let Some(bytes) = chunk else {
+            break;
+        };
+        buf.extend_from_slice(&bytes);
+        for data in drain_sse(&mut buf) {
+            apply_sse_event(api, &data, &mut raw, &mut usage, on_text);
+        }
+    }
+    for data in flush_sse(&mut buf) {
+        apply_sse_event(api, &data, &mut raw, &mut usage, on_text);
+    }
+    let text = sanitize_text(&raw);
+    if text.is_empty() {
+        return Err(PostError {
+            code: "empty_text",
+            retry_after: None,
+        });
+    }
+    Ok(TextResult { text, usage })
 }
 
 async fn post_api(
@@ -850,14 +1224,14 @@ async fn post_api(
     api: Api,
     body: &Value,
     started: Instant,
-) -> Result<String, String> {
+) -> Result<(String, Option<Usage>), String> {
     let mut retry = 0usize;
     loop {
         let Some(left) = budget_left(started, Instant::now(), REQUEST_BUDGET) else {
             return Err("timeout".into());
         };
         match post_once(client, p, api, body, left.min(Duration::from_secs(60))).await {
-            Ok(content) => return Ok(content),
+            Ok(result) => return Ok(result),
             Err(e) => {
                 if !retryable(e.code) {
                     return Err(e.code.to_string());
@@ -895,17 +1269,17 @@ async fn answer_with_api(
     prompt: &str,
     b64: &str,
     started: Instant,
-) -> Result<Vec<String>, String> {
+) -> Result<(Vec<String>, Option<Usage>), String> {
     let body = build_body(api, p.model, prompt, b64, p.extra)?;
-    let content = post_api(client, p, api, &body, started).await?;
+    let (content, usage) = post_api(client, p, api, &body, started).await?;
     match parse_answers(&content) {
-        Ok(a) => Ok(a),
+        Ok(a) => Ok((a, usage)),
         Err(ParseError::Empty) => Err("empty".into()),
         Err(ParseError::Format) => {
             let body = correction_body(api, p.model, prompt, b64, &content, p.extra)?;
-            let content2 = post_api(client, p, api, &body, started).await?;
+            let (content2, usage2) = post_api(client, p, api, &body, started).await?;
             match parse_answers(&content2) {
-                Ok(a) => Ok(a),
+                Ok(a) => Ok((a, flatten_usage(vec![usage, usage2]))),
                 Err(ParseError::Empty) => Err("empty".into()),
                 Err(ParseError::Format) => Err("parse".into()),
             }
@@ -921,7 +1295,7 @@ pub async fn request_answers(
     cy: i32,
     w: u32,
     h: u32,
-) -> Result<Vec<String>, String> {
+) -> Result<(Vec<String>, Option<Usage>), String> {
     let prompt = build_prompt(cx, cy, w, h);
     let started = Instant::now();
     let mut last = "model_protocol".to_string();
@@ -941,13 +1315,13 @@ async fn request_text_with_prompt(
     capture: &crate::capture::Capture,
     paraphrase: bool,
     prompt: &str,
-) -> Result<String, String> {
+) -> Result<(String, Option<Usage>), String> {
     let started = Instant::now();
     let mut last = "model_protocol".to_string();
     for api in protocol_candidates(p.preset, api_for(p.preset, p.model)) {
         let body = build_body(api, p.model, prompt, &capture.b64, p.extra)?;
-        let text = match post_api(client, p, api, &body, started).await {
-            Ok(content) => sanitize_text(&content),
+        let (text, usage) = match post_api(client, p, api, &body, started).await {
+            Ok((content, usage)) => (sanitize_text(&content), usage),
             Err(code) if code == "model_protocol" => {
                 last = code;
                 continue;
@@ -958,14 +1332,15 @@ async fn request_text_with_prompt(
             return Err("empty_text".into());
         }
         if !paraphrase {
-            return Ok(text);
+            return Ok((text, usage));
         }
         let body = paraphrase_body(api, p.model, &text, p.extra)?;
-        let text = sanitize_text(&post_api(client, p, api, &body, started).await?);
+        let (content, usage2) = post_api(client, p, api, &body, started).await?;
+        let text = sanitize_text(&content);
         if text.is_empty() {
             return Err("empty_text".into());
         }
-        return Ok(text);
+        return Ok((text, flatten_usage(vec![usage, usage2])));
     }
     Err(last)
 }
@@ -977,7 +1352,7 @@ pub async fn request_text(
     paraphrase: bool,
     language: &str,
     level: &str,
-) -> Result<String, String> {
+) -> Result<(String, Option<Usage>), String> {
     let prompt = build_text_prompt(
         capture.cursor_x,
         capture.cursor_y,
@@ -997,7 +1372,7 @@ pub async fn request_free(
     instruction: &str,
     language: &str,
     level: &str,
-) -> Result<String, String> {
+) -> Result<(String, Option<Usage>), String> {
     let prompt = build_free_prompt(
         capture.cursor_x,
         capture.cursor_y,
@@ -1008,6 +1383,68 @@ pub async fn request_free(
         level,
     );
     request_text_with_prompt(client, p, capture, paraphrase, &prompt).await
+}
+
+async fn request_text_stream_with_prompt(
+    client: &reqwest::Client,
+    p: &Provider<'_>,
+    capture: &crate::capture::Capture,
+    prompt: &str,
+    on_text: &mut (dyn FnMut(&str) + Send),
+) -> Result<TextResult, String> {
+    let started = Instant::now();
+    let mut last = "model_protocol".to_string();
+    for api in protocol_candidates(p.preset, api_for(p.preset, p.model)) {
+        let body = build_stream_body(api, p.preset, p.model, prompt, &capture.b64, p.extra)?;
+        match post_stream_once(client, p, api, &body, started, on_text).await {
+            Ok(result) => return Ok(result),
+            Err(error) if error.code == "model_protocol" => {
+                last = error.code.to_string();
+            }
+            Err(error) => return Err(error.code.to_string()),
+        }
+    }
+    Err(last)
+}
+
+pub async fn request_text_stream(
+    client: &reqwest::Client,
+    p: &Provider<'_>,
+    capture: &crate::capture::Capture,
+    language: &str,
+    level: &str,
+    on_text: &mut (dyn FnMut(&str) + Send),
+) -> Result<TextResult, String> {
+    let prompt = build_text_prompt(
+        capture.cursor_x,
+        capture.cursor_y,
+        capture.img_w,
+        capture.img_h,
+        language,
+        level,
+    );
+    request_text_stream_with_prompt(client, p, capture, &prompt, on_text).await
+}
+
+pub async fn request_free_stream(
+    client: &reqwest::Client,
+    p: &Provider<'_>,
+    capture: &crate::capture::Capture,
+    instruction: &str,
+    language: &str,
+    level: &str,
+    on_text: &mut (dyn FnMut(&str) + Send),
+) -> Result<TextResult, String> {
+    let prompt = build_free_prompt(
+        capture.cursor_x,
+        capture.cursor_y,
+        capture.img_w,
+        capture.img_h,
+        instruction,
+        language,
+        level,
+    );
+    request_text_stream_with_prompt(client, p, capture, &prompt, on_text).await
 }
 
 const VISION_TEST_IMAGE: &str = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAACAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD50ooor8MP9Uz/2Q==";
@@ -1027,7 +1464,7 @@ pub async fn test(client: &reqwest::Client, p: &Provider<'_>) -> Result<bool, St
     for api in protocol_candidates(p.preset, api_for(p.preset, p.model)) {
         let body = build_body(api, p.model, "Reply with the single word red.", b64, p.extra)?;
         match post_api(client, p, api, &body, started).await {
-            Ok(content) => return Ok(reads_red(&content)),
+            Ok((content, _)) => return Ok(reads_red(&content)),
             Err(code) if code == "model_protocol" => last = code,
             Err(code) => return Err(code),
         }
@@ -1046,6 +1483,108 @@ mod tests {
     #[test]
     fn parse_plain_json() {
         assert_eq!(parse_answers(r#"{"answers":["B"]}"#).unwrap(), vec!["B"]);
+    }
+
+    #[test]
+    fn extracts_usage_for_every_api() {
+        let chat = json!({"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}});
+        assert_eq!(
+            extract_usage(Api::Chat, &chat),
+            Some(Usage { input: Some(10), output: Some(5), total: Some(15) })
+        );
+        let anthropic = json!({"content":[],"usage":{"input_tokens":8,"output_tokens":3}});
+        assert_eq!(
+            extract_usage(Api::Anthropic, &anthropic),
+            Some(Usage { input: Some(8), output: Some(3), total: Some(11) })
+        );
+        let google = json!({"usageMetadata":{"promptTokenCount":7,"candidatesTokenCount":4,"totalTokenCount":11}});
+        assert_eq!(
+            extract_usage(Api::Google, &google),
+            Some(Usage { input: Some(7), output: Some(4), total: Some(11) })
+        );
+        let responses = json!({"usage":{"input_tokens":9,"output_tokens":2,"total_tokens":11}});
+        assert_eq!(
+            extract_usage(Api::Responses, &responses),
+            Some(Usage { input: Some(9), output: Some(2), total: Some(11) })
+        );
+    }
+
+    #[test]
+    fn extracts_nested_stream_usage() {
+        let anthropic = json!({"type":"message_start","message":{"usage":{"input_tokens":12}}});
+        assert_eq!(
+            extract_usage(Api::Anthropic, &anthropic),
+            Some(Usage { input: Some(12), output: None, total: None })
+        );
+        let responses = json!({"type":"response.completed","response":{"usage":{"input_tokens":20,"output_tokens":8,"total_tokens":28}}});
+        assert_eq!(
+            extract_usage(Api::Responses, &responses),
+            Some(Usage { input: Some(20), output: Some(8), total: Some(28) })
+        );
+    }
+
+    #[test]
+    fn sse_keeps_utf8_split_across_chunks() {
+        let event = "data: {\"choices\":[{\"delta\":{\"content\":\"설명\"}}]}\r\n\r\n".as_bytes();
+        let split = event.len() / 2;
+        let mut buf = Vec::new();
+        let mut events = Vec::new();
+        buf.extend_from_slice(&event[..split]);
+        events.extend(drain_sse(&mut buf));
+        buf.extend_from_slice(&event[split..]);
+        events.extend(drain_sse(&mut buf));
+        assert_eq!(events.len(), 1);
+        let value: Value = serde_json::from_str(&events[0]).unwrap();
+        assert_eq!(stream_delta(Api::Chat, &value).as_deref(), Some("설명"));
+    }
+
+    #[test]
+    fn stream_delta_reads_every_api() {
+        let chat = json!({"choices":[{"delta":{"content":"Hello"}}]});
+        assert_eq!(stream_delta(Api::Chat, &chat).as_deref(), Some("Hello"));
+        let anthropic = json!({"type":"content_block_delta","delta":{"type":"text_delta","text":"Hi"}});
+        assert_eq!(stream_delta(Api::Anthropic, &anthropic).as_deref(), Some("Hi"));
+        let google = json!({"candidates":[{"content":{"parts":[{"text":"G"}]}}]});
+        assert_eq!(stream_delta(Api::Google, &google).as_deref(), Some("G"));
+        let responses = json!({"type":"response.output_text.delta","delta":"R"});
+        assert_eq!(stream_delta(Api::Responses, &responses).as_deref(), Some("R"));
+    }
+
+    #[test]
+    fn apply_sse_event_accumulates_text_and_usage() {
+        let mut raw = String::new();
+        let mut usage = None;
+        let mut seen = String::new();
+        let mut sink = |text: &str| seen = text.to_string();
+        apply_sse_event(
+            Api::Chat,
+            r#"{"choices":[{"delta":{"content":"Hello"}}]}"#,
+            &mut raw,
+            &mut usage,
+            &mut sink,
+        );
+        apply_sse_event(
+            Api::Chat,
+            r#"{"choices":[{"delta":{"content":" world"}}],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":5}}"#,
+            &mut raw,
+            &mut usage,
+            &mut sink,
+        );
+        assert_eq!(seen, "Hello world");
+        assert_eq!(usage, Some(Usage { input: Some(3), output: Some(2), total: Some(5) }));
+    }
+
+    #[test]
+    fn missing_usage_is_none_and_usage_adds() {
+        assert_eq!(extract_usage(Api::Chat, &json!({"choices":[]})), None);
+        let combined = merge_usage(
+            Some(Usage { input: Some(3), output: Some(2), total: Some(5) }),
+            Some(Usage { input: Some(4), output: Some(1), total: Some(5) }),
+        )
+        .unwrap();
+        assert_eq!(combined.input, Some(7));
+        assert_eq!(combined.output, Some(3));
+        assert_eq!(combined.total, Some(10));
     }
 
     #[test]
@@ -1241,7 +1780,15 @@ mod tests {
 
     #[test]
     fn merge_extra_rejects_reserved_keys() {
-        for key in ["temperature", "model", "messages", "input", "contents", "stream"] {
+        for key in [
+            "temperature",
+            "model",
+            "messages",
+            "input",
+            "contents",
+            "stream",
+            "stream_options",
+        ] {
             let mut body = json!({"model": "m"});
             let extra = format!(r#"{{"{key}": 1}}"#);
             assert_eq!(merge_extra(&mut body, &extra).unwrap_err(), "extra");
@@ -1445,6 +1992,91 @@ mod tests {
         json!({ "choices": [{ "message": { "content": content } }] }).to_string()
     }
 
+    fn typed_server(content_type: &str, body: &str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let content_type = content_type.to_string();
+        let body = body.to_string();
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            drain_request(&mut stream);
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            stream.write_all(head.as_bytes()).unwrap();
+            stream.write_all(body.as_bytes()).unwrap();
+            stream.flush().unwrap();
+        });
+        format!("http://{addr}/v1")
+    }
+
+    fn test_capture() -> crate::capture::Capture {
+        crate::capture::Capture {
+            b64: "image".to_string(),
+            img_w: 100,
+            img_h: 100,
+            cursor_x: 50,
+            cursor_y: 50,
+            monitor: crate::capture::MonitorRect { x: 0, y: 0, w: 100, h: 100 },
+        }
+    }
+
+    #[test]
+    fn streams_text_and_usage() {
+        let body = "data: {\"choices\":[{\"delta\":{\"content\":\"안\"}}]}\n\n\
+data: {\"choices\":[{\"delta\":{\"content\":\"녕\"}}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\n\
+data: [DONE]\n\n";
+        let base = typed_server("text/event-stream", body);
+        let mut seen = Vec::new();
+        let result = tauri::async_runtime::block_on(async {
+            let client = test_client();
+            let p = test_provider(&base);
+            request_text_stream(
+                &client,
+                &p,
+                &test_capture(),
+                "auto",
+                "normal",
+                &mut |text| seen.push(text.to_string()),
+            )
+            .await
+        })
+        .unwrap();
+        assert_eq!(result.text, "안녕");
+        assert_eq!(
+            result.usage,
+            Some(Usage { input: Some(3), output: Some(2), total: Some(5) })
+        );
+        assert_eq!(seen.last().map(String::as_str), Some("안녕"));
+    }
+
+    #[test]
+    fn non_sse_stream_response_falls_back_to_json() {
+        let body = json!({
+            "choices": [{ "message": { "content": "plain" } }],
+            "usage": { "prompt_tokens": 4, "completion_tokens": 1, "total_tokens": 5 }
+        })
+        .to_string();
+        let base = typed_server("application/json", &body);
+        let result = tauri::async_runtime::block_on(async {
+            let client = test_client();
+            let p = test_provider(&base);
+            request_text_stream(
+                &client,
+                &p,
+                &test_capture(),
+                "auto",
+                "normal",
+                &mut |_| {},
+            )
+            .await
+        })
+        .unwrap();
+        assert_eq!(result.text, "plain");
+        assert_eq!(result.usage.unwrap().total, Some(5));
+    }
+
     fn mock_server(responses: Vec<MockResponse>) -> (String, Arc<AtomicUsize>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
@@ -1518,7 +2150,9 @@ mod tests {
         tauri::async_runtime::block_on(async {
             let client = test_client();
             let p = test_provider(base_url);
-            request_answers(&client, &p, "image", 10, 20, 100, 200).await
+            request_answers(&client, &p, "image", 10, 20, 100, 200)
+                .await
+                .map(|(answers, _)| answers)
         })
     }
 
@@ -1536,7 +2170,9 @@ mod tests {
                 extra: "",
                 key: "test-key",
             };
-            request_answers(&client, &p, "image", 10, 20, 100, 200).await
+            request_answers(&client, &p, "image", 10, 20, 100, 200)
+                .await
+                .map(|(answers, _)| answers)
         })
     }
 

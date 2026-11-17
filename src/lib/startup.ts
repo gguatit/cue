@@ -80,7 +80,10 @@ export async function runStartup(): Promise<void> {
       useAnswer.getState().logError('stealth'),
     )
     if (s.stealth.guard) {
-      await setGuard(true).catch(() => useAnswer.getState().logError('guard'))
+      // Guard repair spawns `sc`/`schtasks`; let the window paint first.
+      setTimeout(() => {
+        void setGuard(true).catch(() => useAnswer.getState().logError('guard'))
+      }, 2000)
     }
   })()
   // Shortcut registration stays ordered: each call validates against the others.
