@@ -2,14 +2,14 @@ import type { Transition } from 'motion/react'
 
 export const micro: Transition = {
   type: 'spring',
-  visualDuration: 0.22,
-  bounce: 0.02,
+  visualDuration: 0.24,
+  bounce: 0.16,
 }
 
 export const panel: Transition = {
   type: 'spring',
-  visualDuration: 0.32,
-  bounce: 0.04,
+  visualDuration: 0.34,
+  bounce: 0.1,
 }
 
 export const exit: Transition = {
@@ -29,8 +29,8 @@ export const fadeFast: Transition = {
 
 export const layoutSpring: Transition = {
   type: 'spring',
-  visualDuration: 0.24,
-  bounce: 0.02,
+  visualDuration: 0.3,
+  bounce: 0.14,
 }
 
 export const stagger = 0.018

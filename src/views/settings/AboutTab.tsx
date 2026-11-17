@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Button, Group, GroupHeader, Toggle } from '../../components/ui'
 import UpdateConfirmDialog from '../../components/UpdateConfirmDialog'
 import { Presence } from '../../components/Presence'
-import { layoutSpring } from '../../lib/motion'
+import { fade } from '../../lib/motion'
 import { useT, errorMessage } from '../../i18n'
 import { cleanupUpdateFiles, openExternal, preflightUpdate, type UpdatePreflight } from '../../lib/tauri'
 import { formatBytes } from '../../lib/updates'
@@ -180,7 +180,7 @@ export default function AboutTab() {
                     className="h-full w-full origin-left rounded-full bg-accent"
                     initial={false}
                     animate={{ scaleX: (progress ?? 0) / 100 }}
-                    transition={layoutSpring}
+                    transition={fade}
                   />
                 </div>
                 <p className="mt-1 text-xs text-ink-3">

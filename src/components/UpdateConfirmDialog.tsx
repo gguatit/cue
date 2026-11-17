@@ -27,8 +27,9 @@ export default function UpdateConfirmDialog({
       onClick={() => !busy && onCancel()}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.985, y: 6 }}
+        initial={{ opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.98, y: 4, transition: exit }}
         transition={panel}
         className="w-full max-w-md rounded-xl border border-zinc-700 bg-surface p-5 shadow-2xl"
         role="dialog"

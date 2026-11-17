@@ -21,7 +21,7 @@ import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import { useAnswer } from '../../stores/answer'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { Presence } from '../../components/Presence'
-import { micro } from '../../lib/motion'
+import { layoutSpring } from '../../lib/motion'
 import { Button, Field, Group, GroupHeader, Input, Select, Toggle } from '../../components/ui'
 
 function ModelChips({
@@ -41,7 +41,7 @@ function ModelChips({
           <motion.button
             key={m}
             layout="position"
-            transition={micro}
+            transition={layoutSpring}
             type="button"
             onClick={() => onSelect(m)}
             className={`rounded-md border px-2 py-1 text-xs transition-colors ${

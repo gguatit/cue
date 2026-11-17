@@ -7,7 +7,7 @@ import { hasApiKey, openTaskbarSettings, setApiKey, trayIconShown } from '../../
 import { isLoopbackUrl } from '../../lib/localEndpoint'
 import { PRESETS, useSettings } from '../../stores/settings'
 import { useAnswer } from '../../stores/answer'
-import { layoutSpring } from '../../lib/motion'
+import { exit, fade, layoutSpring } from '../../lib/motion'
 
 const STEPS = 4
 
@@ -146,10 +146,10 @@ export default function Onboarding() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={step}
-              initial={{ opacity: 0, x: 6 }}
+              initial={{ opacity: 0, x: 8 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -6, transition: { duration: 0.12, ease: 'easeIn' } }}
-              transition={{ duration: 0.14, ease: 'easeOut' }}
+              exit={{ opacity: 0, x: -8, transition: exit }}
+              transition={{ opacity: fade, x: layoutSpring }}
               className="space-y-4"
             >
           {step === 0 && (

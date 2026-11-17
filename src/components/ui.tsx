@@ -21,7 +21,7 @@ export function Button({
 }: HTMLMotionProps<'button'> & { variant?: ButtonVariant }) {
   return (
     <motion.button
-      whileTap={{ scale: 0.975 }}
+      whileTap={{ scale: 0.97 }}
       transition={micro}
       className={`inline-flex h-8 items-center justify-center rounded-[9px] px-3 text-[13px] font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40 ${BUTTON_STYLES[variant]} ${className}`}
       {...rest}

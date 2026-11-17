@@ -3,7 +3,7 @@ import { MotionConfig, motion } from 'motion/react'
 import { BookOpen, Crosshair, Info, Settings, Shield, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useT } from '../../i18n'
-import { fade, springSoft } from '../../lib/motion'
+import { fade, layoutSpring } from '../../lib/motion'
 import { useUi } from '../../stores/ui'
 
 const AboutTab = lazy(() => import('./AboutTab'))
@@ -100,7 +100,7 @@ export default function SettingsHome() {
                 {active && (
                   <motion.span
                     layoutId="settings-active"
-                    transition={springSoft}
+                    transition={layoutSpring}
                     className="absolute inset-0 rounded-[10px] bg-surface-3/80"
                   />
                 )}
@@ -130,9 +130,9 @@ export default function SettingsHome() {
           </header>
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={fade}
+            transition={{ opacity: fade, y: layoutSpring }}
           >
             <Suspense
               fallback={

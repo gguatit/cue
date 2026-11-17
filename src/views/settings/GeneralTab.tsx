@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import ShortcutRecorder from '../../components/ShortcutRecorder'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { Presence } from '../../components/Presence'
-import { exit, fade } from '../../lib/motion'
+import { exit, fade, layoutSpring } from '../../lib/motion'
 import MouseTriggerCard from '../../components/MouseTriggerCard'
 import ExamReadiness from './ExamReadiness'
 import {
@@ -535,7 +535,7 @@ export default function GeneralTab() {
                   initial={{ opacity: 0, x: -4 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 4, transition: exit }}
-                  transition={fade}
+                  transition={{ layout: layoutSpring, opacity: fade, x: layoutSpring }}
                   className="flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-ink"
                 >
                   <span className="min-w-0 truncate">{profile.name}</span>
