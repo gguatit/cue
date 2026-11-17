@@ -17,11 +17,19 @@ mod updates;
 mod windows;
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use commands::AppState;
 use tauri::Emitter;
 use tauri_plugin_autostart::ManagerExt;
+
+const BLUR_GRACE_MS: u64 = 150;
+
+fn blur_is_current(token: u64, generation: &AtomicU64) -> bool {
+    generation.load(Ordering::SeqCst) == token
+}
 
 fn arg_value(name: &str) -> Option<PathBuf> {
     let mut args = std::env::args();
@@ -263,6 +271,7 @@ fn main() {
             }
             let main = windows::create_main(&handle, !background)?;
             let w = main.clone();
+            let blur_generation = Arc::new(AtomicU64::new(0));
             main.on_window_event(move |e| {
                 match e {
                     tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -270,9 +279,20 @@ fn main() {
                         let _ = w.hide();
                     }
                     tauri::WindowEvent::Focused(false) => {
-                        let _ = w.emit("main-blurred", ());
+                        // Windows drops focus briefly during a native window drag.
+                        // Hide only if focus has not returned by the grace deadline.
+                        let token = blur_generation.fetch_add(1, Ordering::SeqCst) + 1;
+                        let w = w.clone();
+                        let generation = blur_generation.clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(Duration::from_millis(BLUR_GRACE_MS));
+                            if blur_is_current(token, &generation) {
+                                let _ = w.emit("main-blurred", ());
+                            }
+                        });
                     }
                     tauri::WindowEvent::Focused(true) => {
+                        blur_generation.fetch_add(1, Ordering::SeqCst);
                         shortcut::refresh_hooks();
                     }
                     _ => {}
@@ -299,4 +319,18 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, _event| {});
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn focus_cancels_a_pending_blur() {
+        let generation = AtomicU64::new(0);
+        let token = generation.fetch_add(1, Ordering::SeqCst) + 1;
+        assert!(blur_is_current(token, &generation));
+        generation.fetch_add(1, Ordering::SeqCst);
+        assert!(!blur_is_current(token, &generation));
+    }
 }
