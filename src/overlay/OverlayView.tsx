@@ -99,7 +99,7 @@ export default function OverlayView() {
       if (nextId !== idRef.current) {
         stopStream()
         idRef.current = nextId
-        setP({ answer: '', style: 'text', text: '' })
+        setP({ answer: '', style: 'text', text: '', stream: true })
       }
       const text = payload.text ?? ''
       targetRef.current = text
