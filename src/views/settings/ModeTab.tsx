@@ -1,5 +1,11 @@
 import { useState } from 'react'
-import { CAMOUFLAGE_ICONS, useSettings, type DisplayMode, type LedKey } from '../../stores/settings'
+import {
+  CAMOUFLAGE_ICONS,
+  useSettings,
+  type DisplayMode,
+  type LedKey,
+  type TextPosition,
+} from '../../stores/settings'
 import { useAnswer } from '../../stores/answer'
 import { CAMOUFLAGE_COMPONENTS } from '../../components/camouflage'
 import alyacIconUrl from '../../assets/alyac-icon.ico'
@@ -53,6 +59,7 @@ export default function ModeTab() {
   const setFlashMs = useSettings((s) => s.setFlashMs)
   const setBadgeMs = useSettings((s) => s.setBadgeMs)
   const setTextMs = useSettings((s) => s.setTextMs)
+  const setTextPosition = useSettings((s) => s.setTextPosition)
   const led = useSettings((s) => s.led)
   const setLedKey = useSettings((s) => s.setLedKey)
   const trayIcons = useSettings((s) => s.trayIcons)
@@ -165,6 +172,28 @@ export default function ModeTab() {
                 onChange={(e) => setTextMs(Number(e.target.value))}
               />
             </label>
+          </Row>
+        )}
+        {(answerType === 'text' || freeEnabled) && (
+          <Row>
+            <div className="flex w-full items-center justify-between gap-3">
+              <label htmlFor="text-position" className="whitespace-nowrap text-[13px] text-ink">
+                {t('Descriptive answer position', '서술형 답변 위치')}
+              </label>
+              <Select
+                id="text-position"
+                className="w-44"
+                value={display.textPosition}
+                onChange={(e) => setTextPosition(e.target.value as TextPosition)}
+              >
+                <option value="center">{t('Center', '화면 중앙')}</option>
+                <option value="top-left">{t('Top left', '좌측 상단')}</option>
+                <option value="top-right">{t('Top right', '우측 상단')}</option>
+                <option value="bottom-left">{t('Bottom left', '좌측 하단')}</option>
+                <option value="bottom-right">{t('Bottom right', '우측 하단')}</option>
+                <option value="camera">{t('Below camera', '카메라 아래')}</option>
+              </Select>
+            </div>
           </Row>
         )}
         {display.led && (

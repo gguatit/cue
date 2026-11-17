@@ -100,6 +100,30 @@ pub const VERIFICATION_HEIGHT: i32 = 30;
 pub const VERIFICATION_MIN_WIDTH: i32 = 160;
 pub const TEXT_MIN_SIZE: (i32, i32) = (320, 160);
 pub const TEXT_MAX_RATIO: f64 = 0.7;
+pub const TEXT_MARGIN: i32 = 24;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TextPosition {
+    Center,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+    Camera,
+}
+
+impl TextPosition {
+    pub fn parse(value: &str) -> Self {
+        match value {
+            "center" => Self::Center,
+            "top-left" => Self::TopLeft,
+            "top-right" => Self::TopRight,
+            "bottom-left" => Self::BottomLeft,
+            "camera" => Self::Camera,
+            _ => Self::BottomRight,
+        }
+    }
+}
 
 pub fn text_size(scale: f64, len: usize, work: MonitorRect) -> (i32, i32) {
     let s = if scale > 0.0 { scale } else { 1.0 };
@@ -116,12 +140,21 @@ pub fn text_size(scale: f64, len: usize, work: MonitorRect) -> (i32, i32) {
     )
 }
 
-pub fn text_position(work: MonitorRect, size: (i32, i32)) -> (i32, i32) {
-    let margin = 24;
-    (
-        (work.x + work.w - size.0 - margin).max(work.x),
-        (work.y + work.h - size.1 - margin).max(work.y),
-    )
+pub fn text_position(work: MonitorRect, size: (i32, i32), position: TextPosition) -> (i32, i32) {
+    let left = work.x + TEXT_MARGIN;
+    let right = (work.x + work.w - size.0 - TEXT_MARGIN).max(work.x);
+    let top = work.y + TEXT_MARGIN;
+    let bottom = (work.y + work.h - size.1 - TEXT_MARGIN).max(work.y);
+    let center_x = (work.x + (work.w - size.0) / 2).max(work.x);
+    let center_y = (work.y + (work.h - size.1) / 2).max(work.y);
+    match position {
+        TextPosition::Center => (center_x, center_y),
+        TextPosition::TopLeft => (left, top),
+        TextPosition::TopRight => (right, top),
+        TextPosition::BottomLeft => (left, bottom),
+        TextPosition::Camera => (center_x, top),
+        TextPosition::BottomRight => (right, bottom),
+    }
 }
 
 pub fn badge_size(scale: f64, len: usize) -> (i32, i32) {
@@ -325,15 +358,51 @@ mod tests {
     }
 
     #[test]
-    fn text_panel_is_docked_bottom_right() {
+    fn text_panel_positions_at_every_preset() {
+        let work = rect(0, 0, 1920, 1080);
         assert_eq!(
-            text_position(rect(0, 0, 1920, 1080), TEXT_MIN_SIZE),
+            text_position(work, TEXT_MIN_SIZE, TextPosition::BottomRight),
             (1576, 896)
         );
         assert_eq!(
-            text_position(rect(-1920, 0, 1920, 1080), TEXT_MIN_SIZE),
+            text_position(work, TEXT_MIN_SIZE, TextPosition::BottomLeft),
+            (24, 896)
+        );
+        assert_eq!(
+            text_position(work, TEXT_MIN_SIZE, TextPosition::TopLeft),
+            (24, 24)
+        );
+        assert_eq!(
+            text_position(work, TEXT_MIN_SIZE, TextPosition::TopRight),
+            (1576, 24)
+        );
+        assert_eq!(
+            text_position(work, TEXT_MIN_SIZE, TextPosition::Center),
+            (800, 460)
+        );
+        assert_eq!(
+            text_position(work, TEXT_MIN_SIZE, TextPosition::Camera),
+            (800, 24)
+        );
+        assert_eq!(
+            text_position(
+                rect(-1920, 0, 1920, 1080),
+                TEXT_MIN_SIZE,
+                TextPosition::BottomRight
+            ),
             (-344, 896)
         );
+        assert_eq!(
+            text_position(rect(-1920, 0, 1920, 1080), TEXT_MIN_SIZE, TextPosition::TopLeft),
+            (-1896, 24)
+        );
+    }
+
+    #[test]
+    fn text_position_parser_falls_back_to_bottom_right() {
+        assert_eq!(TextPosition::parse("center"), TextPosition::Center);
+        assert_eq!(TextPosition::parse("camera"), TextPosition::Camera);
+        assert_eq!(TextPosition::parse("nope"), TextPosition::BottomRight);
     }
 }
 

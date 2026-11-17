@@ -59,7 +59,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.listenEvent.mockImplementation(async (_event: string, _cb?: (...args: unknown[]) => void) => () => {})
   useAnswer.setState({ mode: { kind: 'idle' }, running: false, log: [], history: [] })
-  useSettings.setState({ display: { tray: true, overlay: false, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+  useSettings.setState({ display: { tray: true, overlay: false, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
 })
 
 describe('runStartup shortcut check', () => {
@@ -90,7 +90,7 @@ describe('runStartup shortcut check', () => {
   })
 
   it('logs but leaves the tray alone when tray display is off', async () => {
-    useSettings.setState({ display: { tray: false, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: false, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     mocks.shortcutInstalled.mockResolvedValue(false)
     await runStartup()
     expect(useAnswer.getState().log[0].code).toBe('shortcut')

@@ -107,6 +107,13 @@ describe('mergeSettings', () => {
     expect(merged.display.flashMs).toBe(800)
   })
 
+  it('defaults and validates the descriptive answer position', () => {
+    expect(defaults.display.textPosition).toBe('bottom-right')
+    expect(mergeSettings({ display: { textPosition: 'center' } }).display.textPosition).toBe('center')
+    expect(mergeSettings({ display: { textPosition: 'camera' } }).display.textPosition).toBe('camera')
+    expect(mergeSettings({ display: { textPosition: 'bad' } }).display.textPosition).toBe('bottom-right')
+  })
+
   it('merges stored descriptive answer settings', () => {
     const merged = mergeSettings({ provider: { answerType: 'text', paraphrase: true } })
     expect(merged.provider.answerType).toBe('text')
@@ -323,22 +330,22 @@ describe('setTrayIcon', () => {
 
 describe('setDisplayMode', () => {
   it('rejects turning off the last enabled mode', () => {
-    useSettings.setState({ display: { tray: true, overlay: false, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: true, overlay: false, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     expect(useSettings.getState().setDisplayMode('tray', false)).toBe(false)
     expect(useSettings.getState().display.tray).toBe(true)
   })
   it('allows turning off when another mode is still on', () => {
-    useSettings.setState({ display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     expect(useSettings.getState().setDisplayMode('tray', false)).toBe(true)
     expect(useSettings.getState().display.tray).toBe(false)
   })
   it('allows turning a mode on', () => {
-    useSettings.setState({ display: { tray: true, overlay: false, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: true, overlay: false, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     expect(useSettings.getState().setDisplayMode('flash', true)).toBe(true)
     expect(useSettings.getState().display.flash).toBe(true)
   })
   it('counts the LED mode as a display mode', () => {
-    useSettings.setState({ display: { tray: false, overlay: false, flash: false, led: true, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: false, overlay: false, flash: false, led: true, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     expect(useSettings.getState().setDisplayMode('led', false)).toBe(false)
     expect(useSettings.getState().display.led).toBe(true)
   })

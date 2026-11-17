@@ -1,6 +1,11 @@
 import { invoke as tauriInvoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import type { AnswerLanguage, AnswerLevel, MouseTrigger } from '../stores/settings'
+import type {
+  AnswerLanguage,
+  AnswerLevel,
+  MouseTrigger,
+  TextPosition,
+} from '../stores/settings'
 import type { MouseButton } from './shortcutKeys'
 
 export const isTauri = (): boolean =>
@@ -145,6 +150,7 @@ export const captureAndAnswer = (
   fallbackModel = '',
   prepareOverlay = false,
   stream = false,
+  textPosition: TextPosition = 'bottom-right',
 ) =>
   invoke<CaptureResult>('capture_and_answer', {
     preset,
@@ -163,18 +169,21 @@ export const captureAndAnswer = (
     fallbackModel,
     prepareOverlay,
     stream,
+    textPosition,
   })
 export const showOverlay = (
   answer: string,
   style: 'badge' | 'flash' | 'text',
   durationMs: number,
   verification?: Verification,
+  position?: TextPosition,
 ) =>
   invoke<void>('show_overlay', {
     answer,
     style,
     durationMs,
     verification: verification ?? null,
+    position: position ?? null,
   })
 export const overlayReady = () => invoke<void>('overlay_ready')
 export const streamDone = (id: number, durationMs: number) =>

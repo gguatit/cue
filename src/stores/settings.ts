@@ -22,6 +22,13 @@ export const PRESETS: Record<string, { label: string; baseUrl: string; placehold
 }
 
 export type DisplayMode = 'tray' | 'overlay' | 'flash' | 'led' | 'brightness'
+export type TextPosition =
+  | 'center'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right'
+  | 'camera'
 export type LedKey = 'scroll' | 'caps' | 'num'
 export type AnswerLanguage = 'auto' | 'ko' | 'en'
 export type AnswerLevel = 'concise' | 'normal' | 'detailed'
@@ -62,6 +69,7 @@ export interface Settings {
     flashMs: number
     badgeMs: number
     textMs: number
+    textPosition: TextPosition
   }
   led: { key: LedKey }
   trayIcons: { idle: string; byAnswer: Record<string, string> }
@@ -106,6 +114,7 @@ interface Actions {
   setFlashMs: (ms: number) => void
   setBadgeMs: (ms: number) => void
   setTextMs: (ms: number) => void
+  setTextPosition: (position: TextPosition) => void
   setLedKey: (key: LedKey) => void
   setTrayIcon: (slot: string, value: string) => void
   resetTrayIcons: () => void
@@ -148,6 +157,7 @@ export const defaults: Settings = {
     flashMs: 800,
     badgeMs: 8000,
     textMs: 12000,
+    textPosition: 'bottom-right',
   },
   led: { key: 'caps' },
   trayIcons: { idle: 'battery-medium', byAnswer: { '1': 'char', '2': 'char', '3': 'char', '4': 'char', '5': 'char' } },
@@ -255,6 +265,11 @@ export function mergeSettings(persisted: unknown): Settings {
       flashMs: num(p.display?.flashMs, 300, 3000, defaults.display.flashMs),
       badgeMs: num(p.display?.badgeMs, 1000, 15000, defaults.display.badgeMs),
       textMs: num(p.display?.textMs, 2000, 30000, defaults.display.textMs),
+      textPosition: oneOf(
+        p.display?.textPosition,
+        ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'camera'] as const,
+        defaults.display.textPosition,
+      ),
     },
     led: { key: oneOf(p.led?.key, ['scroll', 'caps', 'num'] as const, 'caps') },
     trayIcons: {
@@ -372,6 +387,8 @@ export const useSettings = create<Settings & Actions>()(
       setFlashMs: (ms) => set((s) => ({ display: { ...s.display, flashMs: ms } })),
       setBadgeMs: (ms) => set((s) => ({ display: { ...s.display, badgeMs: ms } })),
       setTextMs: (ms) => set((s) => ({ display: { ...s.display, textMs: ms } })),
+      setTextPosition: (textPosition) =>
+        set((s) => ({ display: { ...s.display, textPosition } })),
       setLedKey: (key) => set({ led: { key } }),
       setTrayIcon: (slot, value) =>
         set((s) => ({
@@ -397,7 +414,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 23,
+      version: 24,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

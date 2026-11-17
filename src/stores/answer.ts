@@ -362,8 +362,8 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       hideForMeeting()
       return
     }
-    const ms = useSettings.getState().display.textMs
-    await showOverlay(text, 'text', ms)
+    const display = useSettings.getState().display
+    await showOverlay(text, 'text', display.textMs, undefined, display.textPosition)
     if (seq !== my) return
     if (meetingBlocked()) {
       void hideOverlay().catch(() => {})
@@ -374,7 +374,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       if (seq === my && m.kind === 'text' && m.text === text) {
         void hideOverlay().catch(() => {})
       }
-    }, ms + 500)
+    }, display.textMs + 500)
   }
 
   return {
@@ -563,6 +563,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
             provider.fallbackModel,
             textMode || displaySettings.overlay || displaySettings.flash,
             provider.streaming && textMode && !provider.paraphrase && !hiddenAtStart,
+            useSettings.getState().display.textPosition,
           )
         }
         if (seq !== my) return

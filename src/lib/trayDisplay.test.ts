@@ -89,7 +89,7 @@ describe('setTrayForMode', () => {
     useSettings.setState({
       language: 'ko',
       trayIcons: { idle: 'battery-medium', byAnswer: { '2': 'wifi' } },
-      display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 },
+      display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' },
     })
   })
 
@@ -111,7 +111,7 @@ describe('setTrayForMode', () => {
   })
 
   it('does not show an answer when the tray mode is off', async () => {
-    useSettings.setState({ display: { tray: false, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: false, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     await setTrayForMode({ kind: 'answer', answers: ['B'] })
     expect(mocks.renderTrayIcon).not.toHaveBeenCalled()
   })

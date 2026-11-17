@@ -218,6 +218,7 @@ async fn streamed_text(
     free_instruction: Option<&str>,
     language: &str,
     level: &str,
+    text_position: &str,
 ) -> Result<(String, Option<crate::ai::Usage>, bool), String> {
     let mut stream_id: Option<u64> = None;
     let mut start_failed = false;
@@ -231,7 +232,7 @@ async fn streamed_text(
                 if start_failed {
                     return;
                 }
-                match show_overlay_stream_start(app, state, text) {
+                match show_overlay_stream_start(app, state, text, text_position) {
                     Ok(id) => {
                         stream_id = Some(id);
                         last_emit = std::time::Instant::now();
@@ -364,6 +365,7 @@ pub async fn capture_and_answer(
     fallback_model: String,
     prepare_overlay: bool,
     stream: bool,
+    text_position: String,
 ) -> Result<AnswerPayload, String> {
     if state.capture_in_flight.swap(true, Ordering::SeqCst) {
         return Err("busy".into());
@@ -421,6 +423,7 @@ pub async fn capture_and_answer(
                 Some(&free_instruction),
                 &language,
                 &level,
+                &text_position,
             )
             .await
             {
@@ -542,6 +545,7 @@ pub async fn capture_and_answer(
                     None,
                     &language,
                     &level,
+                    &text_position,
                 )
                 .await
                 {
@@ -648,6 +652,7 @@ pub async fn show_overlay(
     style: String,
     duration_ms: u64,
     verification: Option<Verification>,
+    position: Option<String>,
 ) -> Result<(), String> {
     let overlay = ensure_overlay(&app)?;
     let protect = state.content_protection.load(Ordering::SeqCst);
@@ -669,7 +674,8 @@ pub async fn show_overlay(
             mon,
         );
         let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
-        let (tx, ty) = crate::windows::text_position(mon, size);
+        let text_position = crate::windows::TextPosition::parse(position.as_deref().unwrap_or(""));
+        let (tx, ty) = crate::windows::text_position(mon, size, text_position);
         (size.0 as u32, size.1 as u32, tx, ty)
     } else {
         let size = crate::windows::badge_size_with_verification(
@@ -721,6 +727,7 @@ fn show_overlay_stream_start(
     app: &tauri::AppHandle,
     state: &AppState,
     text: &str,
+    text_position: &str,
 ) -> Result<u64, String> {
     let id = OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     let overlay = ensure_overlay(app)?;
@@ -740,7 +747,11 @@ fn show_overlay_stream_start(
         mon,
     );
     let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
-    let (x, y) = crate::windows::text_position(mon, size);
+    let (x, y) = crate::windows::text_position(
+        mon,
+        size,
+        crate::windows::TextPosition::parse(text_position),
+    );
     overlay
         .set_size(tauri::PhysicalSize::new(size.0 as u32, size.1 as u32))
         .map_err(|_| "capture")?;

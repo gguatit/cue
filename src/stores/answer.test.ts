@@ -45,7 +45,7 @@ beforeEach(() => {
   vi.mocked(meetingActive).mockResolvedValue(false)
   localStorage.clear()
   useSettings.setState({
-    display: { tray: true, overlay: false, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 },
+    display: { tray: true, overlay: false, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' },
     provider: structuredClone(defaults.provider),
     answer: structuredClone(defaults.answer),
     privacy: structuredClone(defaults.privacy),
@@ -109,6 +109,7 @@ describe('answer store', () => {
       '',
       false,
       false,
+      'bottom-right',
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'answer', answers: ['C'] })
   })
@@ -138,6 +139,7 @@ describe('answer store', () => {
       '',
       true,
       true,
+      'bottom-right',
     )
   })
 
@@ -170,7 +172,7 @@ describe('answer store', () => {
 
   it('both display modes: flash first, badge after flashMs', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
-    useSettings.setState({ display: { tray: true, overlay: true, flash: true, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: true, overlay: true, flash: true, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     await useAnswer.getState().run(false)
     expect(showOverlay).toHaveBeenCalledTimes(1)
     expect(showOverlay).toHaveBeenNthCalledWith(1, 'B', 'flash', 800)
@@ -182,7 +184,7 @@ describe('answer store', () => {
 
   it('tray display off: leaves the tray icon alone during the run', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
-    useSettings.setState({ display: { tray: false, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: false, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     await useAnswer.getState().run(false)
     expect(setTrayLoading).not.toHaveBeenCalled()
     expect(setTrayAnswer).not.toHaveBeenCalled()
@@ -191,7 +193,7 @@ describe('answer store', () => {
 
   it('overlay only: badge immediately', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
-    useSettings.setState({ display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     await useAnswer.getState().run(false)
     expect(showOverlay).toHaveBeenCalledTimes(1)
     expect(showOverlay).toHaveBeenCalledWith('B', 'badge', 8000)
@@ -213,11 +215,11 @@ describe('answer store', () => {
   it('uses the configured text duration for descriptive answers', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'text', text: '설명' })
     useSettings.setState({
-      display: { ...defaults.display, overlay: true, textMs: 20000 },
+      display: { ...defaults.display, overlay: true, textMs: 20000, textPosition: 'bottom-right' },
       provider: { ...defaults.provider, answerType: 'text' },
     })
     await useAnswer.getState().run(false)
-    expect(showOverlay).toHaveBeenCalledWith('설명', 'text', 20000)
+    expect(showOverlay).toHaveBeenCalledWith('설명', 'text', 20000, undefined, 'bottom-right')
     await vi.advanceTimersByTimeAsync(20000)
     expect(hideOverlay).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(500)
@@ -248,7 +250,7 @@ describe('answer store', () => {
 
   it('flash only: flash immediately', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
-    useSettings.setState({ display: { tray: true, overlay: false, flash: true, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: true, overlay: false, flash: true, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     await useAnswer.getState().run(false)
     expect(showOverlay).toHaveBeenCalledTimes(1)
     expect(showOverlay).toHaveBeenCalledWith('B', 'flash', 800)
@@ -258,7 +260,7 @@ describe('answer store', () => {
     vi.mocked(captureAndAnswer)
       .mockResolvedValueOnce({ kind: 'choice', answers: ['B'] })
       .mockResolvedValueOnce({ kind: 'choice', answers: ['C'] })
-    useSettings.setState({ display: { tray: true, overlay: true, flash: true, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: true, overlay: true, flash: true, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     await useAnswer.getState().run(false)
     expect(showOverlay).toHaveBeenNthCalledWith(1, 'B', 'flash', 800)
     await useAnswer.getState().run(false)
@@ -270,7 +272,7 @@ describe('answer store', () => {
 
   it('clearTray cancels the pending badge', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
-    useSettings.setState({ display: { tray: true, overlay: true, flash: true, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 } })
+    useSettings.setState({ display: { tray: true, overlay: true, flash: true, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' } })
     await useAnswer.getState().run(false)
     useAnswer.getState().clearTray()
     await vi.advanceTimersByTimeAsync(800)
@@ -280,7 +282,7 @@ describe('answer store', () => {
   it('blinks the keyboard LED when the LED mode is on', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['C'] })
     useSettings.setState({
-      display: { tray: true, overlay: false, flash: false, led: true, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 },
+      display: { tray: true, overlay: false, flash: false, led: true, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' },
       led: { key: 'caps' },
     })
     await useAnswer.getState().run(false)
@@ -290,7 +292,7 @@ describe('answer store', () => {
   it('dims the screen when the brightness mode is on', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['D'] })
     useSettings.setState({
-      display: { tray: true, overlay: false, flash: false, led: false, brightness: true, flashMs: 800, badgeMs: 8000, textMs: 12000 },
+      display: { tray: true, overlay: false, flash: false, led: false, brightness: true, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' },
     })
     await useAnswer.getState().run(false)
     expect(blinkBrightness).toHaveBeenCalledWith('D')
@@ -299,7 +301,7 @@ describe('answer store', () => {
   it('shows every answer in the overlay and tooltip but the first on LED/brightness', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['A', 'C'] })
     useSettings.setState({
-      display: { tray: true, overlay: true, flash: false, led: true, brightness: true, flashMs: 800, badgeMs: 8000, textMs: 12000 },
+      display: { tray: true, overlay: true, flash: false, led: true, brightness: true, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' },
       led: { key: 'scroll' },
     })
     await useAnswer.getState().run(false)
@@ -312,7 +314,7 @@ describe('answer store', () => {
   it('descriptive run uses the text panel only and records text history', async () => {
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'text', text: '광합성입니다.' })
     useSettings.setState({
-      display: { tray: true, overlay: true, flash: true, led: true, brightness: true, flashMs: 800, badgeMs: 8000, textMs: 12000 },
+      display: { tray: true, overlay: true, flash: true, led: true, brightness: true, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' },
       provider: {
         preset: 'custom',
         baseUrl: 'https://x/v1',
@@ -344,13 +346,14 @@ describe('answer store', () => {
       '',
       true,
       false,
+      'bottom-right',
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'text', text: '광합성입니다.' })
     expect(setTrayLoading).toHaveBeenCalled()
     expect(setTrayAnswer).not.toHaveBeenCalled()
     expect(blinkAnswer).not.toHaveBeenCalled()
     expect(blinkBrightness).not.toHaveBeenCalled()
-    expect(showOverlay).toHaveBeenCalledWith('광합성입니다.', 'text', 12000)
+    expect(showOverlay).toHaveBeenCalledWith('광합성입니다.', 'text', 12000, undefined, 'bottom-right')
     expect(useAnswer.getState().history[0]).toMatchObject({
       answers: [],
       text: '광합성입니다.',
@@ -402,14 +405,14 @@ describe('answer store', () => {
     await useAnswer.getState().showLast()
     expect(captureAndAnswer).not.toHaveBeenCalled()
     expect(useAnswer.getState().mode).toEqual({ kind: 'text', text: '저장된 설명' })
-    expect(showOverlay).toHaveBeenCalledWith('저장된 설명', 'text', 12000)
+    expect(showOverlay).toHaveBeenCalledWith('저장된 설명', 'text', 12000, undefined, 'bottom-right')
     expect(setTrayAnswer).not.toHaveBeenCalled()
   })
 
   it('descriptive failure shows tray loading and error', async () => {
     vi.mocked(captureAndAnswer).mockRejectedValueOnce('http_401')
     useSettings.setState({
-      display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 },
+      display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' },
       provider: { ...defaults.provider, answerType: 'text' },
     })
     await useAnswer.getState().run(false)
@@ -432,7 +435,7 @@ describe('answer store', () => {
 
   it('showLast redisplays the newest answer without capture or AI', async () => {
     useSettings.setState({
-      display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 },
+      display: { tray: true, overlay: true, flash: false, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' },
     })
     useAnswer.setState({ history: [{ ts: 1, answers: ['A', 'C'] }] })
     await useAnswer.getState().showLast()
@@ -454,7 +457,7 @@ describe('answer store', () => {
     vi.mocked(meetingActive).mockResolvedValue(true)
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['C'] })
     useSettings.setState({
-      display: { tray: true, overlay: true, flash: true, led: true, brightness: true, flashMs: 800, badgeMs: 8000, textMs: 12000 },
+      display: { tray: true, overlay: true, flash: true, led: true, brightness: true, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' },
       stealth: { ...defaults.stealth, meetingSafe: true },
     })
     await useAnswer.getState().run(false)
@@ -471,7 +474,7 @@ describe('answer store', () => {
     vi.mocked(meetingActive).mockResolvedValue(true)
     vi.mocked(captureAndAnswer).mockResolvedValue({ kind: 'choice', answers: ['B'] })
     useSettings.setState({
-      display: { tray: true, overlay: true, flash: true, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000 },
+      display: { tray: true, overlay: true, flash: true, led: false, brightness: false, flashMs: 800, badgeMs: 8000, textMs: 12000, textPosition: 'bottom-right' },
       stealth: { ...defaults.stealth, meetingSafe: true },
     })
     await useAnswer.getState().run(false)
@@ -866,8 +869,9 @@ describe('answer store', () => {
       '',
       true,
       true,
+      'bottom-right',
     )
-    expect(showOverlay).toHaveBeenCalledWith('Explanation', 'text', 12000)
+    expect(showOverlay).toHaveBeenCalledWith('Explanation', 'text', 12000, undefined, 'bottom-right')
     expect(useAnswer.getState().history[0]).toMatchObject({ answers: [], text: 'Explanation' })
   })
 
