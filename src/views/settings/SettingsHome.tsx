@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { MotionConfig, motion } from 'motion/react'
-import { BookOpen, Crosshair, Info, Settings, Shield, Sparkles } from 'lucide-react'
+import { BookOpen, Crosshair, FlaskConical, Info, Settings, Shield, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useT } from '../../i18n'
 import { fade, layoutSpring } from '../../lib/motion'
@@ -8,12 +8,13 @@ import { useUi } from '../../stores/ui'
 
 const AboutTab = lazy(() => import('./AboutTab'))
 const AiTab = lazy(() => import('./AiTab'))
+const ExperimentalTab = lazy(() => import('./ExperimentalTab'))
 const GeneralTab = lazy(() => import('./GeneralTab'))
 const HelpTab = lazy(() => import('./HelpTab'))
 const ModeTab = lazy(() => import('./ModeTab'))
 const SecurityTab = lazy(() => import('./SecurityTab'))
 
-const TABS = ['general', 'mode', 'ai', 'security', 'help', 'about'] as const
+const TABS = ['general', 'mode', 'ai', 'security', 'experimental', 'help', 'about'] as const
 type Tab = (typeof TABS)[number]
 
 const LABELS: Record<Tab, [string, string]> = {
@@ -21,6 +22,7 @@ const LABELS: Record<Tab, [string, string]> = {
   mode: ['Mode', '모드'],
   ai: ['AI', 'AI'],
   security: ['Security', '보안'],
+  experimental: ['Lab', '실험실'],
   help: ['Help', '사용법'],
   about: ['About', '정보'],
 }
@@ -42,6 +44,10 @@ const DESCRIPTIONS: Record<Tab, [string, string]> = {
     'Protection, meeting detection, capture exclusion, and updates.',
     '보호, 회의 감지, 캡처 제외, 업데이트를 설정합니다.',
   ],
+  experimental: [
+    'Try features that are still being validated in real use.',
+    '실사용으로 검증 중인 기능을 미리 사용합니다.',
+  ],
   help: [
     'Shortcuts, setup, and troubleshooting.',
     '단축키, 설정 방법, 문제 해결을 확인합니다.',
@@ -57,6 +63,7 @@ const ICONS: Record<Tab, LucideIcon> = {
   mode: Crosshair,
   ai: Sparkles,
   security: Shield,
+  experimental: FlaskConical,
   help: BookOpen,
   about: Info,
 }
@@ -153,6 +160,7 @@ export default function SettingsHome() {
               {tab === 'mode' && <ModeTab />}
               {tab === 'ai' && <AiTab />}
               {tab === 'security' && <SecurityTab />}
+              {tab === 'experimental' && <ExperimentalTab />}
               {tab === 'help' && <HelpTab />}
               {tab === 'about' && <AboutTab />}
             </Suspense>

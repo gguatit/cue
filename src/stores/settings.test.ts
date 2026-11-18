@@ -411,6 +411,26 @@ describe('consensus and free mode settings', () => {
 })
 
 describe('mouse trigger settings', () => {
+  it('defaults experimental features off and keeps the warning preference', () => {
+    expect(defaults.experimental).toEqual({
+      enabled: false,
+      cursorAnswer: false,
+      showWarnings: true,
+    })
+    const merged = mergeSettings({
+      experimental: { enabled: true, cursorAnswer: true, showWarnings: false },
+    })
+    expect(merged.experimental).toEqual({
+      enabled: true,
+      cursorAnswer: true,
+      showWarnings: false,
+    })
+    const invalid = mergeSettings({
+      experimental: { enabled: 1, cursorAnswer: 'yes', showWarnings: null },
+    })
+    expect(invalid.experimental).toEqual(defaults.experimental)
+  })
+
   it('defaults to off with detailed tuning values', () => {
     const merged = mergeSettings({})
     expect(merged.mouse).toEqual(defaults.mouse)

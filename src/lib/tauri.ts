@@ -6,6 +6,8 @@ import type {
   MouseTrigger,
   TextPosition,
 } from '../stores/settings'
+
+export type OverlayPosition = TextPosition | 'cursor'
 import type { MouseButton } from './shortcutKeys'
 
 export const isTauri = (): boolean =>
@@ -150,7 +152,7 @@ export const captureAndAnswer = (
   fallbackModel = '',
   prepareOverlay = false,
   stream = false,
-  textPosition: TextPosition = 'bottom-right',
+  textPosition: OverlayPosition = 'bottom-right',
 ) =>
   invoke<CaptureResult>('capture_and_answer', {
     preset,
@@ -176,7 +178,8 @@ export const showOverlay = (
   style: 'badge' | 'flash' | 'text',
   durationMs: number,
   verification?: Verification,
-  position?: TextPosition,
+  position?: OverlayPosition,
+  freshCursor = false,
 ) =>
   invoke<void>('show_overlay', {
     answer,
@@ -184,6 +187,7 @@ export const showOverlay = (
     durationMs,
     verification: verification ?? null,
     position: position ?? null,
+    freshCursor,
   })
 export const overlayReady = () => invoke<void>('overlay_ready')
 export const streamDone = (id: number, durationMs: number) =>

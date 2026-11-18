@@ -99,8 +99,10 @@ pub const BADGE_SIZE: (i32, i32) = (120, 72);
 pub const VERIFICATION_HEIGHT: i32 = 30;
 pub const VERIFICATION_MIN_WIDTH: i32 = 160;
 pub const TEXT_MIN_SIZE: (i32, i32) = (320, 160);
+pub const TEXT_CURSOR_SIZE: (i32, i32) = (360, 220);
 pub const TEXT_MAX_RATIO: f64 = 0.7;
 pub const TEXT_MARGIN: i32 = 24;
+pub const TEXT_CURSOR_GAP: i32 = 16;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextPosition {
@@ -110,6 +112,7 @@ pub enum TextPosition {
     BottomLeft,
     BottomRight,
     Camera,
+    Cursor,
 }
 
 impl TextPosition {
@@ -120,6 +123,7 @@ impl TextPosition {
             "top-right" => Self::TopRight,
             "bottom-left" => Self::BottomLeft,
             "camera" => Self::Camera,
+            "cursor" => Self::Cursor,
             _ => Self::BottomRight,
         }
     }
@@ -153,8 +157,36 @@ pub fn text_position(work: MonitorRect, size: (i32, i32), position: TextPosition
         TextPosition::TopRight => (right, top),
         TextPosition::BottomLeft => (left, bottom),
         TextPosition::Camera => (center_x, top),
-        TextPosition::BottomRight => (right, bottom),
+        TextPosition::BottomRight | TextPosition::Cursor => (right, bottom),
     }
+}
+
+pub fn text_size_cursor(scale: f64, work: MonitorRect) -> (i32, i32) {
+    let s = if scale > 0.0 { scale } else { 1.0 };
+    let max_w = (work.w as f64 * 0.6).floor().max(1.0) as i32;
+    let max_h = (work.h as f64 * 0.5).floor().max(1.0) as i32;
+    (
+        ((TEXT_CURSOR_SIZE.0 as f64 * s).round() as i32).min(max_w).max(1),
+        ((TEXT_CURSOR_SIZE.1 as f64 * s).round() as i32).min(max_h).max(1),
+    )
+}
+
+pub fn text_position_near_cursor(
+    cursor: (i32, i32),
+    work: MonitorRect,
+    size: (i32, i32),
+) -> (i32, i32) {
+    let max_x = (work.x + work.w - size.0).max(work.x);
+    let max_y = (work.y + work.h - size.1).max(work.y);
+    let mut x = cursor.0 + TEXT_CURSOR_GAP;
+    let mut y = cursor.1 + TEXT_CURSOR_GAP;
+    if x + size.0 > work.x + work.w {
+        x = cursor.0 - size.0 - TEXT_CURSOR_GAP;
+    }
+    if y + size.1 > work.y + work.h {
+        y = cursor.1 - size.1 - TEXT_CURSOR_GAP;
+    }
+    (x.clamp(work.x, max_x), y.clamp(work.y, max_y))
 }
 
 pub fn badge_size(scale: f64, len: usize) -> (i32, i32) {
@@ -402,7 +434,42 @@ mod tests {
     fn text_position_parser_falls_back_to_bottom_right() {
         assert_eq!(TextPosition::parse("center"), TextPosition::Center);
         assert_eq!(TextPosition::parse("camera"), TextPosition::Camera);
+        assert_eq!(TextPosition::parse("cursor"), TextPosition::Cursor);
         assert_eq!(TextPosition::parse("nope"), TextPosition::BottomRight);
+    }
+
+    #[test]
+    fn cursor_text_position_prefers_below_and_right() {
+        assert_eq!(
+            text_position_near_cursor((500, 500), rect(0, 0, 1920, 1080), TEXT_CURSOR_SIZE),
+            (516, 516)
+        );
+    }
+
+    #[test]
+    fn cursor_text_position_flips_at_screen_edges() {
+        assert_eq!(
+            text_position_near_cursor((1900, 1070), rect(0, 0, 1920, 1080), TEXT_CURSOR_SIZE),
+            (1524, 834)
+        );
+    }
+
+    #[test]
+    fn cursor_text_position_handles_negative_monitor_origin() {
+        assert_eq!(
+            text_position_near_cursor((-1900, 10), rect(-1920, 0, 1920, 1080), TEXT_CURSOR_SIZE),
+            (-1884, 26)
+        );
+        assert_eq!(
+            text_position_near_cursor((-10, 10), rect(-1920, 0, 1920, 1080), TEXT_CURSOR_SIZE),
+            (-386, 26)
+        );
+    }
+
+    #[test]
+    fn cursor_text_size_is_compact_and_capped() {
+        assert_eq!(text_size_cursor(1.0, rect(0, 0, 1920, 1080)), TEXT_CURSOR_SIZE);
+        assert_eq!(text_size_cursor(2.0, rect(0, 0, 800, 600)), (480, 300));
     }
 }
 

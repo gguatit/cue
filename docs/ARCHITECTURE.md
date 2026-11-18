@@ -2,7 +2,7 @@
 
 이 문서는 Cue가 **어떻게 동작하는지**를 코드 기준으로 정리한 내부 문서입니다. 사용법은 [README](../README.md), AI 요청·프롬프트 계약은 [AI_HARNESS.md](AI_HARNESS.md), 제품 결정은 [IDEAS.md](IDEAS.md)를 참고하세요.
 
-- 현재 버전: **0.5.4**
+- 현재 버전: **0.5.5**
 - 플랫폼: Windows 10/11 x64
 - 스택: Tauri 2, React 19, Vite, Tailwind CSS 4, Rust
 
@@ -253,7 +253,7 @@ AnswerPayload
 `src/stores/settings.ts`는 zustand persist를 사용합니다.
 
 - 저장 키: `cue-settings`
-- 현재 버전: **24**
+- 현재 버전: **25**
 - `defaults` + `mergeSettings` + `version`을 함께 올려 마이그레이션합니다.
 
 주요 설정:
@@ -263,6 +263,7 @@ AnswerPayload
 - `provider`: preset, model, baseUrl, consensus, verifyModel, fallbackModel, streaming
 - `answer`: language, level, displayTime, showUsage
 - `display`: textPosition, output methods
+- `experimental`: enabled, cursorAnswer, showWarnings
 - `stealth`: meetingPolicy, hideOnBlur
 - `appearance`: theme, accent
 - `shortcut`, `panic`, `onboarded`
@@ -332,6 +333,7 @@ AnswerPayload
 | `src/App.tsx` | main/overlay 분기 |
 | `src/lib/tauri.ts` | invoke 래퍼 |
 | `src/views/settings/*` | 설정 UI |
+| `src/views/settings/ExperimentalTab.tsx` | 실험실 경고·플래그·미리보기 |
 | `src/overlay/*` | 오버레이·스트리밍 페이싱 |
 | `src/stores/*` | 설정·답변·업데이트 상태 |
 
@@ -346,6 +348,7 @@ AnswerPayload
 - **리다이렉트**: HTTP 클라이언트가 추적하지 않음.
 - **업데이트 서명**: 검증을 끄거나 느슨하게 하지 않음.
 - **설정 마이그레이션**: 기존 사용자 설정을 깨지 않음.
+- **실험 기능**: 기본 OFF, 실험실 경고·마스터 스위치 유지. 정식 탭으로 옮기기 전까지 실험실에 둔다.
 - **오류 코드**: 새 코드는 `src/i18n.ts::ERRORS`에 en/ko 쌍으로 추가.
 
 ## 14. 테스트 전략

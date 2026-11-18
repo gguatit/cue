@@ -653,6 +653,7 @@ pub async fn show_overlay(
     duration_ms: u64,
     verification: Option<Verification>,
     position: Option<String>,
+    fresh_cursor: Option<bool>,
 ) -> Result<(), String> {
     let overlay = ensure_overlay(&app)?;
     let protect = state.content_protection.load(Ordering::SeqCst);
@@ -664,18 +665,30 @@ pub async fn show_overlay(
         .last_capture
         .lock()
         .map_err(|_| "capture".to_string())?;
-    let ((cx, cy), mon) = crate::capture::resolve_anchor(last, crate::capture::cursor_monitor)?;
+    let ((cx, cy), mon) = if fresh_cursor.unwrap_or(false) {
+        crate::capture::cursor_monitor()?
+    } else {
+        crate::capture::resolve_anchor(last, crate::capture::cursor_monitor)?
+    };
     let (w, h, x, y) = if style == "flash" {
         (mon.w as u32, mon.h as u32, mon.x, mon.y)
     } else if style == "text" {
-        let size = crate::windows::text_size(
-            crate::windows::monitor_scale(mon),
-            answer.chars().count(),
-            mon,
-        );
-        let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
         let text_position = crate::windows::TextPosition::parse(position.as_deref().unwrap_or(""));
-        let (tx, ty) = crate::windows::text_position(mon, size, text_position);
+        let size = if text_position == crate::windows::TextPosition::Cursor {
+            crate::windows::text_size_cursor(crate::windows::monitor_scale(mon), mon)
+        } else {
+            crate::windows::text_size(
+                crate::windows::monitor_scale(mon),
+                answer.chars().count(),
+                mon,
+            )
+        };
+        let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
+        let (tx, ty) = if text_position == crate::windows::TextPosition::Cursor {
+            crate::windows::text_position_near_cursor((cx, cy), mon, size)
+        } else {
+            crate::windows::text_position(mon, size, text_position)
+        };
         (size.0 as u32, size.1 as u32, tx, ty)
     } else {
         let size = crate::windows::badge_size_with_verification(
@@ -740,18 +753,23 @@ fn show_overlay_stream_start(
         .last_capture
         .lock()
         .map_err(|_| "capture".to_string())?;
-    let (_, mon) = crate::capture::resolve_anchor(last, crate::capture::cursor_monitor)?;
-    let size = crate::windows::text_size(
-        crate::windows::monitor_scale(mon),
-        STREAM_PANEL_CHARS,
-        mon,
-    );
+    let ((cx, cy), mon) = crate::capture::resolve_anchor(last, crate::capture::cursor_monitor)?;
+    let position = crate::windows::TextPosition::parse(text_position);
+    let size = if position == crate::windows::TextPosition::Cursor {
+        crate::windows::text_size_cursor(crate::windows::monitor_scale(mon), mon)
+    } else {
+        crate::windows::text_size(
+            crate::windows::monitor_scale(mon),
+            STREAM_PANEL_CHARS,
+            mon,
+        )
+    };
     let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
-    let (x, y) = crate::windows::text_position(
-        mon,
-        size,
-        crate::windows::TextPosition::parse(text_position),
-    );
+    let (x, y) = if position == crate::windows::TextPosition::Cursor {
+        crate::windows::text_position_near_cursor((cx, cy), mon, size)
+    } else {
+        crate::windows::text_position(mon, size, position)
+    };
     overlay
         .set_size(tauri::PhysicalSize::new(size.0 as u32, size.1 as u32))
         .map_err(|_| "capture")?;

@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.5.4** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **0.5.5** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -129,6 +129,14 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full structure and [doc
 - **Backup/import**: export and import settings as JSON. Keys are never exported.
 - **Test exam**: `docs/test-exam.html`, including a watermark toggle.
 - **Theme**: dark, light, or system theme and accent color in settings. Overlay and tray stay dark.
+
+### Lab
+
+- **Experimental features**: use **Settings → Lab** to try features that are still being validated. They start OFF by default.
+- **Warnings**: enabling experimental features asks for confirmation, and the Lab shows a persistent warning. Turn off **Show experimental warnings** to hide the confirmation and banner; you can turn it back on at any time.
+- **Cursor-anchored answer**: shows descriptive and free-mode answers in a small card next to the pointer. The card flips at screen edges and stays inside the monitor work area.
+- **Preview**: use **Preview cursor answer** to check placement without an AI request.
+- Experimental features either graduate to a normal tab after real-use validation or are removed.
 
 ### Updates and UI
 

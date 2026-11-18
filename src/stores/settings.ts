@@ -98,6 +98,7 @@ export interface Settings {
   }
   storage: { history: boolean; errors: boolean; clearOnQuit: ClearOnQuit }
   updates: { autoCheck: boolean }
+  experimental: { enabled: boolean; cursorAnswer: boolean; showWarnings: boolean }
   onboarded: boolean
 }
 
@@ -124,6 +125,7 @@ interface Actions {
   setStealth: (patch: Partial<Settings['stealth']>) => void
   setStorage: (patch: Partial<Settings['storage']>) => void
   setUpdates: (patch: Partial<Settings['updates']>) => void
+  setExperimental: (patch: Partial<Settings['experimental']>) => void
   setOnboarded: (v: boolean) => void
 }
 
@@ -182,6 +184,7 @@ export const defaults: Settings = {
     clearOnQuit: { history: false, errors: false, clipboard: false },
   },
   updates: { autoCheck: true },
+  experimental: { enabled: false, cursorAnswer: false, showWarnings: true },
   onboarded: false,
 }
 
@@ -310,6 +313,11 @@ export function mergeSettings(persisted: unknown): Settings {
       },
     },
     updates: { autoCheck: bool(p.updates?.autoCheck, defaults.updates.autoCheck) },
+    experimental: {
+      enabled: bool(p.experimental?.enabled, defaults.experimental.enabled),
+      cursorAnswer: bool(p.experimental?.cursorAnswer, defaults.experimental.cursorAnswer),
+      showWarnings: bool(p.experimental?.showWarnings, defaults.experimental.showWarnings),
+    },
     onboarded: bool(p.onboarded, defaults.onboarded),
   }
   const anyDisplay = (['tray', 'overlay', 'flash', 'led', 'brightness'] as const).some(
@@ -410,11 +418,12 @@ export const useSettings = create<Settings & Actions>()(
       setStealth: (patch) => set((s) => ({ stealth: { ...s.stealth, ...patch } })),
       setStorage: (patch) => set((s) => ({ storage: { ...s.storage, ...patch } })),
       setUpdates: (patch) => set((s) => ({ updates: { ...s.updates, ...patch } })),
+      setExperimental: (patch) => set((s) => ({ experimental: { ...s.experimental, ...patch } })),
       setOnboarded: (v) => set({ onboarded: v }),
     }),
     {
       name: 'cue-settings',
-      version: 24,
+      version: 25,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

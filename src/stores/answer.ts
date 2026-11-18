@@ -10,6 +10,7 @@ import {
   meetingActive,
   showOverlay,
   type CaptureResult,
+  type OverlayPosition,
   type TokenUsage,
   type Verification,
 } from '../lib/tauri'
@@ -272,6 +273,11 @@ const initialLog = initialStorage.errors ? loadStored(ERRORS_KEY, isLogEntry).sl
 if (!initialStorage.history) removeStored(HISTORY_KEY)
 if (!initialStorage.errors) removeStored(ERRORS_KEY)
 
+function overlayTextPosition(): OverlayPosition {
+  const { experimental, display } = useSettings.getState()
+  return experimental.enabled && experimental.cursorAnswer ? 'cursor' : display.textPosition
+}
+
 export const useAnswer = create<AnswerState>()((set, get) => {
   const display = async (
     answers: string[],
@@ -363,7 +369,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       return
     }
     const display = useSettings.getState().display
-    await showOverlay(text, 'text', display.textMs, undefined, display.textPosition)
+    await showOverlay(text, 'text', display.textMs, undefined, overlayTextPosition())
     if (seq !== my) return
     if (meetingBlocked()) {
       void hideOverlay().catch(() => {})
@@ -563,7 +569,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
             provider.fallbackModel,
             textMode || displaySettings.overlay || displaySettings.flash,
             provider.streaming && textMode && !provider.paraphrase && !hiddenAtStart,
-            useSettings.getState().display.textPosition,
+            overlayTextPosition(),
           )
         }
         if (seq !== my) return
