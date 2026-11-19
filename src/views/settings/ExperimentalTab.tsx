@@ -24,13 +24,22 @@ export default function ExperimentalTab() {
     else setExperimental({ enabled: true })
   }
 
-  const preview = async () => {
+  const preview = async (kind: 'cursor' | 'spotlight' | 'highlight') => {
     if (!isTauri()) {
       setNotice(t('Run this preview inside the Cue app.', 'Cue 앱에서 미리보기를 실행하세요.'))
       return
     }
     setNotice('')
     try {
+      if (kind === 'highlight') {
+        await showOverlay('B', 'badge', 4000, undefined, undefined, false, undefined, false, {
+          x: 0.18,
+          y: 0.32,
+          w: 0.64,
+          h: 0.1,
+        })
+        return
+      }
       await showOverlay(
         t(
           'This is a sample answer shown next to the cursor.',
@@ -41,6 +50,8 @@ export default function ExperimentalTab() {
         undefined,
         'cursor',
         true,
+        undefined,
+        kind === 'spotlight',
       )
     } catch {
       setNotice(t('Could not show the preview.', '미리보기를 표시할 수 없습니다.'))
@@ -99,13 +110,77 @@ export default function ExperimentalTab() {
               '서술형·자유 모드 답변을 포인터 옆의 작은 카드로 표시합니다.',
             )}
           />
+          <Toggle
+            checked={experimental.spotlight}
+            onChange={(spotlight) => setExperimental({ spotlight })}
+            disabled={!experimental.enabled}
+            label={t('Spotlight answer', '스포트라이트 답변')}
+            hint={t(
+              'Dims the screen and keeps a bright area around the pointer for the answer.',
+              '화면을 어둡게 하고 포인터 주변만 밝게 남겨 답변을 표시합니다.',
+            )}
+          />
+          <Toggle
+            checked={experimental.capturePeek}
+            onChange={(capturePeek) => setExperimental({ capturePeek })}
+            disabled={!experimental.enabled}
+            label={t('Capture preview', '캡처 미리보기')}
+            hint={t(
+              'Adds a small thumbnail of the captured question to descriptive answers.',
+              '서술형 답변에 실제로 캡처한 문제 영역의 작은 썸네일을 붙입니다.',
+            )}
+          />
+          <Toggle
+            checked={experimental.autoPeek}
+            onChange={(autoPeek) => setExperimental({ autoPeek })}
+            disabled={!experimental.enabled}
+            label={t('Answer when the cursor rests', '커서 정지 자동 답변')}
+            hint={t(
+              'Answers after the pointer stays still for about 0.7 seconds. It can fire while you are reading; keep it off outside testing.',
+              '포인터가 약 0.7초 멈추면 클릭 없이 답변합니다. 읽는 중에도 발동할 수 있으므로 테스트할 때만 켜세요.',
+            )}
+          />
+          <Toggle
+            checked={experimental.predictive}
+            onChange={(predictive) => setExperimental({ predictive })}
+            disabled={!experimental.enabled}
+            label={t('Pre-capture while resting', '정지 시 미리 캡처')}
+            hint={t(
+              'Captures the screen before you click to reduce capture delay. It does not send the image to AI until you trigger an answer.',
+              '클릭 전에 화면을 미리 캡처해 캡처 지연을 줄입니다. 답변을 실행하기 전에는 AI로 이미지를 보내지 않습니다.',
+            )}
+          />
+          <Toggle
+            checked={experimental.highlight}
+            onChange={(highlight) => setExperimental({ highlight })}
+            disabled={!experimental.enabled}
+            label={t('Highlight the answer option', '정답 위치 하이라이트')}
+            hint={t(
+              'Draws a box over the answer option when the model returns coordinates. Results vary by model; no box is shown when coordinates are missing.',
+              '모델이 좌표를 반환하면 정답 선택지 위에 박스를 그립니다. 모델에 따라 표시되지 않을 수 있습니다.',
+            )}
+          />
           <div className="flex flex-wrap items-center gap-2 px-2 pb-2 pt-1">
             <Button
               variant="secondary"
               disabled={!experimental.enabled || !experimental.cursorAnswer}
-              onClick={() => void preview()}
+              onClick={() => void preview('cursor')}
             >
               {t('Preview cursor answer', '커서 답변 미리보기')}
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={!experimental.enabled || !experimental.spotlight}
+              onClick={() => void preview('spotlight')}
+            >
+              {t('Preview spotlight', '스포트라이트 미리보기')}
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={!experimental.enabled || !experimental.highlight}
+              onClick={() => void preview('highlight')}
+            >
+              {t('Preview highlight', '하이라이트 미리보기')}
             </Button>
             <Presence show={Boolean(notice)} className="text-[11px] text-ink-3">
               {notice}

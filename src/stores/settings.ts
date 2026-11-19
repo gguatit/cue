@@ -98,7 +98,16 @@ export interface Settings {
   }
   storage: { history: boolean; errors: boolean; clearOnQuit: ClearOnQuit }
   updates: { autoCheck: boolean }
-  experimental: { enabled: boolean; cursorAnswer: boolean; showWarnings: boolean }
+  experimental: {
+    enabled: boolean
+    cursorAnswer: boolean
+    spotlight: boolean
+    capturePeek: boolean
+    autoPeek: boolean
+    predictive: boolean
+    highlight: boolean
+    showWarnings: boolean
+  }
   onboarded: boolean
 }
 
@@ -184,7 +193,16 @@ export const defaults: Settings = {
     clearOnQuit: { history: false, errors: false, clipboard: false },
   },
   updates: { autoCheck: true },
-  experimental: { enabled: false, cursorAnswer: false, showWarnings: true },
+  experimental: {
+    enabled: false,
+    cursorAnswer: false,
+    spotlight: false,
+    capturePeek: false,
+    autoPeek: false,
+    predictive: false,
+    highlight: false,
+    showWarnings: true,
+  },
   onboarded: false,
 }
 
@@ -316,6 +334,11 @@ export function mergeSettings(persisted: unknown): Settings {
     experimental: {
       enabled: bool(p.experimental?.enabled, defaults.experimental.enabled),
       cursorAnswer: bool(p.experimental?.cursorAnswer, defaults.experimental.cursorAnswer),
+      spotlight: bool(p.experimental?.spotlight, defaults.experimental.spotlight),
+      capturePeek: bool(p.experimental?.capturePeek, defaults.experimental.capturePeek),
+      autoPeek: bool(p.experimental?.autoPeek, defaults.experimental.autoPeek),
+      predictive: bool(p.experimental?.predictive, defaults.experimental.predictive),
+      highlight: bool(p.experimental?.highlight, defaults.experimental.highlight),
       showWarnings: bool(p.experimental?.showWarnings, defaults.experimental.showWarnings),
     },
     onboarded: bool(p.onboarded, defaults.onboarded),
@@ -423,7 +446,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 25,
+      version: 26,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

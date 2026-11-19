@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU32, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
@@ -364,6 +364,11 @@ pub struct HookCtx {
     pub free_enabled: AtomicBool,
     pub free_button: AtomicU8,
     pub prewarm_enabled: AtomicBool,
+    pub auto_peek: AtomicBool,
+    pub predictive: AtomicBool,
+    last_move_ms: AtomicU64,
+    last_auto_fire_ms: AtomicU64,
+    last_precapture_ms: AtomicU64,
     pub mouse_hook_installed: AtomicBool,
     keyboard_hook: AtomicIsize,
     mouse_hook: AtomicIsize,
@@ -400,6 +405,11 @@ pub fn install(app: &AppHandle, spec: ShortcutSpec) {
         free_enabled: AtomicBool::new(false),
         free_button: AtomicU8::new(MouseButton::Right.code()),
         prewarm_enabled: AtomicBool::new(false),
+        auto_peek: AtomicBool::new(false),
+        predictive: AtomicBool::new(false),
+        last_move_ms: AtomicU64::new(0),
+        last_auto_fire_ms: AtomicU64::new(0),
+        last_precapture_ms: AtomicU64::new(0),
         mouse_hook_installed: AtomicBool::new(false),
         keyboard_hook: AtomicIsize::new(0),
         mouse_hook: AtomicIsize::new(0),
@@ -418,6 +428,52 @@ pub fn install(app: &AppHandle, spec: ShortcutSpec) {
     ctx.hook_installed
         .store(hook_install_ok(&hook), Ordering::Relaxed);
     ensure_mouse_hook(ctx);
+    spawn_auto_peek();
+}
+
+fn spawn_auto_peek() {
+    static STARTED: OnceLock<()> = OnceLock::new();
+    if STARTED.set(()).is_err() {
+        return;
+    }
+    std::thread::spawn(|| loop {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        let Some(ctx) = CTX.get() else {
+            continue;
+        };
+        if ctx.gesture_test.load(Ordering::Relaxed) {
+            continue;
+        }
+        let now = ctx.started.elapsed().as_millis() as u64;
+        let last_move = ctx.last_move_ms.load(Ordering::Relaxed);
+        if last_move == 0 {
+            continue;
+        }
+        if ctx.predictive.load(Ordering::Relaxed) {
+            let last_precapture = ctx.last_precapture_ms.load(Ordering::Relaxed);
+            if now.saturating_sub(last_move) >= 400
+                && last_move > last_precapture
+                && now.saturating_sub(last_precapture) >= 1500
+            {
+                ctx.last_precapture_ms.store(now, Ordering::Relaxed);
+                crate::commands::warm_capture(&ctx.app);
+            }
+        }
+        if !ctx.auto_peek.load(Ordering::Relaxed) {
+            continue;
+        }
+        let last_fire = ctx.last_auto_fire_ms.load(Ordering::Relaxed);
+        if now.saturating_sub(last_move) < 700 || last_move <= last_fire {
+            continue;
+        }
+        if now.saturating_sub(last_fire) < 2500 || crate::windows::pointer_over_main(&ctx.app) {
+            continue;
+        }
+        ctx.last_auto_fire_ms.store(now, Ordering::Relaxed);
+        let _ = ctx
+            .app
+            .emit("trigger-answer", serde_json::json!({ "sample": false, "mode": "exam" }));
+    });
 }
 
 fn ensure_mouse_hook(ctx: &HookCtx) -> bool {
@@ -514,6 +570,25 @@ pub fn set_spec(accel: &str, click: bool, button: &str) -> Result<(), String> {
 pub fn set_prewarm(enabled: bool) -> Result<(), String> {
     let ctx = CTX.get().ok_or("shortcut")?;
     ctx.prewarm_enabled.store(enabled, Ordering::Relaxed);
+    Ok(())
+}
+
+pub fn set_auto_peek(enabled: bool) -> Result<(), String> {
+    let ctx = CTX.get().ok_or("shortcut")?;
+    ctx.auto_peek.store(enabled, Ordering::Relaxed);
+    if enabled {
+        ctx.last_move_ms.store(0, Ordering::Relaxed);
+        ctx.last_auto_fire_ms.store(0, Ordering::Relaxed);
+    }
+    Ok(())
+}
+
+pub fn set_predictive(enabled: bool) -> Result<(), String> {
+    let ctx = CTX.get().ok_or("shortcut")?;
+    ctx.predictive.store(enabled, Ordering::Relaxed);
+    if enabled {
+        ctx.last_precapture_ms.store(0, Ordering::Relaxed);
+    }
     Ok(())
 }
 
@@ -850,6 +925,7 @@ unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPA
                 if msg == WM_MOUSEMOVE {
                     let pt = mouse_point(lparam);
                     let now = ctx.started.elapsed().as_millis() as u64;
+                    ctx.last_move_ms.store(now, Ordering::Relaxed);
                     let signal = {
                         let Ok(mut runtime) = ctx.mouse.lock() else {
                             return unsafe { CallNextHookEx(None, code, wparam, lparam) };

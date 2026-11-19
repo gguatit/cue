@@ -3,7 +3,7 @@
 이 문서는 Cue가 AI 요청을 만들고, 공급자에 보내고, 응답을 검증하고, 화면에 표시할 답으로 바꾸는 과정을 정리합니다.
 
 - 런타임 코드: `src-tauri/src/ai.rs`, `src-tauri/src/commands.rs`
-- 현재 버전: **0.5.5**
+- 현재 버전: **0.5.6**
 - 관련 문서: [ARCHITECTURE.md](ARCHITECTURE.md), [README](../README.md)
 
 ## 1. "하네스"의 의미
@@ -202,6 +202,21 @@ Cue는 OpenAI식 `role: "system"` 메시지를 따로 보내지 않습니다. **
 - 읽을 수 있는 문제가 없으면 `{"answers":[]}`.
 - JSON 외의 텍스트·마크다운 금지.
 
+### 실험실 하이라이트 (`build_prompt_with_box`)
+
+실험실의 `정답 위치 하이라이트`가 켜져 있을 때만 객관식 요청에 선택적 좌표 계약을 추가합니다.
+
+```json
+{"answers":["X"],"box":[0.1,0.2,0.3,0.4]}
+```
+
+- `box`는 `[x, y, width, height]`이며 스크린샷 기준 0.0~1.0 정규화 좌표입니다.
+- 모델이 확신하지 못하면 `box: null`을 반환해도 됩니다.
+- `parse_answer_set`이 `box` 배열 또는 `{x,y,w,h}` 객체를 읽고, 유효하지 않으면 `None`으로 버립니다.
+- `monitor_box`가 캡처 크롭(`Capture.view`)을 모니터 좌표로 변환합니다.
+- 좌표가 없거나 형식이 틀리면 하이라이트만 표시하지 않고 답변은 정상 표시합니다.
+- 모델별 좌표 지원 차이가 있으므로 하이라이트를 보장하지 않습니다.
+
 ### 서술형 (`build_text_prompt`)
 
 역할:
@@ -276,8 +291,10 @@ sequenceDiagram
     P-->>H: verifier response
     H->>H: merge_consensus
   end
-  H-->>C: answers + usage / text + usage / error
+  H-->>C: answers + usage (+ optional box) / text + usage (+ optional peek) / error
 ```
+
+실험실 하이라이트가 켜진 객관식은 `request_answers_highlight`가 같은 재시도·프로토콜 후보·교정 흐름을 사용하면서 `HighlightBox`를 함께 반환합니다.
 
 ## 6. 재시도와 실패 처리
 

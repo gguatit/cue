@@ -17,11 +17,13 @@ pub struct MonitorRect {
 
 pub struct Capture {
     pub b64: String,
+    pub thumb: String,
     pub img_w: u32,
     pub img_h: u32,
     pub cursor_x: i32,
     pub cursor_y: i32,
     pub monitor: MonitorRect,
+    pub view: MonitorRect,
 }
 
 const MAX_EDGE: f64 = 1920.0;
@@ -86,6 +88,12 @@ pub fn encode_capture_crop(
         }
         None => (rgba, w, h, (monitor.x, monitor.y)),
     };
+    let view = MonitorRect {
+        x: origin.0,
+        y: origin.1,
+        w: w as i32,
+        h: h as i32,
+    };
     let img = image::RgbaImage::from_raw(w, h, rgba).ok_or("capture")?;
     let rgb = image::DynamicImage::ImageRgba8(img).to_rgb8();
     let max_edge = w.max(h) as f64;
@@ -108,14 +116,35 @@ pub fn encode_capture_crop(
         .encode_image(&rgb)
         .map_err(|_| "capture")?;
     let b64 = base64::engine::general_purpose::STANDARD.encode(&jpeg);
+    let thumb_b64 = encode_thumb(&rgb)?;
     Ok(Capture {
         b64,
+        thumb: thumb_b64,
         img_w: iw,
         img_h: ih,
         cursor_x: ((cursor.0 - origin.0) as f64 * scale).round() as i32,
         cursor_y: ((cursor.1 - origin.1) as f64 * scale).round() as i32,
         monitor,
+        view,
     })
+}
+
+fn encode_thumb(rgb: &image::RgbImage) -> Result<String, String> {
+    let w = rgb.width().max(1);
+    let h = rgb.height().max(1);
+    let scale = (320.0 / w as f64).min(1.0);
+    let tw = ((w as f64 * scale).round() as u32).max(1);
+    let th = ((h as f64 * scale).round() as u32).max(1);
+    let thumb = if scale < 1.0 {
+        image::imageops::resize(rgb, tw, th, image::imageops::FilterType::Triangle)
+    } else {
+        rgb.clone()
+    };
+    let mut jpeg = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 70)
+        .encode_image(&thumb)
+        .map_err(|_| "capture")?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&jpeg))
 }
 
 fn crop_rgba(src: &[u8], src_w: u32, x: u32, y: u32, w: u32, h: u32) -> Result<Vec<u8>, String> {

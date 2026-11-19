@@ -51,6 +51,7 @@ beforeEach(() => {
     privacy: structuredClone(defaults.privacy),
     storage: structuredClone(defaults.storage),
     stealth: structuredClone(defaults.stealth),
+    experimental: structuredClone(defaults.experimental),
   })
   useAnswer.setState({
     mode: { kind: 'idle' },
@@ -902,6 +903,66 @@ describe('answer store', () => {
 
     expect(showOverlay).toHaveBeenCalledWith('B', 'badge', 8000, verification)
     expect(useAnswer.getState().history[0].verification).toEqual(verification)
+  })
+
+  it('passes capture peek and spotlight to the text overlay', async () => {
+    useSettings.setState({
+      experimental: {
+        ...defaults.experimental,
+        enabled: true,
+        capturePeek: true,
+        spotlight: true,
+      },
+      provider: { ...defaults.provider, answerType: 'text' },
+    })
+    vi.mocked(captureAndAnswer).mockResolvedValue({
+      kind: 'text',
+      text: '설명',
+      peek: 'thumb',
+    })
+
+    await useAnswer.getState().run(false)
+
+    const args = vi.mocked(captureAndAnswer).mock.calls.at(-1)
+    expect(args?.slice(-4)).toEqual([false, true, true, false])
+    expect(showOverlay).toHaveBeenCalledWith(
+      '설명',
+      'text',
+      12000,
+      undefined,
+      'bottom-right',
+      false,
+      'thumb',
+      true,
+    )
+  })
+
+  it('passes the highlight box to the choice overlay', async () => {
+    const highlight = { x: 0.1, y: 0.2, w: 0.3, h: 0.4 }
+    useSettings.setState({
+      experimental: { ...defaults.experimental, enabled: true, highlight: true },
+    })
+    vi.mocked(captureAndAnswer).mockResolvedValue({
+      kind: 'choice',
+      answers: ['B'],
+      highlight,
+    })
+
+    await useAnswer.getState().run(false)
+
+    const args = vi.mocked(captureAndAnswer).mock.calls.at(-1)
+    expect(args?.slice(-4)).toEqual([true, false, false, false])
+    expect(showOverlay).toHaveBeenCalledWith(
+      'B',
+      'badge',
+      8000,
+      undefined,
+      undefined,
+      false,
+      undefined,
+      false,
+      highlight,
+    )
   })
 })
 

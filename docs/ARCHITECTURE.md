@@ -2,7 +2,7 @@
 
 이 문서는 Cue가 **어떻게 동작하는지**를 코드 기준으로 정리한 내부 문서입니다. 사용법은 [README](../README.md), AI 요청·프롬프트 계약은 [AI_HARNESS.md](AI_HARNESS.md), 제품 결정은 [IDEAS.md](IDEAS.md)를 참고하세요.
 
-- 현재 버전: **0.5.5**
+- 현재 버전: **0.5.6**
 - 플랫폼: Windows 10/11 x64
 - 스택: Tauri 2, React 19, Vite, Tailwind CSS 4, Rust
 
@@ -150,8 +150,8 @@ global shortcut / mouse hook
 
 ```text
 AnswerPayload
-  ├─ Choice { answers, verification, usage }
-  ├─ Text { text, usage, streamed }
+  ├─ Choice { answers, verification, usage, highlight }
+  ├─ Text { text, usage, streamed, peek }
   └─ None { reason }
 ```
 
@@ -168,11 +168,13 @@ AnswerPayload
 ### 오버레이
 
 - 스타일: `answer` / `text`.
-- 텍스트는 설정된 위치(중앙, 네 모서리, 카메라 아래)에 표시합니다.
+- 텍스트는 설정된 위치(중앙, 네 모서리, 카메라 아래, 커서 옆)에 표시합니다.
 - 서술형 스트리밍은 `streamPacing.ts`가 `requestAnimationFrame`으로 글자 표시 속도를 조절합니다.
 - 스트림 종료 시 `stream_done(id, duration_ms)`가 표시 시간 타이머를 시작합니다.
 - `OVERLAY_GEN`으로 오래된 hide 타이머가 새 답변을 지우지 않게 합니다.
 - `overlay_ready` 전에는 첫 payload를 표시하지 않습니다.
+- 실험실의 스포트라이트는 전체 화면 딤과 커서 주변 구멍을, 하이라이트는 모델이 반환한 정답 선택지 박스를 그립니다. 둘 다 전체 화면 오버레이에서도 fail-closed와 클릭 통과를 유지합니다.
+- 실험실의 캡처 미리보기는 `Capture.thumb`의 320px JPEG를 텍스트 오버레이에 표시합니다.
 
 ### 회의 안전 모드
 
@@ -211,6 +213,8 @@ AnswerPayload
 - 답변 단축키: 보조키 + 마우스 버튼 클릭.
 - 패닉 단축키: 기본 `Ctrl+Alt+Shift+X`.
 - 마우스 전용: hold / shake.
+- 실험실 자동 답변: 포인터가 700ms 정지하면 `trigger-answer`를 발행하고, 발동 후에는 포인터 이동 전까지 반복하지 않음.
+- 실험실 미리 캡처: 400ms 정지 시 원본 화면만 `AppState.pre_capture`에 저장하고, 2.5초·24px 이내 캐시만 답변 캡처에 재사용.
 - 테스트 모드: `gesture-test` 이벤트만 발행하고 캡처·AI를 실행하지 않음.
 - 입력 훅과 트레이는 메인 스레드에서 60초마다 재등록·복구합니다.
 - 명령 스레드에서 `SetWindowsHookEx`를 호출하지 않습니다.
@@ -263,7 +267,7 @@ AnswerPayload
 - `provider`: preset, model, baseUrl, consensus, verifyModel, fallbackModel, streaming
 - `answer`: language, level, displayTime, showUsage
 - `display`: textPosition, output methods
-- `experimental`: enabled, cursorAnswer, showWarnings
+- `experimental`: enabled, cursorAnswer, spotlight, capturePeek, autoPeek, predictive, highlight, showWarnings
 - `stealth`: meetingPolicy, hideOnBlur
 - `appearance`: theme, accent
 - `shortcut`, `panic`, `onboarded`
@@ -333,7 +337,7 @@ AnswerPayload
 | `src/App.tsx` | main/overlay 분기 |
 | `src/lib/tauri.ts` | invoke 래퍼 |
 | `src/views/settings/*` | 설정 UI |
-| `src/views/settings/ExperimentalTab.tsx` | 실험실 경고·플래그·미리보기 |
+| `src/views/settings/ExperimentalTab.tsx` | 실험실 경고·플래그·스포트라이트/하이라이트 미리보기 |
 | `src/overlay/*` | 오버레이·스트리밍 페이싱 |
 | `src/stores/*` | 설정·답변·업데이트 상태 |
 
@@ -348,7 +352,7 @@ AnswerPayload
 - **리다이렉트**: HTTP 클라이언트가 추적하지 않음.
 - **업데이트 서명**: 검증을 끄거나 느슨하게 하지 않음.
 - **설정 마이그레이션**: 기존 사용자 설정을 깨지 않음.
-- **실험 기능**: 기본 OFF, 실험실 경고·마스터 스위치 유지. 정식 탭으로 옮기기 전까지 실험실에 둔다.
+- **실험 기능**: 기본 OFF, 실험실 경고·마스터 스위치 유지. 정식 탭으로 옮기기 전까지 실험실에 둔다. 자동 답변·미리 캡처·하이라이트는 모델/입력 훅/좌표 지원에 따라 동작이 달라질 수 있다.
 - **오류 코드**: 새 코드는 `src/i18n.ts::ERRORS`에 en/ko 쌍으로 추가.
 
 ## 14. 테스트 전략

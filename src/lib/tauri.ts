@@ -77,6 +77,8 @@ export const onGestureTest = (handler: (event: GestureTestEvent) => void) =>
   listenEvent<GestureTestEvent>('gesture-test', (event) => handler(event.payload))
 export const setOverlayPrewarm = (enabled: boolean) =>
   invoke<void>('set_overlay_prewarm', { enabled })
+export const setAutoPeek = (enabled: boolean) => invoke<void>('set_auto_peek', { enabled })
+export const setPredictive = (enabled: boolean) => invoke<void>('set_predictive', { enabled })
 export const setPanicShortcut = (accelerator: string) =>
   invoke<void>('set_panic_shortcut', { accelerator })
 export const setShortcutRecording = (recording: boolean) => invoke<void>('set_shortcut_recording', { recording })
@@ -124,6 +126,13 @@ export interface TokenUsage {
   total?: number
 }
 
+export interface HighlightBox {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 export type CaptureResult =
   | {
       kind: 'choice'
@@ -131,8 +140,17 @@ export type CaptureResult =
       verification?: Verification
       usage?: TokenUsage
       fallback?: boolean
+      peek?: string
+      highlight?: HighlightBox
     }
-  | { kind: 'text'; text: string; usage?: TokenUsage; streamed?: boolean; fallback?: boolean }
+  | {
+      kind: 'text'
+      text: string
+      usage?: TokenUsage
+      streamed?: boolean
+      fallback?: boolean
+      peek?: string
+    }
   | { kind: 'none'; reason: string }
 
 export const captureAndAnswer = (
@@ -153,6 +171,10 @@ export const captureAndAnswer = (
   prepareOverlay = false,
   stream = false,
   textPosition: OverlayPosition = 'bottom-right',
+  highlight = false,
+  capturePeek = false,
+  spotlight = false,
+  predictive = false,
 ) =>
   invoke<CaptureResult>('capture_and_answer', {
     preset,
@@ -172,6 +194,10 @@ export const captureAndAnswer = (
     prepareOverlay,
     stream,
     textPosition,
+    highlight,
+    capturePeek,
+    spotlight,
+    predictive,
   })
 export const showOverlay = (
   answer: string,
@@ -180,6 +206,9 @@ export const showOverlay = (
   verification?: Verification,
   position?: OverlayPosition,
   freshCursor = false,
+  peek?: string,
+  spotlight = false,
+  highlight?: HighlightBox,
 ) =>
   invoke<void>('show_overlay', {
     answer,
@@ -188,6 +217,9 @@ export const showOverlay = (
     verification: verification ?? null,
     position: position ?? null,
     freshCursor,
+    peek: peek ?? null,
+    spotlight,
+    highlight: highlight ?? null,
   })
 export const overlayReady = () => invoke<void>('overlay_ready')
 export const streamDone = (id: number, durationMs: number) =>

@@ -4,12 +4,22 @@ use std::sync::Mutex;
 use serde::Deserialize;
 use tauri::State;
 
+pub struct RawCapture {
+    pub data: Vec<u8>,
+    pub w: u32,
+    pub h: u32,
+    pub cursor: (i32, i32),
+    pub monitor: crate::capture::MonitorRect,
+    pub at: std::time::Instant,
+}
+
 pub struct AppState {
     pub tray: Mutex<Option<tauri::tray::TrayIcon>>,
     pub menu: Mutex<Option<MenuHandles>>,
     pub http: reqwest::Client,
     pub capture_in_flight: AtomicBool,
     pub last_capture: Mutex<Option<(i32, i32, crate::capture::MonitorRect)>>,
+    pub pre_capture: Mutex<Option<RawCapture>>,
     pub cancel: tokio::sync::watch::Sender<u64>,
     pub content_protection: AtomicBool,
     pub overlay_state: Mutex<OverlayDelivery>,
@@ -35,6 +45,7 @@ impl Default for AppState {
                 .expect("http client"),
             capture_in_flight: AtomicBool::new(false),
             last_capture: Mutex::new(None),
+            pre_capture: Mutex::new(None),
             cancel,
             content_protection: AtomicBool::new(true),
             overlay_state: Mutex::new(OverlayDelivery::default()),
@@ -141,6 +152,59 @@ async fn answers_with_fallback(
     }
 }
 
+async fn answers_with_highlight_fallback(
+    client: &reqwest::Client,
+    provider: &crate::ai::Provider<'_>,
+    fallback: Option<&crate::ai::Provider<'_>>,
+    b64: &str,
+    cx: i32,
+    cy: i32,
+    w: u32,
+    h: u32,
+) -> Result<
+    (
+        Vec<String>,
+        Option<crate::ai::Usage>,
+        Option<crate::ai::HighlightBox>,
+    ),
+    String,
+> {
+    match crate::ai::request_answers_highlight(client, provider, b64, cx, cy, w, h).await {
+        Ok(answer) => Ok(answer),
+        Err(error) if fallback.is_some() && crate::ai::fallback_allowed(&error) => {
+            crate::ai::request_answers_highlight(
+                client,
+                fallback.unwrap(),
+                b64,
+                cx,
+                cy,
+                w,
+                h,
+            )
+            .await
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn monitor_box(
+    b: crate::ai::HighlightBox,
+    cap: &crate::capture::Capture,
+) -> crate::ai::HighlightBox {
+    let mw = cap.monitor.w.max(1) as f64;
+    let mh = cap.monitor.h.max(1) as f64;
+    let x = ((cap.view.x - cap.monitor.x) as f64 + b.x * cap.view.w.max(1) as f64) / mw;
+    let y = ((cap.view.y - cap.monitor.y) as f64 + b.y * cap.view.h.max(1) as f64) / mh;
+    let w = b.w * cap.view.w.max(1) as f64 / mw;
+    let h = b.h * cap.view.h.max(1) as f64 / mh;
+    crate::ai::HighlightBox {
+        x: x.clamp(0.0, 1.0),
+        y: y.clamp(0.0, 1.0),
+        w: w.min(1.0 - x).max(0.0),
+        h: h.min(1.0 - y).max(0.0),
+    }
+}
+
 async fn text_with_fallback(
     client: &reqwest::Client,
     provider: &crate::ai::Provider<'_>,
@@ -219,6 +283,8 @@ async fn streamed_text(
     language: &str,
     level: &str,
     text_position: &str,
+    peek: Option<&str>,
+    spotlight: bool,
 ) -> Result<(String, Option<crate::ai::Usage>, bool), String> {
     let mut stream_id: Option<u64> = None;
     let mut start_failed = false;
@@ -232,7 +298,7 @@ async fn streamed_text(
                 if start_failed {
                     return;
                 }
-                match show_overlay_stream_start(app, state, text, text_position) {
+                match show_overlay_stream_start(app, state, text, text_position, peek, spotlight) {
                     Ok(id) => {
                         stream_id = Some(id);
                         last_emit = std::time::Instant::now();
@@ -333,16 +399,46 @@ pub enum AnswerPayload {
         verification: Option<Verification>,
         #[serde(skip_serializing_if = "Option::is_none")]
         usage: Option<crate::ai::Usage>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        highlight: Option<crate::ai::HighlightBox>,
     },
     Text {
         text: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         usage: Option<crate::ai::Usage>,
         streamed: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        peek: Option<String>,
     },
     None {
         reason: String,
     },
+}
+
+pub fn warm_capture(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    let Some(state) = app.try_state::<AppState>() else {
+        return;
+    };
+    if state.capture_in_flight.load(Ordering::SeqCst)
+        || crate::windows::pointer_over_main(app)
+    {
+        return;
+    }
+    let Ok((data, w, h, cursor, monitor)) = crate::capture::raw_capture() else {
+        return;
+    };
+    let Ok(mut slot) = state.pre_capture.lock() else {
+        return;
+    };
+    *slot = Some(RawCapture {
+        data,
+        w,
+        h,
+        cursor,
+        monitor,
+        at: std::time::Instant::now(),
+    });
 }
 
 #[tauri::command]
@@ -366,7 +462,15 @@ pub async fn capture_and_answer(
     prepare_overlay: bool,
     stream: bool,
     text_position: String,
+    highlight: Option<bool>,
+    capture_peek: Option<bool>,
+    spotlight: Option<bool>,
+    predictive: Option<bool>,
 ) -> Result<AnswerPayload, String> {
+    let highlight = highlight.unwrap_or(false);
+    let capture_peek = capture_peek.unwrap_or(false);
+    let spotlight = spotlight.unwrap_or(false);
+    let predictive = predictive.unwrap_or(false);
     if state.capture_in_flight.swap(true, Ordering::SeqCst) {
         return Err("busy".into());
     }
@@ -383,8 +487,27 @@ pub async fn capture_and_answer(
             let _ = ensure_overlay(&overlay_app);
         });
     }
+    let cached = if predictive {
+        state
+            .pre_capture
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take())
+    } else {
+        None
+    };
     let (cap, cursor) = tauri::async_runtime::spawn_blocking(move || {
-        let (buf, w, h, cursor, mon) = crate::capture::raw_capture()?;
+        let (current_cursor, current_monitor) = crate::capture::cursor_monitor()?;
+        let cached = cached.filter(|raw| {
+            raw.monitor == current_monitor
+                && raw.at.elapsed() < std::time::Duration::from_millis(2500)
+                && (raw.cursor.0 - current_cursor.0).abs() <= 24
+                && (raw.cursor.1 - current_cursor.1).abs() <= 24
+        });
+        let (buf, w, h, cursor, mon) = match cached {
+            Some(raw) => (raw.data, raw.w, raw.h, raw.cursor, raw.monitor),
+            None => crate::capture::raw_capture()?,
+        };
         let region = crop.then(|| {
             crate::capture::crop_region(
                 mon,
@@ -424,6 +547,8 @@ pub async fn capture_and_answer(
                 &language,
                 &level,
                 &text_position,
+                capture_peek.then_some(cap.thumb.as_str()),
+                spotlight,
             )
             .await
             {
@@ -431,6 +556,7 @@ pub async fn capture_and_answer(
                     text,
                     usage,
                     streamed,
+                    peek: capture_peek.then(|| cap.thumb.clone()),
                 }),
                 Err(error) if error == "empty_text" => {
                     Ok(AnswerPayload::None { reason: error })
@@ -454,6 +580,7 @@ pub async fn capture_and_answer(
                 text,
                 usage,
                 streamed: false,
+                peek: capture_peek.then(|| cap.thumb.clone()),
             }),
             Err(error) if error == "empty_text" => Ok(AnswerPayload::None { reason: error }),
             Err(error) => Err(error),
@@ -461,6 +588,69 @@ pub async fn capture_and_answer(
     }
     match answer_type.as_str() {
         "choice" => {
+            if highlight {
+                let (answers, usage, box_) = match answers_with_highlight_fallback(
+                    &state.http,
+                    &provider,
+                    fallback.as_ref(),
+                    &cap.b64,
+                    cap.cursor_x,
+                    cap.cursor_y,
+                    cap.img_w,
+                    cap.img_h,
+                )
+                .await
+                {
+                    Ok(answer) => answer,
+                    Err(error) if error == "empty" => {
+                        return Ok(AnswerPayload::None { reason: error })
+                    }
+                    Err(error) => return Err(error),
+                };
+                let box_ = box_.map(|b| monitor_box(b, &cap));
+                let verify = verify_model.trim();
+                if consensus && !verify.is_empty() && verify != model {
+                    let verifier = verify_provider(&preset, &base_url, verify, &key);
+                    let secondary = crate::ai::request_answers(
+                        &state.http,
+                        &verifier,
+                        &cap.b64,
+                        cap.cursor_x,
+                        cap.cursor_y,
+                        cap.img_w,
+                        cap.img_h,
+                    )
+                    .await;
+                    let secondary_usage = secondary.as_ref().ok().and_then(|(_, usage)| *usage);
+                    let consensus = match crate::ai::merge_consensus(
+                        Ok(answers),
+                        secondary.map(|(answers, _)| answers),
+                    ) {
+                        Ok(consensus) => consensus,
+                        Err(error) if error == "empty" => {
+                            return Ok(AnswerPayload::None { reason: error })
+                        }
+                        Err(error) => return Err(error),
+                    };
+                    return Ok(AnswerPayload::Choice {
+                        answers: consensus.answers,
+                        verification: Some(Verification {
+                            matched: consensus.matched,
+                            candidates_matched: consensus.candidates_matched,
+                            secondary: consensus.secondary,
+                            error: consensus.error,
+                        }),
+                        usage: crate::ai::merge_usage(usage, secondary_usage),
+                        highlight: box_,
+                    });
+                }
+                return Ok(AnswerPayload::Choice {
+                    answers,
+                    verification: None,
+                    usage,
+                    highlight: box_,
+                });
+            }
             let verify = verify_model.trim();
             if consensus && !verify.is_empty() && verify != model {
                 let verifier = verify_provider(&preset, &base_url, verify, &key);
@@ -508,6 +698,7 @@ pub async fn capture_and_answer(
                         error: consensus.error,
                     }),
                     usage,
+                    highlight: None,
                 });
             }
             let (answers, usage) = match answers_with_fallback(
@@ -532,6 +723,7 @@ pub async fn capture_and_answer(
                 answers,
                 verification: None,
                 usage,
+                highlight: None,
             })
         }
         "text" => {
@@ -546,6 +738,8 @@ pub async fn capture_and_answer(
                     &language,
                     &level,
                     &text_position,
+                    capture_peek.then_some(cap.thumb.as_str()),
+                    spotlight,
                 )
                 .await
                 {
@@ -553,6 +747,7 @@ pub async fn capture_and_answer(
                         text,
                         usage,
                         streamed,
+                        peek: capture_peek.then(|| cap.thumb.clone()),
                     }),
                     Err(error) if error == "empty_text" => {
                         Ok(AnswerPayload::None { reason: error })
@@ -575,6 +770,7 @@ pub async fn capture_and_answer(
                     text,
                     usage,
                     streamed: false,
+                    peek: capture_peek.then(|| cap.thumb.clone()),
                 }),
                 Err(error) if error == "empty_text" => Ok(AnswerPayload::None { reason: error }),
                 Err(error) => Err(error),
@@ -654,7 +850,11 @@ pub async fn show_overlay(
     verification: Option<Verification>,
     position: Option<String>,
     fresh_cursor: Option<bool>,
+    peek: Option<String>,
+    spotlight: Option<bool>,
+    highlight: Option<crate::ai::HighlightBox>,
 ) -> Result<(), String> {
+    let spotlight = spotlight.unwrap_or(false);
     let overlay = ensure_overlay(&app)?;
     let protect = state.content_protection.load(Ordering::SeqCst);
     if crate::windows::set_capture_protection(&overlay, protect).is_err() {
@@ -670,7 +870,8 @@ pub async fn show_overlay(
     } else {
         crate::capture::resolve_anchor(last, crate::capture::cursor_monitor)?
     };
-    let (w, h, x, y) = if style == "flash" {
+    let full_screen = style == "flash" || spotlight || highlight.is_some();
+    let (w, h, x, y) = if full_screen {
         (mon.w as u32, mon.h as u32, mon.x, mon.y)
     } else if style == "text" {
         let text_position = crate::windows::TextPosition::parse(position.as_deref().unwrap_or(""));
@@ -721,12 +922,21 @@ pub async fn show_overlay(
             "style": style,
             "text": answer,
             "verification": verification,
+            "peek": peek,
+            "spotlight": spotlight,
+            "spotlightX": (cx - mon.x) as f64 / mon.w.max(1) as f64,
+            "spotlightY": (cy - mon.y) as f64 / mon.h.max(1) as f64,
+            "highlight": highlight,
         })
     } else {
         serde_json::json!({
             "answer": answer,
             "style": style,
             "verification": verification,
+            "spotlight": spotlight,
+            "spotlightX": (cx - mon.x) as f64 / mon.w.max(1) as f64,
+            "spotlightY": (cy - mon.y) as f64 / mon.h.max(1) as f64,
+            "highlight": highlight,
         })
     };
     deliver_overlay(&app, state.inner(), payload)?;
@@ -741,6 +951,8 @@ fn show_overlay_stream_start(
     state: &AppState,
     text: &str,
     text_position: &str,
+    peek: Option<&str>,
+    spotlight: bool,
 ) -> Result<u64, String> {
     let id = OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     let overlay = ensure_overlay(app)?;
@@ -755,23 +967,28 @@ fn show_overlay_stream_start(
         .map_err(|_| "capture".to_string())?;
     let ((cx, cy), mon) = crate::capture::resolve_anchor(last, crate::capture::cursor_monitor)?;
     let position = crate::windows::TextPosition::parse(text_position);
-    let size = if position == crate::windows::TextPosition::Cursor {
-        crate::windows::text_size_cursor(crate::windows::monitor_scale(mon), mon)
+    let (w, h, x, y) = if spotlight {
+        (mon.w as u32, mon.h as u32, mon.x, mon.y)
     } else {
-        crate::windows::text_size(
-            crate::windows::monitor_scale(mon),
-            STREAM_PANEL_CHARS,
-            mon,
-        )
-    };
-    let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
-    let (x, y) = if position == crate::windows::TextPosition::Cursor {
-        crate::windows::text_position_near_cursor((cx, cy), mon, size)
-    } else {
-        crate::windows::text_position(mon, size, position)
+        let size = if position == crate::windows::TextPosition::Cursor {
+            crate::windows::text_size_cursor(crate::windows::monitor_scale(mon), mon)
+        } else {
+            crate::windows::text_size(
+                crate::windows::monitor_scale(mon),
+                STREAM_PANEL_CHARS,
+                mon,
+            )
+        };
+        let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
+        let (x, y) = if position == crate::windows::TextPosition::Cursor {
+            crate::windows::text_position_near_cursor((cx, cy), mon, size)
+        } else {
+            crate::windows::text_position(mon, size, position)
+        };
+        (size.0 as u32, size.1 as u32, x, y)
     };
     overlay
-        .set_size(tauri::PhysicalSize::new(size.0 as u32, size.1 as u32))
+        .set_size(tauri::PhysicalSize::new(w, h))
         .map_err(|_| "capture")?;
     overlay
         .set_position(tauri::PhysicalPosition::new(x, y))
@@ -790,6 +1007,10 @@ fn show_overlay_stream_start(
         "stream": true,
         "final": false,
         "id": id,
+        "peek": peek,
+        "spotlight": spotlight,
+        "spotlightX": (cx - mon.x) as f64 / mon.w.max(1) as f64,
+        "spotlightY": (cy - mon.y) as f64 / mon.h.max(1) as f64,
     });
     deliver_overlay(app, state, payload)?;
     Ok(id)
@@ -1049,6 +1270,16 @@ pub fn set_free_shortcut(enabled: bool, button: String) -> Result<(), String> {
 #[tauri::command]
 pub fn set_overlay_prewarm(enabled: bool) -> Result<(), String> {
     crate::shortcut::set_prewarm(enabled)
+}
+
+#[tauri::command]
+pub fn set_auto_peek(enabled: bool) -> Result<(), String> {
+    crate::shortcut::set_auto_peek(enabled)
+}
+
+#[tauri::command]
+pub fn set_predictive(enabled: bool) -> Result<(), String> {
+    crate::shortcut::set_predictive(enabled)
 }
 
 #[tauri::command]
@@ -1719,11 +1950,50 @@ mod tests {
     }
 
     #[test]
+    fn maps_capture_box_into_monitor_space() {
+        let monitor = crate::capture::MonitorRect {
+            x: 0,
+            y: 0,
+            w: 1000,
+            h: 500,
+        };
+        let cap = crate::capture::Capture {
+            b64: String::new(),
+            thumb: String::new(),
+            img_w: 400,
+            img_h: 200,
+            cursor_x: 0,
+            cursor_y: 0,
+            monitor,
+            view: crate::capture::MonitorRect {
+                x: 100,
+                y: 50,
+                w: 400,
+                h: 200,
+            },
+        };
+        let b = monitor_box(
+            crate::ai::HighlightBox {
+                x: 0.25,
+                y: 0.25,
+                w: 0.5,
+                h: 0.5,
+            },
+            &cap,
+        );
+        assert!((b.x - 0.2).abs() < 1e-9);
+        assert!((b.y - 0.2).abs() < 1e-9);
+        assert!((b.w - 0.2).abs() < 1e-9);
+        assert!((b.h - 0.2).abs() < 1e-9);
+    }
+
+    #[test]
     fn answer_payload_serializes_choice_and_text() {
         let choice = AnswerPayload::Choice {
             answers: vec!["B".to_string()],
             verification: None,
             usage: None,
+            highlight: None,
         };
         assert_eq!(
             serde_json::to_value(&choice).unwrap(),
@@ -1738,6 +2008,7 @@ mod tests {
                 error: None,
             }),
             usage: None,
+            highlight: None,
         };
         assert_eq!(
             serde_json::to_value(&verified).unwrap(),
@@ -1762,6 +2033,7 @@ mod tests {
             text: "설명형 답변".to_string(),
             usage: None,
             streamed: false,
+            peek: None,
         };
         assert_eq!(
             serde_json::to_value(&text).unwrap(),

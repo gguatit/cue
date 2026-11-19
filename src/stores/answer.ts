@@ -10,6 +10,7 @@ import {
   meetingActive,
   showOverlay,
   type CaptureResult,
+  type HighlightBox,
   type OverlayPosition,
   type TokenUsage,
   type Verification,
@@ -284,6 +285,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
     my: number,
     hidden: boolean,
     verification?: Verification,
+    highlight?: HighlightBox,
   ): Promise<void> => {
     const first = answers[0] ?? ''
     const joined = answers.join(', ')
@@ -308,9 +310,47 @@ export const useAnswer = create<AnswerState>()((set, get) => {
         return
       }
     }
-    const showGuarded = async (style: 'badge' | 'flash', ms: number): Promise<boolean> => {
-      if (verification) await showOverlay(joined, style, ms, verification)
-      else await showOverlay(joined, style, ms)
+    const exp = useSettings.getState().experimental
+    const spotlight = exp.enabled && exp.spotlight
+    const box = exp.enabled && exp.highlight ? highlight : undefined
+    const showGuarded = async (
+      style: 'badge' | 'flash',
+      ms: number,
+      spotlightOn = false,
+      box?: HighlightBox,
+    ): Promise<boolean> => {
+      const extra = spotlightOn || box !== undefined
+      if (verification) {
+        if (extra) {
+          await showOverlay(
+            joined,
+            style,
+            ms,
+            verification,
+            undefined,
+            false,
+            undefined,
+            spotlightOn,
+            box,
+          )
+        } else {
+          await showOverlay(joined, style, ms, verification)
+        }
+      } else if (extra) {
+        await showOverlay(
+          joined,
+          style,
+          ms,
+          undefined,
+          undefined,
+          false,
+          undefined,
+          spotlightOn,
+          box,
+        )
+      } else {
+        await showOverlay(joined, style, ms)
+      }
       if (seq !== my) return false
       if (meetingBlocked()) {
         void hideOverlay().catch(() => {})
@@ -318,7 +358,12 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       }
       return true
     }
-    if (d.overlay && d.flash) {
+    if (spotlight || box) {
+      if (!(await showGuarded('badge', d.badgeMs, spotlight, box))) return
+      setTimeout(() => {
+        if (seq === my) get().clearTray()
+      }, d.badgeMs)
+    } else if (d.overlay && d.flash) {
       if (!(await showGuarded('flash', d.flashMs))) return
       setTimeout(() => {
         if (seq === my && !meetingBlocked()) {
@@ -360,7 +405,12 @@ export const useAnswer = create<AnswerState>()((set, get) => {
     }
   }
 
-  const displayText = async (text: string, my: number, hidden: boolean): Promise<void> => {
+  const displayText = async (
+    text: string,
+    my: number,
+    hidden: boolean,
+    peek?: string,
+  ): Promise<void> => {
     traySeq++
     set({ mode: { kind: 'text', text } })
     await setTrayIdle().catch(() => {})
@@ -369,7 +419,23 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       return
     }
     const display = useSettings.getState().display
-    await showOverlay(text, 'text', display.textMs, undefined, overlayTextPosition())
+    const exp = useSettings.getState().experimental
+    const spotlight = exp.enabled && exp.spotlight
+    const thumb = exp.enabled && exp.capturePeek ? peek : undefined
+    if (thumb || spotlight) {
+      await showOverlay(
+        text,
+        'text',
+        display.textMs,
+        undefined,
+        overlayTextPosition(),
+        false,
+        thumb,
+        spotlight,
+      )
+    } else {
+      await showOverlay(text, 'text', display.textMs, undefined, overlayTextPosition())
+    }
     if (seq !== my) return
     if (meetingBlocked()) {
       void hideOverlay().catch(() => {})
@@ -552,25 +618,56 @@ export const useAnswer = create<AnswerState>()((set, get) => {
               }
             : { kind: 'choice', answers: ['B'] }
         } else {
-          result = await captureAndAnswer(
-            provider.preset,
-            provider.baseUrl,
-            provider.model,
-            provider.extraJson,
-            provider.answerType,
-            provider.paraphrase,
-            privacy.crop,
-            answer.language,
-            answer.level,
-            mode,
-            useSettings.getState().free.instruction,
-            provider.consensus,
-            provider.verifyModel,
-            provider.fallbackModel,
-            textMode || displaySettings.overlay || displaySettings.flash,
-            provider.streaming && textMode && !provider.paraphrase && !hiddenAtStart,
-            overlayTextPosition(),
-          )
+          const exp = useSettings.getState().experimental
+          const highlight = exp.enabled && exp.highlight
+          const capturePeek = exp.enabled && exp.capturePeek
+          const spotlight = exp.enabled && exp.spotlight
+          const predictive = exp.enabled && exp.predictive
+          if (highlight || capturePeek || spotlight || predictive) {
+            result = await captureAndAnswer(
+              provider.preset,
+              provider.baseUrl,
+              provider.model,
+              provider.extraJson,
+              provider.answerType,
+              provider.paraphrase,
+              privacy.crop,
+              answer.language,
+              answer.level,
+              mode,
+              useSettings.getState().free.instruction,
+              provider.consensus,
+              provider.verifyModel,
+              provider.fallbackModel,
+              textMode || displaySettings.overlay || displaySettings.flash,
+              provider.streaming && textMode && !provider.paraphrase && !hiddenAtStart,
+              overlayTextPosition(),
+              highlight,
+              capturePeek,
+              spotlight,
+              predictive,
+            )
+          } else {
+            result = await captureAndAnswer(
+              provider.preset,
+              provider.baseUrl,
+              provider.model,
+              provider.extraJson,
+              provider.answerType,
+              provider.paraphrase,
+              privacy.crop,
+              answer.language,
+              answer.level,
+              mode,
+              useSettings.getState().free.instruction,
+              provider.consensus,
+              provider.verifyModel,
+              provider.fallbackModel,
+              textMode || displaySettings.overlay || displaySettings.flash,
+              provider.streaming && textMode && !provider.paraphrase && !hiddenAtStart,
+              overlayTextPosition(),
+            )
+          }
         }
         if (seq !== my) return
         const hidden = await hiddenByMeeting()
@@ -596,7 +693,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
             }))
           }
           if (result.streamed) await displayStreamedText(text, hidden)
-          else await displayText(text, my, hidden)
+          else await displayText(text, my, hidden, result.peek)
         } else {
           const answers = result.answers
           const verification = result.verification
@@ -612,7 +709,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
               }),
             }))
           }
-          await display(answers, my, hidden, verification)
+          await display(answers, my, hidden, verification, result.highlight)
         }
       } catch (e) {
         if (seq !== my) return

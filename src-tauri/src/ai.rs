@@ -131,10 +131,78 @@ fn tag_end(chars: &[char], start: usize) -> Option<usize> {
     None
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct HighlightBox {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+}
+
+pub fn build_prompt_with_box(cx: i32, cy: i32, w: u32, h: u32) -> String {
+    format!(
+        "You are an assistant that answers multiple-choice exam questions from a screenshot.\n\nThe attached image is a screenshot of one display. The user's mouse cursor is at pixel ({cx}, {cy}) in this image (image size: {w}x{h} pixels).\n\nTask:\n1. Find the multiple-choice question closest to the cursor position.\n2. Read the question text and its answer options (labeled A-E, 1-5, or similar).\n3. Determine the single correct answer.\n\nScreenshot safety:\n{rules}\n\nReply with ONLY a JSON object in exactly this format, with no other text and no markdown:\n{{\"answers\":[\"X\"],\"box\":[0.1,0.2,0.3,0.4]}}\n\nRules:\n- \"answers\" is an array of answer labels, most confident first. Usually one entry. Use at most 4 entries.\n- Use the label exactly as printed (e.g. \"B\", \"3\", \"①\").\n- \"box\" is optional. When you can locate the correct answer option, return its bounding box as [x, y, width, height] normalized to the screenshot (0.0 to 1.0, top-left origin). Use null when unsure.\n- If no readable multiple-choice question is visible near the cursor, reply {{\"answers\":[],\"box\":null}}.",
+        rules = SCREENSHOT_RULES
+    )
+}
+
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
     Format,
     Empty,
+}
+
+fn parse_box(value: Option<&Value>) -> Option<HighlightBox> {
+    let value = value?;
+    let raw = if let Some(arr) = value.as_array() {
+        if arr.len() != 4 {
+            return None;
+        }
+        [
+            arr[0].as_f64()?,
+            arr[1].as_f64()?,
+            arr[2].as_f64()?,
+            arr[3].as_f64()?,
+        ]
+    } else {
+        let obj = value.as_object()?;
+        [
+            obj.get("x")?.as_f64()?,
+            obj.get("y")?.as_f64()?,
+            obj.get("w")?.as_f64()?,
+            obj.get("h")?.as_f64()?,
+        ]
+    };
+    if raw.iter().any(|v| !v.is_finite()) || raw[2] <= 0.0 || raw[3] <= 0.0 {
+        return None;
+    }
+    let x = raw[0].clamp(0.0, 1.0);
+    let y = raw[1].clamp(0.0, 1.0);
+    let w = raw[2].min(1.0 - x);
+    let h = raw[3].min(1.0 - y);
+    (w > 0.0 && h > 0.0).then_some(HighlightBox { x, y, w, h })
+}
+
+pub fn parse_answer_set(
+    content: &str,
+) -> Result<(Vec<String>, Option<HighlightBox>), ParseError> {
+    let obj = balanced_object(content).ok_or(ParseError::Format)?;
+    let v: Value = serde_json::from_str(obj).map_err(|_| ParseError::Format)?;
+    let arr = v
+        .get("answers")
+        .and_then(|a| a.as_array())
+        .ok_or(ParseError::Format)?;
+    let mut out: Vec<String> = arr
+        .iter()
+        .filter_map(|x| x.as_str())
+        .filter_map(clean_label)
+        .collect();
+    out.truncate(4);
+    if out.is_empty() {
+        Err(ParseError::Empty)
+    } else {
+        Ok((out, parse_box(v.get("box"))))
+    }
 }
 
 pub fn parse_answers(content: &str) -> Result<Vec<String>, ParseError> {
@@ -1309,6 +1377,55 @@ pub async fn request_answers(
     Err(last)
 }
 
+async fn answer_with_api_box(
+    client: &reqwest::Client,
+    p: &Provider<'_>,
+    api: Api,
+    prompt: &str,
+    b64: &str,
+    started: Instant,
+) -> Result<(Vec<String>, Option<Usage>, Option<HighlightBox>), String> {
+    let body = build_body(api, p.model, prompt, b64, p.extra)?;
+    let (content, usage) = post_api(client, p, api, &body, started).await?;
+    match parse_answer_set(&content) {
+        Ok((answers, box_)) => Ok((answers, usage, box_)),
+        Err(ParseError::Empty) => Err("empty".into()),
+        Err(ParseError::Format) => {
+            let body = correction_body(api, p.model, prompt, b64, &content, p.extra)?;
+            let (content2, usage2) = post_api(client, p, api, &body, started).await?;
+            match parse_answer_set(&content2) {
+                Ok((answers, box_)) => {
+                    Ok((answers, flatten_usage(vec![usage, usage2]), box_))
+                }
+                Err(ParseError::Empty) => Err("empty".into()),
+                Err(ParseError::Format) => Err("parse".into()),
+            }
+        }
+    }
+}
+
+pub async fn request_answers_highlight(
+    client: &reqwest::Client,
+    p: &Provider<'_>,
+    b64: &str,
+    cx: i32,
+    cy: i32,
+    w: u32,
+    h: u32,
+) -> Result<(Vec<String>, Option<Usage>, Option<HighlightBox>), String> {
+    let prompt = build_prompt_with_box(cx, cy, w, h);
+    let started = Instant::now();
+    let mut last = "model_protocol".to_string();
+    for api in protocol_candidates(p.preset, api_for(p.preset, p.model)) {
+        match answer_with_api_box(client, p, api, &prompt, b64, started).await {
+            Ok(answer) => return Ok(answer),
+            Err(code) if code == "model_protocol" => last = code,
+            Err(code) => return Err(code),
+        }
+    }
+    Err(last)
+}
+
 async fn request_text_with_prompt(
     client: &reqwest::Client,
     p: &Provider<'_>,
@@ -1483,6 +1600,39 @@ mod tests {
     #[test]
     fn parse_plain_json() {
         assert_eq!(parse_answers(r#"{"answers":["B"]}"#).unwrap(), vec!["B"]);
+    }
+
+    #[test]
+    fn parses_optional_highlight_box() {
+        let (answers, box_) =
+            parse_answer_set(r#"{"answers":["B"],"box":[0.1,0.2,0.3,0.4]}"#).unwrap();
+        assert_eq!(answers, vec!["B"]);
+        assert_eq!(
+            box_,
+            Some(HighlightBox {
+                x: 0.1,
+                y: 0.2,
+                w: 0.3,
+                h: 0.4
+            })
+        );
+        assert!(parse_answer_set(r#"{"answers":["B"]}"#)
+            .unwrap()
+            .1
+            .is_none());
+        let (_, object) = parse_answer_set(
+            r#"{"answers":["C"],"box":{"x":0.2,"y":0.3,"w":0.4,"h":0.1}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            object,
+            Some(HighlightBox {
+                x: 0.2,
+                y: 0.3,
+                w: 0.4,
+                h: 0.1
+            })
+        );
     }
 
     #[test]
@@ -2012,13 +2162,16 @@ mod tests {
     }
 
     fn test_capture() -> crate::capture::Capture {
+        let monitor = crate::capture::MonitorRect { x: 0, y: 0, w: 100, h: 100 };
         crate::capture::Capture {
             b64: "image".to_string(),
+            thumb: String::new(),
             img_w: 100,
             img_h: 100,
             cursor_x: 50,
             cursor_y: 50,
-            monitor: crate::capture::MonitorRect { x: 0, y: 0, w: 100, h: 100 },
+            monitor,
+            view: monitor,
         }
     }
 

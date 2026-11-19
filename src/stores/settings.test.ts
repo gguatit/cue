@@ -415,14 +415,33 @@ describe('mouse trigger settings', () => {
     expect(defaults.experimental).toEqual({
       enabled: false,
       cursorAnswer: false,
+      spotlight: false,
+      capturePeek: false,
+      autoPeek: false,
+      predictive: false,
+      highlight: false,
       showWarnings: true,
     })
     const merged = mergeSettings({
-      experimental: { enabled: true, cursorAnswer: true, showWarnings: false },
+      experimental: {
+        enabled: true,
+        cursorAnswer: true,
+        spotlight: true,
+        capturePeek: true,
+        autoPeek: true,
+        predictive: true,
+        highlight: true,
+        showWarnings: false,
+      },
     })
     expect(merged.experimental).toEqual({
       enabled: true,
       cursorAnswer: true,
+      spotlight: true,
+      capturePeek: true,
+      autoPeek: true,
+      predictive: true,
+      highlight: true,
       showWarnings: false,
     })
     const invalid = mergeSettings({

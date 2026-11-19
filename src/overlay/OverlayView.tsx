@@ -14,6 +14,25 @@ interface Payload {
   stream?: boolean
   final?: boolean
   id?: number
+  peek?: string
+  spotlight?: boolean
+  spotlightX?: number
+  spotlightY?: number
+  highlight?: { x: number; y: number; w: number; h: number }
+}
+
+function HighlightMark({ box }: { box: NonNullable<Payload['highlight']> }) {
+  return (
+    <div
+      className="pointer-events-none absolute rounded-md border-2 border-amber-400 bg-amber-300/15 shadow-[0_0_0_9999px_rgba(0,0,0,0.16)]"
+      style={{
+        left: `${box.x * 100}%`,
+        top: `${box.y * 100}%`,
+        width: `${box.w * 100}%`,
+        height: `${box.h * 100}%`,
+      }}
+    />
+  )
 }
 
 function verificationLabel(verification: Verification | undefined, t: (en: string, ko: string) => string): string {
@@ -99,7 +118,16 @@ export default function OverlayView() {
       if (nextId !== idRef.current) {
         stopStream()
         idRef.current = nextId
-        setP({ answer: '', style: 'text', text: '', stream: true })
+        setP({
+          answer: '',
+          style: 'text',
+          text: '',
+          stream: true,
+          peek: payload.peek,
+          spotlight: payload.spotlight,
+          spotlightX: payload.spotlightX,
+          spotlightY: payload.spotlightY,
+        })
       }
       const text = payload.text ?? ''
       targetRef.current = text
@@ -129,6 +157,81 @@ export default function OverlayView() {
 
   if (!p) return null
   const badge = verificationLabel(p.verification, t)
+  const streamedText = p.stream ? targetRef.current.slice(0, visible) : (p.text ?? p.answer)
+  if (p.spotlight) {
+    const x = `${(p.spotlightX ?? 0.5) * 100}%`
+    const y = `${(p.spotlightY ?? 0.5) * 100}%`
+    const mask = `radial-gradient(circle at ${x} ${y}, transparent 0 150px, black 210px)`
+    return (
+      <MotionConfig reducedMotion="user">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={fadeFast}
+          className="fixed inset-0 overflow-hidden"
+        >
+          <div
+            className="absolute inset-0 bg-black/70"
+            style={{ WebkitMaskImage: mask, maskImage: mask }}
+          />
+          {p.highlight && <HighlightMark box={p.highlight} />}
+          <div
+            className="absolute"
+            style={{
+              left: `clamp(180px, ${x}, calc(100vw - 180px))`,
+              top: `clamp(120px, ${y}, calc(100vh - 120px))`,
+              transform: 'translate(-50%, -50%)',
+              width: 'min(360px, calc(100vw - 32px))',
+            }}
+          >
+            <div className="overlay-glass max-h-[50vh] overflow-y-auto rounded-xl p-4 text-[#111] shadow-2xl">
+              {p.peek && (
+                <img
+                  src={`data:image/jpeg;base64,${p.peek}`}
+                  alt=""
+                  className="mb-3 max-h-24 w-auto max-w-full rounded-md border border-black/10 object-contain"
+                />
+              )}
+              {p.style === 'text' || p.stream ? (
+                <div className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">
+                  {streamedText}
+                </div>
+              ) : (
+                <div className="text-center text-4xl font-bold">{p.answer}</div>
+              )}
+              {badge && (
+                <div className="mt-3 rounded-md bg-white/75 px-2 py-1 text-center text-[11px] font-semibold leading-tight text-amber-700">
+                  {badge}
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      </MotionConfig>
+    )
+  }
+  if (p.highlight) {
+    return (
+      <MotionConfig reducedMotion="user">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={fadeFast}
+          className="fixed inset-0 overflow-hidden"
+        >
+          <HighlightMark box={p.highlight} />
+          <span className="overlay-glass absolute inset-x-0 bottom-5 mx-auto w-fit max-w-[calc(100vw-32px)] rounded-xl px-4 py-2 text-center text-2xl font-bold text-[#0b0b0e]">
+            {p.answer}
+          </span>
+          {badge && (
+            <span className="absolute inset-x-0 bottom-1 mx-auto w-fit rounded-md bg-white/75 px-2 py-1 text-[11px] font-semibold text-amber-700">
+              {badge}
+            </span>
+          )}
+        </motion.div>
+      </MotionConfig>
+    )
+  }
   if (p.style === 'flash') {
     return (
       <MotionConfig reducedMotion="user">
@@ -162,11 +265,20 @@ export default function OverlayView() {
         className="fixed inset-0 p-2"
       >
         <div
-          className={`overlay-glass h-full w-full overflow-y-auto overscroll-contain whitespace-pre-wrap break-words rounded-xl p-5 text-[#111] leading-relaxed ${
+          className={`overlay-glass flex h-full w-full flex-col overflow-hidden rounded-xl p-5 text-[#111] leading-relaxed ${
             long ? 'text-[14px]' : 'text-[18px]'
           }`}
         >
-          {text}
+          {p.peek && (
+            <img
+              src={`data:image/jpeg;base64,${p.peek}`}
+              alt=""
+              className="mb-3 max-h-20 w-auto max-w-full shrink-0 self-start rounded-md border border-black/10 object-contain"
+            />
+          )}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words">
+            {text}
+          </div>
         </div>
       </motion.div>
       </MotionConfig>
