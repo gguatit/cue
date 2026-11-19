@@ -166,7 +166,6 @@ fn main() {
             commands::set_shortcut,
             commands::set_free_shortcut,
             commands::set_overlay_prewarm,
-            commands::set_auto_peek,
             commands::set_predictive,
             commands::set_mouse_trigger,
             commands::set_gesture_test,

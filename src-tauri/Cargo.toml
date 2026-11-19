@@ -1,7 +1,7 @@
 [package]
 name = "cue"
-version = "0.5.10"
-authors = ["kalpha (?꿔꺂????쭍???"]
+version = "0.6.0"
+authors = ["kalpha (최재영)"]
 edition = "2021"
 
 [profile.release]

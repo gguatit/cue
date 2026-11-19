@@ -29,6 +29,7 @@ export type TextPosition =
   | 'bottom-left'
   | 'bottom-right'
   | 'camera'
+  | 'cursor'
 export type LedKey = 'scroll' | 'caps' | 'num'
 export type AnswerLanguage = 'auto' | 'ko' | 'en'
 export type AnswerLevel = 'concise' | 'normal' | 'detailed'
@@ -100,10 +101,6 @@ export interface Settings {
   updates: { autoCheck: boolean }
   experimental: {
     enabled: boolean
-    cursorAnswer: boolean
-    spotlight: boolean
-    capturePeek: boolean
-    autoPeek: boolean
     predictive: boolean
     highlight: boolean
     showWarnings: boolean
@@ -195,10 +192,6 @@ export const defaults: Settings = {
   updates: { autoCheck: true },
   experimental: {
     enabled: false,
-    cursorAnswer: false,
-    spotlight: false,
-    capturePeek: false,
-    autoPeek: false,
     predictive: false,
     highlight: false,
     showWarnings: true,
@@ -219,6 +212,12 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T)
 
 export function mergeSettings(persisted: unknown): Settings {
   const p = (persisted && typeof persisted === 'object' ? persisted : {}) as Partial<Settings>
+  const legacyExperimental = (p.experimental ?? {}) as {
+    enabled?: unknown
+    cursorAnswer?: unknown
+  }
+  const legacyCursorAnswer =
+    bool(legacyExperimental.enabled, false) && bool(legacyExperimental.cursorAnswer, false)
   const providerRaw = (p.provider ?? {}) as Partial<Settings['provider']>
   const preset = oneOf(providerRaw.preset, Object.keys(PRESETS), 'opencode')
   const provider = {
@@ -288,7 +287,7 @@ export function mergeSettings(persisted: unknown): Settings {
       textMs: num(p.display?.textMs, 2000, 30000, defaults.display.textMs),
       textPosition: oneOf(
         p.display?.textPosition,
-        ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'camera'] as const,
+        ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'camera', 'cursor'] as const,
         defaults.display.textPosition,
       ),
     },
@@ -333,16 +332,13 @@ export function mergeSettings(persisted: unknown): Settings {
     updates: { autoCheck: bool(p.updates?.autoCheck, defaults.updates.autoCheck) },
     experimental: {
       enabled: bool(p.experimental?.enabled, defaults.experimental.enabled),
-      cursorAnswer: bool(p.experimental?.cursorAnswer, defaults.experimental.cursorAnswer),
-      spotlight: bool(p.experimental?.spotlight, defaults.experimental.spotlight),
-      capturePeek: bool(p.experimental?.capturePeek, defaults.experimental.capturePeek),
-      autoPeek: bool(p.experimental?.autoPeek, defaults.experimental.autoPeek),
       predictive: bool(p.experimental?.predictive, defaults.experimental.predictive),
       highlight: bool(p.experimental?.highlight, defaults.experimental.highlight),
       showWarnings: bool(p.experimental?.showWarnings, defaults.experimental.showWarnings),
     },
     onboarded: bool(p.onboarded, defaults.onboarded),
   }
+  if (legacyCursorAnswer) merged.display = { ...merged.display, textPosition: 'cursor' }
   const anyDisplay = (['tray', 'overlay', 'flash', 'led', 'brightness'] as const).some(
     (mode) => merged.display[mode],
   )
@@ -446,7 +442,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 26,
+      version: 27,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

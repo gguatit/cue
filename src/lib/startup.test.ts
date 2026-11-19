@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   setShortcut: vi.fn(async () => {}),
   setFreeShortcut: vi.fn(async () => {}),
   setMouseTrigger: vi.fn(async () => {}),
-  setAutoPeek: vi.fn(async () => {}),
   setPredictive: vi.fn(async () => {}),
   setOverlayPrewarm: vi.fn(async () => {}),
   setPanicShortcut: vi.fn(async () => {}),
@@ -27,7 +26,6 @@ vi.mock('./tauri', () => ({
   setShortcut: mocks.setShortcut,
   setFreeShortcut: mocks.setFreeShortcut,
   setMouseTrigger: mocks.setMouseTrigger,
-  setAutoPeek: mocks.setAutoPeek,
   setPredictive: mocks.setPredictive,
   setOverlayPrewarm: mocks.setOverlayPrewarm,
   setPanicShortcut: mocks.setPanicShortcut,
@@ -84,7 +82,6 @@ describe('runStartup shortcut check', () => {
     expect(mocks.setShortcut).toHaveBeenCalledWith('Control+Alt+Super', true, 'left')
     expect(mocks.setFreeShortcut).toHaveBeenCalledWith(false, 'right')
     expect(mocks.setMouseTrigger).toHaveBeenCalledWith(useSettings.getState().mouse)
-    expect(mocks.setAutoPeek).toHaveBeenCalledWith(false)
     expect(mocks.setPredictive).toHaveBeenCalledWith(false)
     expect(mocks.setOverlayPrewarm).toHaveBeenCalledWith(false)
   })

@@ -3,7 +3,7 @@
 이 문서는 Cue가 AI 요청을 만들고, 공급자에 보내고, 응답을 검증하고, 화면에 표시할 답으로 바꾸는 과정을 정리합니다.
 
 - 런타임 코드: `src-tauri/src/ai.rs`, `src-tauri/src/commands.rs`
-- 현재 버전: **0.5.10**
+- 현재 버전: **0.6.0**
 - 관련 문서: [ARCHITECTURE.md](ARCHITECTURE.md), [README](../README.md)
 
 ## 1. "하네스"의 의미
@@ -291,7 +291,7 @@ sequenceDiagram
     P-->>H: verifier response
     H->>H: merge_consensus
   end
-  H-->>C: answers + usage (+ optional box) / text + usage (+ optional peek) / error
+  H-->>C: answers + usage (+ optional box) / text + usage / error
 ```
 
 실험실 하이라이트가 켜진 객관식은 `request_answers_highlight`가 같은 재시도·프로토콜 후보·교정 흐름을 사용하면서 `HighlightBox`를 함께 반환합니다.

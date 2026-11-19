@@ -111,6 +111,8 @@ describe('answer store', () => {
       false,
       false,
       'bottom-right',
+      false,
+      false,
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'answer', answers: ['C'] })
   })
@@ -141,6 +143,8 @@ describe('answer store', () => {
       true,
       true,
       'bottom-right',
+      false,
+      false,
     )
   })
 
@@ -348,6 +352,8 @@ describe('answer store', () => {
       true,
       false,
       'bottom-right',
+      false,
+      false,
     )
     expect(useAnswer.getState().mode).toEqual({ kind: 'text', text: '광합성입니다.' })
     expect(setTrayLoading).toHaveBeenCalled()
@@ -871,6 +877,8 @@ describe('answer store', () => {
       true,
       true,
       'bottom-right',
+      false,
+      false,
     )
     expect(showOverlay).toHaveBeenCalledWith('Explanation', 'text', 12000, undefined, 'bottom-right')
     expect(useAnswer.getState().history[0]).toMatchObject({ answers: [], text: 'Explanation' })
@@ -905,36 +913,19 @@ describe('answer store', () => {
     expect(useAnswer.getState().history[0].verification).toEqual(verification)
   })
 
-  it('passes capture peek and spotlight to the text overlay', async () => {
+  it('passes the cursor position to the text overlay', async () => {
     useSettings.setState({
-      experimental: {
-        ...defaults.experimental,
-        enabled: true,
-        capturePeek: true,
-        spotlight: true,
-      },
+      display: { ...defaults.display, textPosition: 'cursor' },
       provider: { ...defaults.provider, answerType: 'text' },
     })
     vi.mocked(captureAndAnswer).mockResolvedValue({
       kind: 'text',
       text: '설명',
-      peek: 'thumb',
     })
 
     await useAnswer.getState().run(false)
 
-    const args = vi.mocked(captureAndAnswer).mock.calls.at(-1)
-    expect(args?.slice(-4)).toEqual([false, true, true, false])
-    expect(showOverlay).toHaveBeenCalledWith(
-      '설명',
-      'text',
-      12000,
-      undefined,
-      'bottom-right',
-      false,
-      'thumb',
-      true,
-    )
+    expect(showOverlay).toHaveBeenCalledWith('설명', 'text', 12000, undefined, 'cursor')
   })
 
   it('passes the highlight box to the choice overlay', async () => {
@@ -951,14 +942,12 @@ describe('answer store', () => {
     await useAnswer.getState().run(false)
 
     const args = vi.mocked(captureAndAnswer).mock.calls.at(-1)
-    expect(args?.slice(-4)).toEqual([true, false, false, false])
+    expect(args?.slice(-2)).toEqual([true, false])
     expect(showOverlay).toHaveBeenCalledWith(
       'B',
       'badge',
       8000,
       undefined,
-      undefined,
-      false,
       undefined,
       false,
       highlight,

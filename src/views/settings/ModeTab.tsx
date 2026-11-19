@@ -82,6 +82,18 @@ export default function ModeTab() {
     void showOverlay('B', style, ms).catch(
       (e) => void useAnswer.getState().logError(typeof e === 'string' && e ? e : 'parse'),
     )
+  const testCursorAnswer = () =>
+    void showOverlay(
+      t(
+        'This is a sample answer shown next to the cursor.',
+        '커서 옆에 표시되는 답변 예시입니다.',
+      ),
+      'text',
+      4000,
+      undefined,
+      'cursor',
+      true,
+    ).catch((e) => void useAnswer.getState().logError(typeof e === 'string' && e ? e : 'parse'))
   const pick = (slot: string, value: string) => {
     setTrayIcon(slot, value)
     refreshTray()
@@ -176,23 +188,33 @@ export default function ModeTab() {
         )}
         {(answerType === 'text' || freeEnabled) && (
           <Row>
-            <div className="flex w-full items-center justify-between gap-3">
+            <div className="flex w-full flex-wrap items-center justify-between gap-3">
               <label htmlFor="text-position" className="whitespace-nowrap text-[13px] text-ink">
                 {t('Descriptive answer position', '서술형 답변 위치')}
               </label>
-              <Select
-                id="text-position"
-                className="w-44"
-                value={display.textPosition}
-                onChange={(e) => setTextPosition(e.target.value as TextPosition)}
-              >
-                <option value="center">{t('Center', '화면 중앙')}</option>
-                <option value="top-left">{t('Top left', '좌측 상단')}</option>
-                <option value="top-right">{t('Top right', '우측 상단')}</option>
-                <option value="bottom-left">{t('Bottom left', '좌측 하단')}</option>
-                <option value="bottom-right">{t('Bottom right', '우측 하단')}</option>
-                <option value="camera">{t('Below camera', '카메라 아래')}</option>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select
+                  id="text-position"
+                  className="w-40"
+                  value={display.textPosition}
+                  onChange={(e) => setTextPosition(e.target.value as TextPosition)}
+                >
+                  <option value="center">{t('Center', '화면 중앙')}</option>
+                  <option value="top-left">{t('Top left', '좌측 상단')}</option>
+                  <option value="top-right">{t('Top right', '우측 상단')}</option>
+                  <option value="bottom-left">{t('Bottom left', '좌측 하단')}</option>
+                  <option value="bottom-right">{t('Bottom right', '우측 하단')}</option>
+                  <option value="camera">{t('Below camera', '카메라 아래')}</option>
+                  <option value="cursor">{t('Next to cursor', '커서 옆')}</option>
+                </Select>
+                <Button
+                  variant="secondary"
+                  className="shrink-0 whitespace-nowrap"
+                  onClick={testCursorAnswer}
+                >
+                  {t('Preview', '미리보기')}
+                </Button>
+              </div>
             </div>
           </Row>
         )}

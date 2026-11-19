@@ -283,8 +283,6 @@ async fn streamed_text(
     language: &str,
     level: &str,
     text_position: &str,
-    peek: Option<&str>,
-    spotlight: bool,
 ) -> Result<(String, Option<crate::ai::Usage>, bool), String> {
     let mut stream_id: Option<u64> = None;
     let mut start_failed = false;
@@ -298,7 +296,7 @@ async fn streamed_text(
                 if start_failed {
                     return;
                 }
-                match show_overlay_stream_start(app, state, text, text_position, peek, spotlight) {
+                match show_overlay_stream_start(app, state, text, text_position) {
                     Ok(id) => {
                         stream_id = Some(id);
                         last_emit = std::time::Instant::now();
@@ -308,16 +306,7 @@ async fn streamed_text(
             }
             Some(id) => {
                 if last_emit.elapsed() >= std::time::Duration::from_millis(80) {
-                    let _ = emit_overlay_stream(
-                        app,
-                        state,
-                        text,
-                        id,
-                        false,
-                        text_position,
-                        peek,
-                        spotlight,
-                    );
+                    let _ = emit_overlay_stream(app, state, text, id, false, text_position);
                     last_emit = std::time::Instant::now();
                 }
             }
@@ -352,16 +341,7 @@ async fn streamed_text(
     match result {
         Ok(result) => {
             if let Some(id) = stream_id {
-                let _ = emit_overlay_stream(
-                    app,
-                    state,
-                    &result.text,
-                    id,
-                    true,
-                    text_position,
-                    peek,
-                    spotlight,
-                );
+                let _ = emit_overlay_stream(app, state, &result.text, id, true, text_position);
                 Ok((result.text, result.usage, true))
             } else {
                 Ok((result.text, result.usage, false))
@@ -425,8 +405,6 @@ pub enum AnswerPayload {
         #[serde(skip_serializing_if = "Option::is_none")]
         usage: Option<crate::ai::Usage>,
         streamed: bool,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        peek: Option<String>,
     },
     None {
         reason: String,
@@ -481,13 +459,9 @@ pub async fn capture_and_answer(
     stream: bool,
     text_position: String,
     highlight: Option<bool>,
-    capture_peek: Option<bool>,
-    spotlight: Option<bool>,
     predictive: Option<bool>,
 ) -> Result<AnswerPayload, String> {
     let highlight = highlight.unwrap_or(false);
-    let capture_peek = capture_peek.unwrap_or(false);
-    let spotlight = spotlight.unwrap_or(false);
     let predictive = predictive.unwrap_or(false);
     if state.capture_in_flight.swap(true, Ordering::SeqCst) {
         return Err("busy".into());
@@ -565,8 +539,6 @@ pub async fn capture_and_answer(
                 &language,
                 &level,
                 &text_position,
-                capture_peek.then_some(cap.thumb.as_str()),
-                spotlight,
             )
             .await
             {
@@ -574,7 +546,6 @@ pub async fn capture_and_answer(
                     text,
                     usage,
                     streamed,
-                    peek: capture_peek.then(|| cap.thumb.clone()),
                 }),
                 Err(error) if error == "empty_text" => {
                     Ok(AnswerPayload::None { reason: error })
@@ -598,7 +569,6 @@ pub async fn capture_and_answer(
                 text,
                 usage,
                 streamed: false,
-                peek: capture_peek.then(|| cap.thumb.clone()),
             }),
             Err(error) if error == "empty_text" => Ok(AnswerPayload::None { reason: error }),
             Err(error) => Err(error),
@@ -756,8 +726,6 @@ pub async fn capture_and_answer(
                     &language,
                     &level,
                     &text_position,
-                    capture_peek.then_some(cap.thumb.as_str()),
-                    spotlight,
                 )
                 .await
                 {
@@ -765,7 +733,6 @@ pub async fn capture_and_answer(
                         text,
                         usage,
                         streamed,
-                        peek: capture_peek.then(|| cap.thumb.clone()),
                     }),
                     Err(error) if error == "empty_text" => {
                         Ok(AnswerPayload::None { reason: error })
@@ -788,7 +755,6 @@ pub async fn capture_and_answer(
                     text,
                     usage,
                     streamed: false,
-                    peek: capture_peek.then(|| cap.thumb.clone()),
                 }),
                 Err(error) if error == "empty_text" => Ok(AnswerPayload::None { reason: error }),
                 Err(error) => Err(error),
@@ -868,11 +834,8 @@ pub async fn show_overlay(
     verification: Option<Verification>,
     position: Option<String>,
     fresh_cursor: Option<bool>,
-    peek: Option<String>,
-    spotlight: Option<bool>,
     highlight: Option<crate::ai::HighlightBox>,
 ) -> Result<(), String> {
-    let spotlight = spotlight.unwrap_or(false);
     let overlay = ensure_overlay(&app)?;
     let protect = state.content_protection.load(Ordering::SeqCst);
     if crate::windows::set_capture_protection(&overlay, protect).is_err() {
@@ -888,7 +851,7 @@ pub async fn show_overlay(
     } else {
         crate::capture::resolve_anchor(last, crate::capture::cursor_monitor)?
     };
-    let full_screen = style == "flash" || spotlight || highlight.is_some();
+    let full_screen = style == "flash" || highlight.is_some();
     let (w, h, x, y) = if full_screen {
         (mon.w as u32, mon.h as u32, mon.x, mon.y)
     } else if style == "text" {
@@ -896,7 +859,6 @@ pub async fn show_overlay(
         let size = crate::windows::text_size_for(
             crate::windows::monitor_scale(mon),
             answer.chars().count(),
-            peek.is_some(),
             text_position == crate::windows::TextPosition::Cursor,
             mon,
         );
@@ -938,10 +900,6 @@ pub async fn show_overlay(
             "style": style,
             "text": answer,
             "verification": verification,
-            "peek": peek,
-            "spotlight": spotlight,
-            "spotlightX": (cx - mon.x) as f64 / mon.w.max(1) as f64,
-            "spotlightY": (cy - mon.y) as f64 / mon.h.max(1) as f64,
             "highlight": highlight,
         })
     } else {
@@ -949,9 +907,6 @@ pub async fn show_overlay(
             "answer": answer,
             "style": style,
             "verification": verification,
-            "spotlight": spotlight,
-            "spotlightX": (cx - mon.x) as f64 / mon.w.max(1) as f64,
-            "spotlightY": (cy - mon.y) as f64 / mon.h.max(1) as f64,
             "highlight": highlight,
         })
     };
@@ -965,8 +920,6 @@ fn show_overlay_stream_start(
     state: &AppState,
     text: &str,
     text_position: &str,
-    peek: Option<&str>,
-    spotlight: bool,
 ) -> Result<u64, String> {
     let id = OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     let overlay = ensure_overlay(app)?;
@@ -981,24 +934,19 @@ fn show_overlay_stream_start(
         .map_err(|_| "capture".to_string())?;
     let ((cx, cy), mon) = crate::capture::resolve_anchor(last, crate::capture::cursor_monitor)?;
     let position = crate::windows::TextPosition::parse(text_position);
-    let (w, h, x, y) = if spotlight {
-        (mon.w as u32, mon.h as u32, mon.x, mon.y)
+    let size = crate::windows::text_size_for(
+        crate::windows::monitor_scale(mon),
+        text.chars().count(),
+        position == crate::windows::TextPosition::Cursor,
+        mon,
+    );
+    let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
+    let (x, y) = if position == crate::windows::TextPosition::Cursor {
+        crate::windows::text_position_near_cursor((cx, cy), mon, size)
     } else {
-        let size = crate::windows::text_size_for(
-            crate::windows::monitor_scale(mon),
-            text.chars().count(),
-            peek.is_some(),
-            position == crate::windows::TextPosition::Cursor,
-            mon,
-        );
-        let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
-        let (x, y) = if position == crate::windows::TextPosition::Cursor {
-            crate::windows::text_position_near_cursor((cx, cy), mon, size)
-        } else {
-            crate::windows::text_position(mon, size, position)
-        };
-        (size.0 as u32, size.1 as u32, x, y)
+        crate::windows::text_position(mon, size, position)
     };
+    let (w, h, x, y) = (size.0 as u32, size.1 as u32, x, y);
     overlay
         .set_size(tauri::PhysicalSize::new(w, h))
         .map_err(|_| "capture")?;
@@ -1019,10 +967,6 @@ fn show_overlay_stream_start(
         "stream": true,
         "final": false,
         "id": id,
-        "peek": peek,
-        "spotlight": spotlight,
-        "spotlightX": (cx - mon.x) as f64 / mon.w.max(1) as f64,
-        "spotlightY": (cy - mon.y) as f64 / mon.h.max(1) as f64,
     });
     deliver_overlay(app, state, payload)?;
     Ok(id)
@@ -1033,12 +977,7 @@ fn resize_stream_overlay(
     state: &AppState,
     text: &str,
     text_position: &str,
-    peek: Option<&str>,
-    spotlight: bool,
 ) {
-    if spotlight {
-        return;
-    }
     let Some(overlay) = tauri::Manager::get_webview_window(app, "overlay") else {
         return;
     };
@@ -1054,7 +993,6 @@ fn resize_stream_overlay(
     let size = crate::windows::text_size_for(
         crate::windows::monitor_scale(mon),
         text.chars().count(),
-        peek.is_some(),
         position == crate::windows::TextPosition::Cursor,
         mon,
     );
@@ -1075,10 +1013,8 @@ fn emit_overlay_stream(
     id: u64,
     final_chunk: bool,
     text_position: &str,
-    peek: Option<&str>,
-    spotlight: bool,
 ) -> Result<(), String> {
-    resize_stream_overlay(app, state, text, text_position, peek, spotlight);
+    resize_stream_overlay(app, state, text, text_position);
     let payload = serde_json::json!({
         "answer": "",
         "style": "text",
@@ -1326,11 +1262,6 @@ pub fn set_free_shortcut(enabled: bool, button: String) -> Result<(), String> {
 #[tauri::command]
 pub fn set_overlay_prewarm(enabled: bool) -> Result<(), String> {
     crate::shortcut::set_prewarm(enabled)
-}
-
-#[tauri::command]
-pub fn set_auto_peek(enabled: bool) -> Result<(), String> {
-    crate::shortcut::set_auto_peek(enabled)
 }
 
 #[tauri::command]
@@ -2038,7 +1969,6 @@ mod tests {
         };
         let cap = crate::capture::Capture {
             b64: String::new(),
-            thumb: String::new(),
             img_w: 400,
             img_h: 200,
             cursor_x: 0,
@@ -2112,7 +2042,6 @@ mod tests {
             text: "설명형 답변".to_string(),
             usage: None,
             streamed: false,
-            peek: None,
         };
         assert_eq!(
             serde_json::to_value(&text).unwrap(),

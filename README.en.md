@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.5.10** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **0.6.0** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -135,14 +135,10 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full structure and [doc
 
 - **Experimental features**: use **Settings → Lab** to try features that are still being validated. They start OFF by default.
 - **Warnings**: enabling experimental features asks for confirmation, and the Lab shows a persistent warning. Turn off **Show experimental warnings** to hide the confirmation and banner; you can turn it back on at any time.
-- **Cursor-anchored answer**: shows descriptive and free-mode answers in a small card next to the pointer. The card flips at screen edges and stays inside the monitor work area.
-- **Spotlight answer**: dims the screen and keeps a bright area around the pointer for the answer. Full-screen overlays keep capture protection and click-through.
-- **Capture preview**: adds a small thumbnail of the captured question to descriptive answers.
-- **Rest-to-answer**: answers after the pointer rests for about 0.7 seconds without a click. It can fire while reading, so it is OFF by default and requires pointer movement before firing again.
 - **Pre-capture while resting**: after about 0.4 seconds of rest, captures the raw screen locally. Nothing is sent to AI until you trigger an answer.
 - **Answer highlight**: draws a box when the model returns optional coordinates for the correct option. No box is drawn when coordinates are missing.
-- **Preview**: use **Preview cursor answer**, **Preview spotlight**, or **Preview highlight** to check the layout without an AI request.
-- Experimental features either graduate to a normal tab after real-use validation or are removed.
+- **Preview**: use **Preview highlight** to check the layout without an AI request.
+- Experimental features either graduate to a normal tab after real-use validation or are removed. **Cursor-anchored answers** moved to **Mode → Descriptive answer position → Next to cursor** in 0.6.0.
 
 ### Updates and UI
 

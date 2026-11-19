@@ -77,7 +77,6 @@ export const onGestureTest = (handler: (event: GestureTestEvent) => void) =>
   listenEvent<GestureTestEvent>('gesture-test', (event) => handler(event.payload))
 export const setOverlayPrewarm = (enabled: boolean) =>
   invoke<void>('set_overlay_prewarm', { enabled })
-export const setAutoPeek = (enabled: boolean) => invoke<void>('set_auto_peek', { enabled })
 export const setPredictive = (enabled: boolean) => invoke<void>('set_predictive', { enabled })
 export const setPanicShortcut = (accelerator: string) =>
   invoke<void>('set_panic_shortcut', { accelerator })
@@ -140,7 +139,6 @@ export type CaptureResult =
       verification?: Verification
       usage?: TokenUsage
       fallback?: boolean
-      peek?: string
       highlight?: HighlightBox
     }
   | {
@@ -149,7 +147,6 @@ export type CaptureResult =
       usage?: TokenUsage
       streamed?: boolean
       fallback?: boolean
-      peek?: string
     }
   | { kind: 'none'; reason: string }
 
@@ -172,8 +169,6 @@ export const captureAndAnswer = (
   stream = false,
   textPosition: OverlayPosition = 'bottom-right',
   highlight = false,
-  capturePeek = false,
-  spotlight = false,
   predictive = false,
 ) =>
   invoke<CaptureResult>('capture_and_answer', {
@@ -195,8 +190,6 @@ export const captureAndAnswer = (
     stream,
     textPosition,
     highlight,
-    capturePeek,
-    spotlight,
     predictive,
   })
 export const showOverlay = (
@@ -206,8 +199,6 @@ export const showOverlay = (
   verification?: Verification,
   position?: OverlayPosition,
   freshCursor = false,
-  peek?: string,
-  spotlight = false,
   highlight?: HighlightBox,
 ) =>
   invoke<void>('show_overlay', {
@@ -217,8 +208,6 @@ export const showOverlay = (
     verification: verification ?? null,
     position: position ?? null,
     freshCursor,
-    peek: peek ?? null,
-    spotlight,
     highlight: highlight ?? null,
   })
 export const overlayReady = () => invoke<void>('overlay_ready')

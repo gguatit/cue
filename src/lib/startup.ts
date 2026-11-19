@@ -2,7 +2,6 @@ import {
   hideMain,
   isTauri,
   listenEvent,
-  setAutoPeek,
   setContentProtection,
   setFreeShortcut,
   setGuard,
@@ -96,9 +95,6 @@ export async function runStartup(): Promise<void> {
     useAnswer.getState().logError('shortcut'),
   )
   await setMouseTrigger(s.mouse).catch(() => useAnswer.getState().logError('gesture'))
-  await setAutoPeek(s.experimental.enabled && s.experimental.autoPeek).catch(() =>
-    useAnswer.getState().logError('gesture'),
-  )
   await setPredictive(s.experimental.enabled && s.experimental.predictive).catch(() =>
     useAnswer.getState().logError('gesture'),
   )
@@ -119,9 +115,6 @@ useSettings.subscribe((state, prev) => {
   if (next !== wantsOverlayPrewarm(prev)) {
     void setOverlayPrewarm(next).catch(() => {})
   }
-  const peek = state.experimental.enabled && state.experimental.autoPeek
-  const prevPeek = prev.experimental.enabled && prev.experimental.autoPeek
-  if (peek !== prevPeek) void setAutoPeek(peek).catch(() => {})
   const predictive = state.experimental.enabled && state.experimental.predictive
   const prevPredictive = prev.experimental.enabled && prev.experimental.predictive
   if (predictive !== prevPredictive) void setPredictive(predictive).catch(() => {})

@@ -24,35 +24,19 @@ export default function ExperimentalTab() {
     else setExperimental({ enabled: true })
   }
 
-  const preview = async (kind: 'cursor' | 'spotlight' | 'highlight') => {
+  const preview = async () => {
     if (!isTauri()) {
       setNotice(t('Run this preview inside the Cue app.', 'Cue 앱에서 미리보기를 실행하세요.'))
       return
     }
     setNotice('')
     try {
-      if (kind === 'highlight') {
-        await showOverlay('B', 'badge', 4000, undefined, undefined, false, undefined, false, {
-          x: 0.18,
-          y: 0.32,
-          w: 0.64,
-          h: 0.1,
-        })
-        return
-      }
-      await showOverlay(
-        t(
-          'This is a sample answer shown next to the cursor.',
-          '커서 옆에 표시되는 답변 예시입니다.',
-        ),
-        'text',
-        4000,
-        undefined,
-        'cursor',
-        true,
-        undefined,
-        kind === 'spotlight',
-      )
+      await showOverlay('B', 'badge', 4000, undefined, undefined, false, {
+        x: 0.18,
+        y: 0.32,
+        w: 0.64,
+        h: 0.1,
+      })
     } catch {
       setNotice(t('Could not show the preview.', '미리보기를 표시할 수 없습니다.'))
     }
@@ -73,8 +57,8 @@ export default function ExperimentalTab() {
             </p>
             <p className="mt-1 text-[11.5px] leading-relaxed text-ink-2">
               {t(
-                'These features are still being validated. They may change or disappear without notice, and answer display, capture protection, or shortcuts may behave unexpectedly. Turn them off immediately if something goes wrong.',
-                '아직 검증 중인 기능입니다. 예고 없이 변경되거나 제거될 수 있고, 답변 표시·캡처 보호·단축키가 예상과 다르게 동작할 수 있습니다. 문제가 생기면 즉시 끄세요.',
+                'These features are still being validated. They may change or disappear without notice, and answer display or capture protection may behave unexpectedly. Turn them off immediately if something goes wrong.',
+                '아직 검증 중인 기능입니다. 예고 없이 변경되거나 제거될 수 있고, 답변 표시·캡처 보호가 예상과 다르게 동작할 수 있습니다. 문제가 생기면 즉시 끄세요.',
               )}
             </p>
           </div>
@@ -101,46 +85,6 @@ export default function ExperimentalTab() {
             )}
           />
           <Toggle
-            checked={experimental.cursorAnswer}
-            onChange={(cursorAnswer) => setExperimental({ cursorAnswer })}
-            disabled={!experimental.enabled}
-            label={t('Answer next to the cursor', '커서 밀착 답변')}
-            hint={t(
-              'Shows descriptive and free-mode answers in a compact card next to the pointer.',
-              '서술형·자유 모드 답변을 포인터 옆의 작은 카드로 표시합니다.',
-            )}
-          />
-          <Toggle
-            checked={experimental.spotlight}
-            onChange={(spotlight) => setExperimental({ spotlight })}
-            disabled={!experimental.enabled}
-            label={t('Spotlight answer', '스포트라이트 답변')}
-            hint={t(
-              'Dims the screen and keeps a bright area around the pointer for the answer.',
-              '화면을 어둡게 하고 포인터 주변만 밝게 남겨 답변을 표시합니다.',
-            )}
-          />
-          <Toggle
-            checked={experimental.capturePeek}
-            onChange={(capturePeek) => setExperimental({ capturePeek })}
-            disabled={!experimental.enabled}
-            label={t('Capture preview', '캡처 미리보기')}
-            hint={t(
-              'Adds a small thumbnail of the captured question to descriptive answers.',
-              '서술형 답변에 실제로 캡처한 문제 영역의 작은 썸네일을 붙입니다.',
-            )}
-          />
-          <Toggle
-            checked={experimental.autoPeek}
-            onChange={(autoPeek) => setExperimental({ autoPeek })}
-            disabled={!experimental.enabled}
-            label={t('Answer when the cursor rests', '커서 정지 자동 답변')}
-            hint={t(
-              'Answers after the pointer stays still for about 0.7 seconds. It can fire while you are reading; keep it off outside testing.',
-              '포인터가 약 0.7초 멈추면 클릭 없이 답변합니다. 읽는 중에도 발동할 수 있으므로 테스트할 때만 켜세요.',
-            )}
-          />
-          <Toggle
             checked={experimental.predictive}
             onChange={(predictive) => setExperimental({ predictive })}
             disabled={!experimental.enabled}
@@ -163,22 +107,8 @@ export default function ExperimentalTab() {
           <div className="flex flex-wrap items-center gap-2 px-2 pb-2 pt-1">
             <Button
               variant="secondary"
-              disabled={!experimental.enabled || !experimental.cursorAnswer}
-              onClick={() => void preview('cursor')}
-            >
-              {t('Preview cursor answer', '커서 답변 미리보기')}
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={!experimental.enabled || !experimental.spotlight}
-              onClick={() => void preview('spotlight')}
-            >
-              {t('Preview spotlight', '스포트라이트 미리보기')}
-            </Button>
-            <Button
-              variant="secondary"
               disabled={!experimental.enabled || !experimental.highlight}
-              onClick={() => void preview('highlight')}
+              onClick={() => void preview()}
             >
               {t('Preview highlight', '하이라이트 미리보기')}
             </Button>
@@ -209,8 +139,8 @@ export default function ExperimentalTab() {
           <ConfirmDialog
             title={t('Enable experimental features?', '실험 기능을 켤까요?')}
             description={t(
-              'These features are still being validated. They may change or disappear without notice, and answer display, capture protection, or shortcuts may behave unexpectedly. Turn them off immediately if something goes wrong.',
-              '아직 검증 중인 기능입니다. 예고 없이 변경되거나 제거될 수 있고, 답변 표시·캡처 보호·단축키가 예상과 다르게 동작할 수 있습니다. 문제가 생기면 즉시 끄세요.',
+              'These features are still being validated. They may change or disappear without notice, and answer display or capture protection may behave unexpectedly. Turn them off immediately if something goes wrong.',
+              '아직 검증 중인 기능입니다. 예고 없이 변경되거나 제거될 수 있고, 답변 표시·캡처 보호가 예상과 다르게 동작할 수 있습니다. 문제가 생기면 즉시 끄세요.',
             )}
             confirmLabel={t('Enable', '켜기')}
             cancelLabel={t('Cancel', '취소')}

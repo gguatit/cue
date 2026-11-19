@@ -414,10 +414,6 @@ describe('mouse trigger settings', () => {
   it('defaults experimental features off and keeps the warning preference', () => {
     expect(defaults.experimental).toEqual({
       enabled: false,
-      cursorAnswer: false,
-      spotlight: false,
-      capturePeek: false,
-      autoPeek: false,
       predictive: false,
       highlight: false,
       showWarnings: true,
@@ -425,10 +421,6 @@ describe('mouse trigger settings', () => {
     const merged = mergeSettings({
       experimental: {
         enabled: true,
-        cursorAnswer: true,
-        spotlight: true,
-        capturePeek: true,
-        autoPeek: true,
         predictive: true,
         highlight: true,
         showWarnings: false,
@@ -436,18 +428,21 @@ describe('mouse trigger settings', () => {
     })
     expect(merged.experimental).toEqual({
       enabled: true,
-      cursorAnswer: true,
-      spotlight: true,
-      capturePeek: true,
-      autoPeek: true,
       predictive: true,
       highlight: true,
       showWarnings: false,
     })
     const invalid = mergeSettings({
-      experimental: { enabled: 1, cursorAnswer: 'yes', showWarnings: null },
+      experimental: { enabled: 1, predictive: 'yes', showWarnings: null },
     })
     expect(invalid.experimental).toEqual(defaults.experimental)
+  })
+
+  it('migrates the old cursor answer toggle to the cursor position', () => {
+    const merged = mergeSettings({
+      experimental: { enabled: true, cursorAnswer: true },
+    })
+    expect(merged.display.textPosition).toBe('cursor')
   })
 
   it('defaults to off with detailed tuning values', () => {

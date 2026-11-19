@@ -11,7 +11,6 @@ import {
   showOverlay,
   type CaptureResult,
   type HighlightBox,
-  type OverlayPosition,
   type TokenUsage,
   type Verification,
 } from '../lib/tauri'
@@ -274,11 +273,6 @@ const initialLog = initialStorage.errors ? loadStored(ERRORS_KEY, isLogEntry).sl
 if (!initialStorage.history) removeStored(HISTORY_KEY)
 if (!initialStorage.errors) removeStored(ERRORS_KEY)
 
-function overlayTextPosition(): OverlayPosition {
-  const { experimental, display } = useSettings.getState()
-  return experimental.enabled && experimental.cursorAnswer ? 'cursor' : display.textPosition
-}
-
 export const useAnswer = create<AnswerState>()((set, get) => {
   const display = async (
     answers: string[],
@@ -311,43 +305,17 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       }
     }
     const exp = useSettings.getState().experimental
-    const spotlight = exp.enabled && exp.spotlight
     const box = exp.enabled && exp.highlight ? highlight : undefined
     const showGuarded = async (
       style: 'badge' | 'flash',
       ms: number,
-      spotlightOn = false,
       box?: HighlightBox,
     ): Promise<boolean> => {
-      const extra = spotlightOn || box !== undefined
       if (verification) {
-        if (extra) {
-          await showOverlay(
-            joined,
-            style,
-            ms,
-            verification,
-            undefined,
-            false,
-            undefined,
-            spotlightOn,
-            box,
-          )
-        } else {
-          await showOverlay(joined, style, ms, verification)
-        }
-      } else if (extra) {
-        await showOverlay(
-          joined,
-          style,
-          ms,
-          undefined,
-          undefined,
-          false,
-          undefined,
-          spotlightOn,
-          box,
-        )
+        if (box) await showOverlay(joined, style, ms, verification, undefined, false, box)
+        else await showOverlay(joined, style, ms, verification)
+      } else if (box) {
+        await showOverlay(joined, style, ms, undefined, undefined, false, box)
       } else {
         await showOverlay(joined, style, ms)
       }
@@ -358,8 +326,8 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       }
       return true
     }
-    if (spotlight || box) {
-      if (!(await showGuarded('badge', d.badgeMs, spotlight, box))) return
+    if (box) {
+      if (!(await showGuarded('badge', d.badgeMs, box))) return
       setTimeout(() => {
         if (seq === my) get().clearTray()
       }, d.badgeMs)
@@ -405,12 +373,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
     }
   }
 
-  const displayText = async (
-    text: string,
-    my: number,
-    hidden: boolean,
-    peek?: string,
-  ): Promise<void> => {
+  const displayText = async (text: string, my: number, hidden: boolean): Promise<void> => {
     traySeq++
     set({ mode: { kind: 'text', text } })
     await setTrayIdle().catch(() => {})
@@ -419,23 +382,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       return
     }
     const display = useSettings.getState().display
-    const exp = useSettings.getState().experimental
-    const spotlight = exp.enabled && exp.spotlight
-    const thumb = exp.enabled && exp.capturePeek ? peek : undefined
-    if (thumb || spotlight) {
-      await showOverlay(
-        text,
-        'text',
-        display.textMs,
-        undefined,
-        overlayTextPosition(),
-        false,
-        thumb,
-        spotlight,
-      )
-    } else {
-      await showOverlay(text, 'text', display.textMs, undefined, overlayTextPosition())
-    }
+    await showOverlay(text, 'text', display.textMs, undefined, display.textPosition)
     if (seq !== my) return
     if (meetingBlocked()) {
       void hideOverlay().catch(() => {})
@@ -619,55 +566,27 @@ export const useAnswer = create<AnswerState>()((set, get) => {
             : { kind: 'choice', answers: ['B'] }
         } else {
           const exp = useSettings.getState().experimental
-          const highlight = exp.enabled && exp.highlight
-          const capturePeek = exp.enabled && exp.capturePeek
-          const spotlight = exp.enabled && exp.spotlight
-          const predictive = exp.enabled && exp.predictive
-          if (highlight || capturePeek || spotlight || predictive) {
-            result = await captureAndAnswer(
-              provider.preset,
-              provider.baseUrl,
-              provider.model,
-              provider.extraJson,
-              provider.answerType,
-              provider.paraphrase,
-              privacy.crop,
-              answer.language,
-              answer.level,
-              mode,
-              useSettings.getState().free.instruction,
-              provider.consensus,
-              provider.verifyModel,
-              provider.fallbackModel,
-              textMode || displaySettings.overlay || displaySettings.flash,
-              provider.streaming && textMode && !provider.paraphrase && !hiddenAtStart,
-              overlayTextPosition(),
-              highlight,
-              capturePeek,
-              spotlight,
-              predictive,
-            )
-          } else {
-            result = await captureAndAnswer(
-              provider.preset,
-              provider.baseUrl,
-              provider.model,
-              provider.extraJson,
-              provider.answerType,
-              provider.paraphrase,
-              privacy.crop,
-              answer.language,
-              answer.level,
-              mode,
-              useSettings.getState().free.instruction,
-              provider.consensus,
-              provider.verifyModel,
-              provider.fallbackModel,
-              textMode || displaySettings.overlay || displaySettings.flash,
-              provider.streaming && textMode && !provider.paraphrase && !hiddenAtStart,
-              overlayTextPosition(),
-            )
-          }
+          result = await captureAndAnswer(
+            provider.preset,
+            provider.baseUrl,
+            provider.model,
+            provider.extraJson,
+            provider.answerType,
+            provider.paraphrase,
+            privacy.crop,
+            answer.language,
+            answer.level,
+            mode,
+            useSettings.getState().free.instruction,
+            provider.consensus,
+            provider.verifyModel,
+            provider.fallbackModel,
+            textMode || displaySettings.overlay || displaySettings.flash,
+            provider.streaming && textMode && !provider.paraphrase && !hiddenAtStart,
+            displaySettings.textPosition,
+            exp.enabled && exp.highlight,
+            exp.enabled && exp.predictive,
+          )
         }
         if (seq !== my) return
         const hidden = await hiddenByMeeting()
@@ -693,7 +612,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
             }))
           }
           if (result.streamed) await displayStreamedText(text, hidden)
-          else await displayText(text, my, hidden, result.peek)
+          else await displayText(text, my, hidden)
         } else {
           const answers = result.answers
           const verification = result.verification

@@ -2165,7 +2165,6 @@ mod tests {
         let monitor = crate::capture::MonitorRect { x: 0, y: 0, w: 100, h: 100 };
         crate::capture::Capture {
             b64: "image".to_string(),
-            thumb: String::new(),
             img_w: 100,
             img_h: 100,
             cursor_x: 50,
