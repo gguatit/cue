@@ -1719,6 +1719,29 @@ fn is_cue_exe(path: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn normalize_icon_path(path: &str) -> String {
+    const PROGRAM_FILES: &str = "{6D809377-6AF0-444B-8957-A3773F02200E}";
+    const PROGRAM_FILES_X86: &str = "{7C5A40EF-A0FB-4BFC-874A-C0F2E0B9FA8E}";
+    let path = path.trim();
+    for (guid, env) in [
+        (PROGRAM_FILES, "ProgramFiles"),
+        (PROGRAM_FILES_X86, "ProgramFiles(x86)"),
+    ] {
+        if let Some(rest) = path.strip_prefix(guid) {
+            if let Ok(root) = std::env::var(env) {
+                if !root.is_empty() {
+                    return format!("{}{}", root.trim_end_matches('\\'), rest);
+                }
+            }
+        }
+    }
+    path.to_string()
+}
+
+fn same_icon_path(a: &str, b: &str) -> bool {
+    normalize_icon_path(a).eq_ignore_ascii_case(&normalize_icon_path(b))
+}
+
 fn try_promote_tray_icon(exe: &str) -> Option<()> {
     use ::windows::Win32::System::Registry::{
         RegCloseKey, RegEnumKeyExW, RegOpenKeyExW, RegSetValueExW, HKEY, HKEY_CURRENT_USER,
@@ -1768,7 +1791,7 @@ fn try_promote_tray_icon(exe: &str) -> Option<()> {
             if let Some(path) = read_string_value(sub, ::windows::core::w!("ExecutablePath")) {
                 let promoted =
                     read_dword_value(sub, ::windows::core::w!("IsPromoted")).unwrap_or(0) != 0;
-                if path.eq_ignore_ascii_case(exe) {
+                if same_icon_path(&path, exe) {
                     let mut owned = name[..len as usize].to_vec();
                     owned.push(0);
                     own_name = Some(owned);
@@ -1869,7 +1892,7 @@ fn read_promoted() -> Option<bool> {
                 continue;
             }
             if let Some(path) = read_string_value(sub, ::windows::core::w!("ExecutablePath")) {
-                if path.eq_ignore_ascii_case(&exe) {
+                if same_icon_path(&path, &exe) {
                     let v = read_dword_value(sub, ::windows::core::w!("IsPromoted")).unwrap_or(0);
                     found = Some(v != 0);
                 }
@@ -2082,6 +2105,20 @@ mod tests {
     fn cancel_generation_wraps() {
         let value = u64::MAX;
         assert_eq!(next_generation(value), 0);
+    }
+
+    #[test]
+    fn known_folder_tray_paths_match_program_files() {
+        let root = std::env::var("ProgramFiles").unwrap();
+        let guid = "{6D809377-6AF0-444B-8957-A3773F02200E}";
+        assert!(same_icon_path(
+            &format!("{guid}\\Cue\\cue.exe"),
+            &format!("{root}\\Cue\\cue.exe")
+        ));
+        assert!(same_icon_path(
+            r"C:\ProgramData\Cue\cue.exe",
+            r"c:\programdata\cue\CUE.EXE"
+        ));
     }
 
     #[test]
