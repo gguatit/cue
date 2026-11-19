@@ -2,7 +2,7 @@
 
 이 문서는 Cue가 **어떻게 동작하는지**를 코드 기준으로 정리한 내부 문서입니다. 사용법은 [README](../README.md), AI 요청·프롬프트 계약은 [AI_HARNESS.md](AI_HARNESS.md), 제품 결정은 [IDEAS.md](IDEAS.md)를 참고하세요.
 
-- 현재 버전: **0.5.8**
+- 현재 버전: **0.5.9**
 - 플랫폼: Windows 10/11 x64
 - 스택: Tauri 2, React 19, Vite, Tailwind CSS 4, Rust
 
@@ -170,6 +170,7 @@ AnswerPayload
 - 스타일: `answer` / `text`.
 - 텍스트는 설정된 위치(중앙, 네 모서리, 카메라 아래, 커서 옆)에 표시합니다.
 - 서술형 스트리밍은 `streamPacing.ts`가 `requestAnimationFrame`으로 글자 표시 속도를 조절합니다.
+- 텍스트 오버레이 크기는 글자 수·줄 수·미리보기 유무로 계산하고, 스트리밍 중 80ms마다 다시 계산합니다. 일반 텍스트는 최대 70%, 커서 밀착은 50% 높이까지 커집니다.
 - 스트림 종료 시 `stream_done(id, duration_ms)`가 표시 시간 타이머를 시작합니다.
 - `OVERLAY_GEN`으로 오래된 hide 타이머가 새 답변을 지우지 않게 합니다.
 - `overlay_ready` 전에는 첫 payload를 표시하지 않습니다.

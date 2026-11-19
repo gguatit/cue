@@ -98,11 +98,64 @@ pub fn capture_affinity(win: &WebviewWindow) -> Result<u32, String> {
 pub const BADGE_SIZE: (i32, i32) = (120, 72);
 pub const VERIFICATION_HEIGHT: i32 = 30;
 pub const VERIFICATION_MIN_WIDTH: i32 = 160;
+#[cfg(test)]
 pub const TEXT_MIN_SIZE: (i32, i32) = (320, 160);
+#[cfg(test)]
 pub const TEXT_CURSOR_SIZE: (i32, i32) = (360, 220);
 pub const TEXT_MAX_RATIO: f64 = 0.7;
 pub const TEXT_MARGIN: i32 = 24;
 pub const TEXT_CURSOR_GAP: i32 = 16;
+
+const TEXT_PADDING: f64 = 40.0;
+const TEXT_OUTER_PADDING: f64 = 16.0;
+const TEXT_PEEK_HEIGHT: f64 = 92.0;
+
+pub fn text_size_for(
+    scale: f64,
+    len: usize,
+    peek: bool,
+    cursor: bool,
+    work: MonitorRect,
+) -> (i32, i32) {
+    let s = if scale > 0.0 { scale } else { 1.0 };
+    let chars = len.max(1);
+    let base_width = if cursor {
+        if chars <= 30 {
+            260.0
+        } else if chars <= 100 {
+            320.0
+        } else {
+            360.0
+        }
+    } else if chars <= 30 {
+        260.0
+    } else if chars <= 100 {
+        340.0
+    } else if chars <= 220 {
+        420.0
+    } else {
+        520.0
+    };
+    let font = if chars > 160 { 14.0 } else { 18.0 };
+    let chars_per_line = ((base_width - TEXT_PADDING - TEXT_OUTER_PADDING) / font).max(1.0);
+    let lines = ((chars as f64) / chars_per_line).ceil().max(1.0);
+    // OverlayView uses leading-relaxed (1.625), not the font size itself.
+    let line_height = (font * 1.625).ceil();
+    let height = TEXT_OUTER_PADDING
+        + TEXT_PADDING
+        + lines * line_height
+        + if peek { TEXT_PEEK_HEIGHT } else { 0.0 };
+    let max_w = (work.w as f64 * if cursor { 0.6 } else { TEXT_MAX_RATIO })
+        .floor()
+        .max(1.0);
+    let max_h = (work.h as f64 * if cursor { 0.5 } else { TEXT_MAX_RATIO })
+        .floor()
+        .max(1.0);
+    (
+        (base_width * s).round().clamp(1.0, max_w) as i32,
+        (height * s).round().clamp(80.0, max_h) as i32,
+    )
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextPosition {
@@ -129,19 +182,9 @@ impl TextPosition {
     }
 }
 
+#[cfg(test)]
 pub fn text_size(scale: f64, len: usize, work: MonitorRect) -> (i32, i32) {
-    let s = if scale > 0.0 { scale } else { 1.0 };
-    let chars = len.max(1) as f64;
-    let lines = (chars / 44.0).ceil().max(1.0);
-    let grow = (chars - 44.0).max(0.0).min(88.0) / 88.0;
-    let width = (TEXT_MIN_SIZE.0 as f64 + grow * 400.0) * s;
-    let height = (TEXT_MIN_SIZE.1 as f64 + (lines - 1.0) * 24.0) * s;
-    let max_w = (work.w as f64 * TEXT_MAX_RATIO).floor().max(1.0) as i32;
-    let max_h = (work.h as f64 * TEXT_MAX_RATIO).floor().max(1.0) as i32;
-    (
-        (width.round() as i32).min(max_w).max(1),
-        (height.round() as i32).min(max_h).max(1),
-    )
+    text_size_for(scale, len, false, false, work)
 }
 
 pub fn text_position(work: MonitorRect, size: (i32, i32), position: TextPosition) -> (i32, i32) {
@@ -161,14 +204,9 @@ pub fn text_position(work: MonitorRect, size: (i32, i32), position: TextPosition
     }
 }
 
-pub fn text_size_cursor(scale: f64, work: MonitorRect) -> (i32, i32) {
-    let s = if scale > 0.0 { scale } else { 1.0 };
-    let max_w = (work.w as f64 * 0.6).floor().max(1.0) as i32;
-    let max_h = (work.h as f64 * 0.5).floor().max(1.0) as i32;
-    (
-        ((TEXT_CURSOR_SIZE.0 as f64 * s).round() as i32).min(max_w).max(1),
-        ((TEXT_CURSOR_SIZE.1 as f64 * s).round() as i32).min(max_h).max(1),
-    )
+#[cfg(test)]
+pub fn text_size_cursor(scale: f64, len: usize, peek: bool, work: MonitorRect) -> (i32, i32) {
+    text_size_for(scale, len, peek, true, work)
 }
 
 pub fn text_position_near_cursor(
@@ -366,13 +404,13 @@ mod tests {
 
     #[test]
     fn text_panel_uses_the_minimum_for_short_text() {
-        assert_eq!(text_size(1.0, 8, rect(0, 0, 1920, 1080)), TEXT_MIN_SIZE);
-        assert_eq!(text_size(0.0, 8, rect(0, 0, 1920, 1080)), TEXT_MIN_SIZE);
+        assert_eq!(text_size(1.0, 8, rect(0, 0, 1920, 1080)), (260, 86));
+        assert_eq!(text_size(0.0, 8, rect(0, 0, 1920, 1080)), (260, 86));
     }
 
     #[test]
     fn text_panel_scales_with_dpi() {
-        assert_eq!(text_size(1.5, 8, rect(0, 0, 1920, 1080)), (480, 240));
+        assert_eq!(text_size(1.5, 8, rect(0, 0, 1920, 1080)), (390, 129));
     }
 
     #[test]
@@ -385,7 +423,7 @@ mod tests {
 
     #[test]
     fn text_panel_caps_at_seventy_percent_of_the_monitor() {
-        assert_eq!(text_size(1.0, 10000, rect(0, 0, 1000, 600)), (700, 420));
+        assert_eq!(text_size(1.0, 10000, rect(0, 0, 1000, 600)), (520, 420));
         assert_eq!(text_size(2.0, 10000, rect(0, 0, 1000, 600)), (700, 420));
     }
 
@@ -467,9 +505,16 @@ mod tests {
     }
 
     #[test]
-    fn cursor_text_size_is_compact_and_capped() {
-        assert_eq!(text_size_cursor(1.0, rect(0, 0, 1920, 1080)), TEXT_CURSOR_SIZE);
-        assert_eq!(text_size_cursor(2.0, rect(0, 0, 800, 600)), (480, 300));
+    fn text_size_grows_with_content_and_caps_at_the_work_area() {
+        let work = rect(0, 0, 1920, 1080);
+        let short = text_size_for(1.0, 1, false, true, work);
+        let medium = text_size_for(1.0, 120, false, true, work);
+        let long = text_size_for(1.0, 400, false, false, work);
+        assert_eq!(short, (260, 86));
+        assert!(medium.0 >= short.0 && medium.1 > short.1);
+        assert!(long.0 > short.0 && long.1 > medium.1);
+        assert_eq!(text_size_for(1.0, 1, true, true, work).1, short.1 + 92);
+        assert_eq!(text_size_cursor(2.0, 1, false, rect(0, 0, 800, 600)), (480, 172));
     }
 }
 

@@ -308,7 +308,16 @@ async fn streamed_text(
             }
             Some(id) => {
                 if last_emit.elapsed() >= std::time::Duration::from_millis(80) {
-                    let _ = emit_overlay_stream(app, state, text, id, false);
+                    let _ = emit_overlay_stream(
+                        app,
+                        state,
+                        text,
+                        id,
+                        false,
+                        text_position,
+                        peek,
+                        spotlight,
+                    );
                     last_emit = std::time::Instant::now();
                 }
             }
@@ -343,7 +352,16 @@ async fn streamed_text(
     match result {
         Ok(result) => {
             if let Some(id) = stream_id {
-                let _ = emit_overlay_stream(app, state, &result.text, id, true);
+                let _ = emit_overlay_stream(
+                    app,
+                    state,
+                    &result.text,
+                    id,
+                    true,
+                    text_position,
+                    peek,
+                    spotlight,
+                );
                 Ok((result.text, result.usage, true))
             } else {
                 Ok((result.text, result.usage, false))
@@ -875,15 +893,13 @@ pub async fn show_overlay(
         (mon.w as u32, mon.h as u32, mon.x, mon.y)
     } else if style == "text" {
         let text_position = crate::windows::TextPosition::parse(position.as_deref().unwrap_or(""));
-        let size = if text_position == crate::windows::TextPosition::Cursor {
-            crate::windows::text_size_cursor(crate::windows::monitor_scale(mon), mon)
-        } else {
-            crate::windows::text_size(
-                crate::windows::monitor_scale(mon),
-                answer.chars().count(),
-                mon,
-            )
-        };
+        let size = crate::windows::text_size_for(
+            crate::windows::monitor_scale(mon),
+            answer.chars().count(),
+            peek.is_some(),
+            text_position == crate::windows::TextPosition::Cursor,
+            mon,
+        );
         let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
         let (tx, ty) = if text_position == crate::windows::TextPosition::Cursor {
             crate::windows::text_position_near_cursor((cx, cy), mon, size)
@@ -944,8 +960,6 @@ pub async fn show_overlay(
     Ok(())
 }
 
-const STREAM_PANEL_CHARS: usize = 600;
-
 fn show_overlay_stream_start(
     app: &tauri::AppHandle,
     state: &AppState,
@@ -970,15 +984,13 @@ fn show_overlay_stream_start(
     let (w, h, x, y) = if spotlight {
         (mon.w as u32, mon.h as u32, mon.x, mon.y)
     } else {
-        let size = if position == crate::windows::TextPosition::Cursor {
-            crate::windows::text_size_cursor(crate::windows::monitor_scale(mon), mon)
-        } else {
-            crate::windows::text_size(
-                crate::windows::monitor_scale(mon),
-                STREAM_PANEL_CHARS,
-                mon,
-            )
-        };
+        let size = crate::windows::text_size_for(
+            crate::windows::monitor_scale(mon),
+            text.chars().count(),
+            peek.is_some(),
+            position == crate::windows::TextPosition::Cursor,
+            mon,
+        );
         let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
         let (x, y) = if position == crate::windows::TextPosition::Cursor {
             crate::windows::text_position_near_cursor((cx, cy), mon, size)
@@ -1016,13 +1028,57 @@ fn show_overlay_stream_start(
     Ok(id)
 }
 
+fn resize_stream_overlay(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    text: &str,
+    text_position: &str,
+    peek: Option<&str>,
+    spotlight: bool,
+) {
+    if spotlight {
+        return;
+    }
+    let Some(overlay) = tauri::Manager::get_webview_window(app, "overlay") else {
+        return;
+    };
+    let Ok(last) = state.last_capture.lock().map(|last| *last) else {
+        return;
+    };
+    let Ok(((cx, cy), mon)) =
+        crate::capture::resolve_anchor(last, crate::capture::cursor_monitor)
+    else {
+        return;
+    };
+    let position = crate::windows::TextPosition::parse(text_position);
+    let size = crate::windows::text_size_for(
+        crate::windows::monitor_scale(mon),
+        text.chars().count(),
+        peek.is_some(),
+        position == crate::windows::TextPosition::Cursor,
+        mon,
+    );
+    let size = (size.0.min(mon.w).max(1), size.1.min(mon.h).max(1));
+    let (x, y) = if position == crate::windows::TextPosition::Cursor {
+        crate::windows::text_position_near_cursor((cx, cy), mon, size)
+    } else {
+        crate::windows::text_position(mon, size, position)
+    };
+    let _ = overlay.set_size(tauri::PhysicalSize::new(size.0 as u32, size.1 as u32));
+    let _ = overlay.set_position(tauri::PhysicalPosition::new(x, y));
+}
+
 fn emit_overlay_stream(
     app: &tauri::AppHandle,
     state: &AppState,
     text: &str,
     id: u64,
     final_chunk: bool,
+    text_position: &str,
+    peek: Option<&str>,
+    spotlight: bool,
 ) -> Result<(), String> {
+    resize_stream_overlay(app, state, text, text_position, peek, spotlight);
     let payload = serde_json::json!({
         "answer": "",
         "style": "text",

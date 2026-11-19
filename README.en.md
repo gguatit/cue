@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.5.8** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **0.5.9** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -85,6 +85,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full structure and [doc
 - **Cross-check**: a second model from the same provider verifies multiple-choice answers. Cue shows whether they matched and lists both answers when they differ.
 - **Fallback model**: if the primary model fails, Cue tries the configured fallback once.
 - **Descriptive streaming**: SSE text is paced against the backlog so it appears smoothly. Can be disabled in Settings → AI.
+- **Auto-fit panel**: the overlay starts small and grows with the answer's line count. It updates every 80 ms while streaming, expands to 70% of the monitor height (50% for cursor-adjacent answers), and scrolls once the content exceeds that.
 - **Token usage**: provider-reported input, output, and total tokens appear in the last-request card and history. Can be disabled in Settings → AI.
 - **Answer history**: recent answers and a persistent error log are stored locally.
 - **Panic clear**: `Ctrl+Alt+Shift+X` (configurable) immediately clears the answer.
