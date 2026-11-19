@@ -436,7 +436,20 @@ pub fn prepare_admin_copy() -> Result<(), String> {
     }
     let source = std::env::current_exe().map_err(|_| "guard".to_string())?;
     if is_admin_path(&source) {
-        restore_admin_runtime(&source)?;
+        // A Program Files install is already protected, but an older
+        // ProgramData copy can still be registered with the elevated task.
+        // Refresh it so an update never leaves admin mode on the old build.
+        let target = admin_app_exe();
+        if let Some(target) = target.filter(|target| !same_path(&source, target)) {
+            harden_program_dir()?;
+            if service_installed() {
+                stop_service();
+            }
+            copy_guard(&source, &target, false)?;
+            restore_admin_runtime(&target)?;
+        } else {
+            restore_admin_runtime(&source)?;
+        }
         clear_admin_prepare_failed();
         return Ok(());
     }
