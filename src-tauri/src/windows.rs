@@ -108,6 +108,7 @@ pub const TEXT_CURSOR_GAP: i32 = 16;
 
 const TEXT_PADDING: f64 = 40.0;
 const TEXT_OUTER_PADDING: f64 = 16.0;
+const TEXT_BORDER: f64 = 2.0;
 const TEXT_PEEK_HEIGHT: f64 = 92.0;
 
 pub fn text_size_for(
@@ -137,11 +138,13 @@ pub fn text_size_for(
         520.0
     };
     let font = if chars > 160 { 14.0 } else { 18.0 };
-    let chars_per_line = ((base_width - TEXT_PADDING - TEXT_OUTER_PADDING) / font).max(1.0);
+    let chars_per_line =
+        ((base_width - TEXT_PADDING - TEXT_OUTER_PADDING - TEXT_BORDER) / font).max(1.0);
     let lines = ((chars as f64) / chars_per_line).ceil().max(1.0);
     // OverlayView uses leading-relaxed (1.625), not the font size itself.
     let line_height = (font * 1.625).ceil();
     let height = TEXT_OUTER_PADDING
+        + TEXT_BORDER
         + TEXT_PADDING
         + lines * line_height
         + if peek { TEXT_PEEK_HEIGHT } else { 0.0 };
@@ -404,13 +407,13 @@ mod tests {
 
     #[test]
     fn text_panel_uses_the_minimum_for_short_text() {
-        assert_eq!(text_size(1.0, 8, rect(0, 0, 1920, 1080)), (260, 86));
-        assert_eq!(text_size(0.0, 8, rect(0, 0, 1920, 1080)), (260, 86));
+        assert_eq!(text_size(1.0, 8, rect(0, 0, 1920, 1080)), (260, 88));
+        assert_eq!(text_size(0.0, 8, rect(0, 0, 1920, 1080)), (260, 88));
     }
 
     #[test]
     fn text_panel_scales_with_dpi() {
-        assert_eq!(text_size(1.5, 8, rect(0, 0, 1920, 1080)), (390, 129));
+        assert_eq!(text_size(1.5, 8, rect(0, 0, 1920, 1080)), (390, 132));
     }
 
     #[test]
@@ -510,11 +513,11 @@ mod tests {
         let short = text_size_for(1.0, 1, false, true, work);
         let medium = text_size_for(1.0, 120, false, true, work);
         let long = text_size_for(1.0, 400, false, false, work);
-        assert_eq!(short, (260, 86));
+        assert_eq!(short, (260, 88));
         assert!(medium.0 >= short.0 && medium.1 > short.1);
         assert!(long.0 > short.0 && long.1 > medium.1);
         assert_eq!(text_size_for(1.0, 1, true, true, work).1, short.1 + 92);
-        assert_eq!(text_size_cursor(2.0, 1, false, rect(0, 0, 800, 600)), (480, 172));
+        assert_eq!(text_size_cursor(2.0, 1, false, rect(0, 0, 800, 600)), (480, 176));
     }
 }
 
