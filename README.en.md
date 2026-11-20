@@ -400,7 +400,6 @@ MIT License. Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://
 
 - Tauri 2, React 19, Vite, Tailwind CSS, Motion, Rust.
 - AI providers and models are subject to their own terms.
-- Promo site: [https://cue.neikos.kr](https://cue.neikos.kr)
 
 ## Exam rules and sanctions
 

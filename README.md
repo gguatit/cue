@@ -400,7 +400,6 @@ MIT License. 만든 사람: **kalpha (최재영)** · GitHub [@gguatit](https://
 
 - Tauri 2, React 19, Vite, Tailwind CSS, Motion, Rust.
 - AI 공급자와 모델은 각 제공자의 약관을 따릅니다.
-- 홍보 사이트: [https://cue.neikos.kr](https://cue.neikos.kr)
 
 ## 시험 규정 및 제재
 
