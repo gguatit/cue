@@ -41,6 +41,11 @@ fn arg_value(name: &str) -> Option<PathBuf> {
     None
 }
 
+fn is_elevated_launch(args: &[String]) -> bool {
+    args.iter()
+        .any(|arg| arg == "--elevated" || arg == "--admin-check")
+}
+
 fn wait_for_app_mutex() -> ::windows::Win32::Foundation::HANDLE {
     use ::windows::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS};
     use ::windows::Win32::System::Threading::CreateMutexW;
@@ -91,29 +96,30 @@ fn watch_guard(app: PathBuf) {
 }
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
     let app_arg = arg_value("--app");
-    if std::env::args().any(|a| a == "--guard") {
+    if args.iter().any(|a| a == "--guard") {
         guard::run_guard(app_arg);
         return;
     }
-    if std::env::args().any(|a| a == "--system") {
+    if args.iter().any(|a| a == "--system") {
         guard::run_system(app_arg);
         return;
     }
-    if std::env::args().any(|a| a == "--service") {
+    if args.iter().any(|a| a == "--service") {
         let _ = guard::run_service();
         return;
     }
-    if std::env::args().any(|a| a == "--admin-teardown") {
+    if args.iter().any(|a| a == "--admin-teardown") {
         let _ = guard::teardown();
         return;
     }
-    if std::env::args().any(|a| a == "--admin-prepare") {
+    if args.iter().any(|a| a == "--admin-prepare") {
         let code = if elevation::prepare_admin_copy().is_ok() { 0 } else { 1 };
         std::process::exit(code);
     }
-    let background = std::env::args().any(|a| a == "--background");
-    let elevated = std::env::args().any(|a| a == "--elevated") && elevation::is_elevated();
+    let background = args.iter().any(|a| a == "--background");
+    let elevated = is_elevated_launch(&args) && elevation::is_elevated();
     let admin_setup = std::env::args().any(|a| a == "--admin-setup");
     // Administrator mode is on but this instance is not elevated (for example a
     // stale Run entry or a manual start): relaunch once through UAC so the
@@ -333,5 +339,18 @@ mod tests {
         assert!(blur_is_current(token, &generation));
         generation.fetch_add(1, Ordering::SeqCst);
         assert!(!blur_is_current(token, &generation));
+    }
+
+    #[test]
+    fn admin_check_counts_as_an_elevated_launch() {
+        let args = |rest: &[&str]| {
+            std::iter::once("cue")
+                .chain(rest.iter().copied())
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        };
+        assert!(is_elevated_launch(&args(&["--admin-check"])));
+        assert!(is_elevated_launch(&args(&["--elevated"])));
+        assert!(!is_elevated_launch(&args(&["--background"])));
     }
 }

@@ -92,7 +92,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.6.0**.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.6.1**.
 - 릴리스는 GitHub Actions 없이 수동으로 진행한다.
   1. `npm run check`, `npm test`, Rust 변경 시 `cargo test`.
   2. 서명 키 환경 변수를 설정하고 `npm run tauri build`.
@@ -104,7 +104,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 첫 업데이터 릴리스(0.1.2)는 0.1.0/0.1.1 사용자가 한 번 직접 설치해야 한다. 이후 버전은 설정 → 정보에서 자동으로 확인·설치할 수 있다.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.6.0 코드 검증: `npm run check`, `npm test`(228), `cargo test`(175). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
+- 0.6.1 코드 검증: `npm run check`, `npm test`(228), `cargo test`(177). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
 - 보안 탭 자동 갱신은 `src/lib/securityAutoRefresh.ts`에서 5분 캐시한다. 새로고침 버튼과 보호 복구는 강제 갱신을 사용한다.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
 - README의 시험 규정·제재 경고는 의도된 내용이므로 삭제하거나 약화하지 말 것.
@@ -126,6 +126,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - main/overlay는 같은 `index.html`을 쓰고 label로 분기한다.
 - guard/service 상태는 `C:\ProgramData\Cue`에 남는다. 언인스톨 훅의 정리를 깨지 말 것.
 - 관리자 모드는 설치 위치와 무관하게 동작한다. 설치 프로그램이 `C:\ProgramData\Cue\cue.exe` 보호 복사본을 만들고, 그 복사본이 없거나 ProgramData ACL이 사용자 쓰기 가능하면 관리자 모드는 `admin_copy` 오류로 거부된다. 설치 프로그램을 다시 실행하거나 `C:\ProgramData\Cue`를 직접 정리하는 것은 사용자가 한다.
+- 관리자 모드 수동 재실행에 `--background`를 붙이면 single-instance 콜백이 창을 띄우지 않는다. UAC 재실행 인자는 `--elevated`와 `--admin-check`만 사용한다.
 - Program Files 설치와 ProgramData 보호 복사본의 버전이 갈라지면 자동 시작·관리자 모드가 옛 빌드를 실행할 수 있다. 0.5.7부터 `prepare_admin_copy`가 ProgramData 복사본과 예약 작업·서비스를 새 exe로 갱신한다. 이 경로를 다시 느슨하게 만들지 말 것.
 - 업데이트는 perMachine NSIS라 UAC가 필요하고, WebView2 offline 포함 221MB를 받는다. `quiet`/currentUser로 바꾸면 UAC 없이 설치되지만 보호·설치 동작이 달라지므로 릴리스 검증 없이 바꾸지 말 것.
 - Windows updater는 설치 직전 `%TEMP%\Cue-<version>-updater-*`에 221MB 설치 파일을 쓰고 종료한다. `updates::cleanup_temp_installers`가 시작 시 10분 지난 것만 정리한다.

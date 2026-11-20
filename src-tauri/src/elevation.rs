@@ -532,13 +532,18 @@ pub fn is_elevated() -> bool {
     }
 }
 
+fn elevated_params(extra_arg: &str) -> String {
+    // A manual UAC relaunch must be allowed to show the main window.
+    format!("--elevated {extra_arg}")
+}
+
 pub fn relaunch_elevated_exe(exe: &Path, extra_arg: &str) -> Result<(), String> {
     use ::windows::Win32::UI::Shell::ShellExecuteW;
     use ::windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
     use ::windows::core::{HSTRING, PCWSTR};
     let op = HSTRING::from("runas");
     let file = HSTRING::from(exe.to_string_lossy().as_ref());
-    let params = HSTRING::from(format!("--background --elevated {extra_arg}"));
+    let params = HSTRING::from(elevated_params(extra_arg));
     let r = unsafe {
         ShellExecuteW(
             None,
@@ -1257,6 +1262,14 @@ mod tests {
         let admin = admin_app_exe().unwrap();
         assert!(is_admin_app(&admin));
         assert!(is_admin_path(&admin));
+    }
+
+    #[test]
+    fn elevated_relaunch_is_not_background() {
+        let params = elevated_params("--admin-check");
+        assert!(params.contains("--elevated"));
+        assert!(params.contains("--admin-check"));
+        assert!(!params.contains("--background"));
     }
 
     #[test]
