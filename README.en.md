@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.6.1** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **0.6.2** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -136,7 +136,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full structure and [doc
 - **Experimental features**: use **Settings → Lab** to try features that are still being validated. They start OFF by default.
 - **Warnings**: enabling experimental features asks for confirmation, and the Lab shows a persistent warning. Turn off **Show experimental warnings** to hide the confirmation and banner; you can turn it back on at any time.
 - **Pre-capture while resting**: after about 0.4 seconds of rest, captures the raw screen locally. Nothing is sent to AI until you trigger an answer.
-- **Answer highlight**: draws a box when the model returns optional coordinates for the correct option. No box is drawn when coordinates are missing.
+- **Answer highlight**: draws only a box when the model returns optional coordinates for the correct option. It does not dim the screen or show answer text, and no box is drawn when coordinates are missing.
 - **Preview**: use **Preview highlight** to check the layout without an AI request.
 - Experimental features either graduate to a normal tab after real-use validation or are removed. **Cursor-anchored answers** moved to **Mode → Descriptive answer position → Next to cursor** in 0.6.0.
 

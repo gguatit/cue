@@ -20,7 +20,7 @@ interface Payload {
 function HighlightMark({ box }: { box: NonNullable<Payload['highlight']> }) {
   return (
     <div
-      className="pointer-events-none absolute rounded-md border-2 border-amber-400 bg-amber-300/15 shadow-[0_0_0_9999px_rgba(0,0,0,0.16)]"
+      className="pointer-events-none absolute rounded-md border-2 border-amber-400 bg-amber-300/15"
       style={{
         left: `${box.x * 100}%`,
         top: `${box.y * 100}%`,
@@ -159,14 +159,6 @@ export default function OverlayView() {
           className="fixed inset-0 overflow-hidden"
         >
           <HighlightMark box={p.highlight} />
-          <span className="overlay-glass absolute inset-x-0 bottom-5 mx-auto w-fit max-w-[calc(100vw-32px)] rounded-xl px-4 py-2 text-center text-2xl font-bold text-[#0b0b0e]">
-            {p.answer}
-          </span>
-          {badge && (
-            <span className="absolute inset-x-0 bottom-1 mx-auto w-fit rounded-md bg-white/75 px-2 py-1 text-[11px] font-semibold text-amber-700">
-              {badge}
-            </span>
-          )}
         </motion.div>
       </MotionConfig>
     )

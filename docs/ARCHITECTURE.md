@@ -2,7 +2,7 @@
 
 이 문서는 Cue가 **어떻게 동작하는지**를 코드 기준으로 정리한 내부 문서입니다. 사용법은 [README](../README.md), AI 요청·프롬프트 계약은 [AI_HARNESS.md](AI_HARNESS.md), 제품 결정은 [IDEAS.md](IDEAS.md)를 참고하세요.
 
-- 현재 버전: **0.6.1**
+- 현재 버전: **0.6.2**
 - 플랫폼: Windows 10/11 x64
 - 스택: Tauri 2, React 19, Vite, Tailwind CSS 4, Rust
 
@@ -174,7 +174,7 @@ AnswerPayload
 - 스트림 종료 시 `stream_done(id, duration_ms)`가 표시 시간 타이머를 시작합니다.
 - `OVERLAY_GEN`으로 오래된 hide 타이머가 새 답변을 지우지 않게 합니다.
 - `overlay_ready` 전에는 첫 payload를 표시하지 않습니다.
-- 실험실의 하이라이트는 모델이 반환한 정답 선택지 박스를 전체 화면에 그립니다. 전체 화면 오버레이에서도 fail-closed와 클릭 통과를 유지합니다.
+- 실험실의 하이라이트는 모델이 반환한 정답 선택지 위에 박스만 그립니다. 화면 전체 딤과 정답·검증 텍스트는 표시하지 않으며, 전체 화면 오버레이에서도 fail-closed와 클릭 통과를 유지합니다.
 
 ### 회의 안전 모드
 

@@ -100,8 +100,8 @@ export default function ExperimentalTab() {
             disabled={!experimental.enabled}
             label={t('Highlight the answer option', '정답 위치 하이라이트')}
             hint={t(
-              'Draws a box over the answer option when the model returns coordinates. Results vary by model; no box is shown when coordinates are missing.',
-              '모델이 좌표를 반환하면 정답 선택지 위에 박스를 그립니다. 모델에 따라 표시되지 않을 수 있습니다.',
+              'Draws only a box over the answer option when the model returns coordinates. It does not dim the screen or show answer text.',
+              '모델이 좌표를 반환하면 정답 선택지 위에 박스만 그립니다. 화면을 어둡게 하거나 정답 텍스트를 표시하지 않습니다.',
             )}
           />
           <div className="flex flex-wrap items-center gap-2 px-2 pb-2 pt-1">
