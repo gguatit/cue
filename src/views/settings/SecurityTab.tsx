@@ -7,7 +7,6 @@ import {
   defenderExclusionStatus,
   guardEnabled,
   meetingSignals,
-  openTaskbarSettings,
   protectionStatus,
   repairGuard,
   repairProtection,
@@ -24,6 +23,7 @@ import { useAnswer } from '../../stores/answer'
 import { useSettings } from '../../stores/settings'
 import { autoRefreshSecurity } from '../../lib/securityAutoRefresh'
 import { runProtectionRepair } from '../../lib/securityRepair'
+import ExamReadiness from './ExamReadiness'
 
 function captureProtectionLabel(
   capture: CaptureProtectionStatus | null,
@@ -77,8 +77,6 @@ export default function SecurityTab() {
   const meetingHidden = useAnswer((s) => s.meetingHidden)
   const stealth = useSettings((s) => s.stealth)
   const setStealth = useSettings((s) => s.setStealth)
-  const privacy = useSettings((s) => s.privacy)
-  const setPrivacy = useSettings((s) => s.setPrivacy)
   const [guardStatus, setGuardStatus] = useState<boolean | null>(null)
   const [protection, setProtection] = useState<ProtectionStatus | null>(null)
   const [capture, setCapture] = useState<CaptureProtectionStatus | null>(null)
@@ -316,6 +314,7 @@ export default function SecurityTab() {
 
   return (
     <div className="space-y-4 text-sm">
+      <ExamReadiness />
       <Group className="p-4">
         <GroupHeader className="px-0 pb-2 pt-0">{t('Window', '창')}</GroupHeader>
         <Toggle
@@ -451,20 +450,6 @@ export default function SecurityTab() {
         </p>
       </Group>
       <Group className="p-4">
-        <GroupHeader className="px-0 pb-2 pt-0">{t('Cursor crop', '커서 영역 자르기')}</GroupHeader>
-        <Toggle
-          checked={privacy.crop}
-          onChange={(v) => setPrivacy({ crop: v })}
-          label={t('Send only the area around the cursor', '커서 주변 영역만 전송')}
-        />
-        <p className="mt-2 text-xs text-ink-3">
-          {t(
-            'Cue sends a 1600×1000 pixel region centered on the pointer instead of the whole display. The crop happens before the image leaves your device.',
-            'Cue는 화면 전체 대신 포인터를 중심으로 한 1600×1000 픽셀 영역만 전송합니다. 이미지가 기기를 떠나기 전에 잘립니다.',
-          )}
-        </p>
-      </Group>
-      <Group className="p-4">
         <div className="flex items-center justify-between gap-3">
           <GroupHeader className="px-0 pb-2 pt-0">{t('Maximum protection', '최대 보호')}</GroupHeader>
           <span className={`mb-3 rounded-full px-2 py-0.5 text-xs font-medium ${adminTone}`}>
@@ -589,20 +574,6 @@ export default function SecurityTab() {
             '보호는 최선의 노력입니다. 관리자 권한 강제 종료와 그룹 정책 제한은 막을 수 없습니다. 복구는 삭제된 예약 작업과 마커를 다시 만듭니다.',
           )}
         </p>
-      </Group>
-      <Group className="p-4">
-        <GroupHeader className="px-0 pb-2 pt-0">{t('Tray guide', '트레이 안내')}</GroupHeader>
-        <ol className="list-decimal space-y-1 pl-5 text-ink-2">
-          <li>{t('Open "Other system tray icons" in Taskbar settings.', '작업 표시줄 설정에서 "기타 시스템 트레이 아이콘"을 엽니다.')}</li>
-          <li>{t('Find Cue in the list.', '목록에서 Cue를 찾습니다.')}</li>
-          <li>{t('Turn it on so the icon stays visible.', '아이콘이 항상 보이도록 켭니다.')}</li>
-        </ol>
-        <Button
-          className="mt-3"
-          onClick={() => void openTaskbarSettings().catch(() => {})}
-        >
-          {t('Open taskbar settings', '작업 표시줄 설정 열기')}
-        </Button>
       </Group>
       <p className="text-xs text-ink-3">
         {t(

@@ -1,21 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import ShortcutRecorder from '../../components/ShortcutRecorder'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { Presence } from '../../components/Presence'
 import { exit, fade, layoutSpring } from '../../lib/motion'
-import MouseTriggerCard from '../../components/MouseTriggerCard'
-import ExamReadiness from './ExamReadiness'
-import {
-  Button,
-  Group,
-  GroupHeader,
-  Input,
-  Row,
-  SegmentedControl,
-  Select,
-  Toggle,
-} from '../../components/ui'
+import { Button, Group, GroupHeader, Input, Row, SegmentedControl, Select, Toggle } from '../../components/ui'
 import { useT } from '../../i18n'
 import {
   addProfile,
@@ -25,10 +13,19 @@ import {
   parseImport,
   type Profile,
 } from '../../lib/settingsBackup'
-import { isModifierOnly, shortcutConflicts, type MouseButton } from '../../lib/shortcutKeys'
 import { beginBlurGuard } from '../../lib/blurGuard'
 import { applyTrayMenuLabels } from '../../lib/startup'
-import { getAutostart, setAutostart, setContentProtection, setFreeShortcut, setGuard, setHideFromTaskbar, setMouseTrigger, setPanicShortcut, setShortcut } from '../../lib/tauri'
+import {
+  getAutostart,
+  setAutostart,
+  setContentProtection,
+  setFreeShortcut,
+  setGuard,
+  setHideFromTaskbar,
+  setMouseTrigger,
+  setPanicShortcut,
+  setShortcut,
+} from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
 import {
   mergeSettings,
@@ -54,20 +51,22 @@ function SettingsGroup({
   )
 }
 
-export default function GeneralTab() {
+export default function AppTab() {
   const t = useT()
   const language = useSettings((s) => s.language)
   const setLanguage = useSettings((s) => s.setLanguage)
   const appearance = useSettings((s) => s.appearance)
   const setAppearance = useSettings((s) => s.setAppearance)
-  const shortcut = useSettings((s) => s.shortcut)
-  const free = useSettings((s) => s.free)
-  const setFree = useSettings((s) => s.setFree)
-  const panic = useSettings((s) => s.panic)
-  const setShortcutClick = useSettings((s) => s.setShortcutClick)
-  const setShortcutButton = useSettings((s) => s.setShortcutButton)
   const storage = useSettings((s) => s.storage)
   const setStorage = useSettings((s) => s.setStorage)
+  const showUsage = useSettings((s) => s.answer.showUsage)
+  const log = useAnswer((s) => s.log)
+  const history = useAnswer((s) => s.history)
+  const clearHistory = useAnswer((s) => s.clearHistory)
+  const clearErrors = useAnswer((s) => s.clearErrors)
+  const copyHistory = useAnswer((s) => s.copyHistory)
+  const removeHistory = useAnswer((s) => s.removeHistory)
+  const toggleHistoryPin = useAnswer((s) => s.toggleHistoryPin)
   const [auto, setAuto] = useState(false)
   const [profiles, setProfiles] = useState<Profile[]>(() => loadProfiles())
   const [profileName, setProfileName] = useState('')
@@ -75,18 +74,24 @@ export default function GeneralTab() {
   const [pendingImport, setPendingImport] = useState<ReturnType<typeof mergeSettings> | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const applySettings = async (next: ReturnType<typeof mergeSettings>) => {
-    const log = (code: string) => void useAnswer.getState().logError(code)
-    await setShortcut(next.shortcut.accelerator, next.shortcut.click, next.shortcut.button).catch(
-      () => log('shortcut'),
+  const usageText = (usage: { input?: number; output?: number; total?: number }) =>
+    t(
+      `Tokens ${usage.input ?? '—'} in / ${usage.output ?? '—'} out / ${usage.total ?? '—'} total`,
+      `토큰 입력 ${usage.input ?? '—'} / 출력 ${usage.output ?? '—'} / 합계 ${usage.total ?? '—'}`,
     )
-    await setFreeShortcut(next.free.enabled, next.free.button).catch(() => log('shortcut'))
-    await setMouseTrigger(next.mouse).catch(() => log('gesture'))
+
+  const applySettings = async (next: ReturnType<typeof mergeSettings>) => {
+    const logError = (code: string) => void useAnswer.getState().logError(code)
+    await setShortcut(next.shortcut.accelerator, next.shortcut.click, next.shortcut.button).catch(
+      () => logError('shortcut'),
+    )
+    await setFreeShortcut(next.free.enabled, next.free.button).catch(() => logError('shortcut'))
+    await setMouseTrigger(next.mouse).catch(() => logError('gesture'))
     await Promise.all([
-      setPanicShortcut(next.panic.accelerator).catch(() => log('shortcut')),
-      setContentProtection(next.stealth.contentProtection).catch(() => log('stealth')),
-      setHideFromTaskbar(next.stealth.skipTaskbar).catch(() => log('stealth')),
-      setGuard(next.stealth.guard).catch(() => log('guard')),
+      setPanicShortcut(next.panic.accelerator).catch(() => logError('shortcut')),
+      setContentProtection(next.stealth.contentProtection).catch(() => logError('stealth')),
+      setHideFromTaskbar(next.stealth.skipTaskbar).catch(() => logError('stealth')),
+      setGuard(next.stealth.guard).catch(() => logError('guard')),
     ])
     useSettings.setState(next)
     void applyTrayMenuLabels()
@@ -170,202 +175,8 @@ export default function GeneralTab() {
     }
   }
 
-  const toggleClick = async (next: boolean) => {
-    try {
-      await setShortcut(shortcut.accelerator, next, shortcut.button)
-      if (!next && free.enabled) {
-        await setFreeShortcut(false, free.button)
-        setFree({ enabled: false })
-      }
-      setShortcutClick(next)
-    } catch {
-      void useAnswer.getState().logError('shortcut')
-    }
-  }
-
-  const changeButton = async (next: MouseButton) => {
-    const nextFree =
-      free.enabled && free.button === next
-        ? next === 'right'
-          ? 'left'
-          : 'right'
-        : free.button
-    try {
-      await setShortcut(shortcut.accelerator, shortcut.click, next)
-      if (free.enabled && nextFree !== free.button) {
-        await setFreeShortcut(true, nextFree)
-      }
-      setShortcutButton(next)
-      if (nextFree !== free.button) setFree({ button: nextFree })
-    } catch {
-      setFree({ enabled: false })
-      void useAnswer.getState().logError('shortcut')
-    }
-  }
-
-  const toggleFree = async (next: boolean) => {
-    const nextButton =
-      free.button === shortcut.button
-        ? shortcut.button === 'right'
-          ? 'left'
-          : 'right'
-        : free.button
-    try {
-      await setFreeShortcut(next, nextButton)
-      setFree({ enabled: next, button: nextButton })
-    } catch {
-      void useAnswer.getState().logError('shortcut')
-    }
-  }
-
-  const changeFreeButton = async (next: MouseButton) => {
-    if (next === shortcut.button) return
-    try {
-      await setFreeShortcut(free.enabled, next)
-      setFree({ button: next })
-    } catch {
-      void useAnswer.getState().logError('shortcut')
-    }
-  }
-
   return (
     <div className="space-y-4">
-      <ExamReadiness />
-      <SettingsGroup title={t('Answer shortcut', '답변 단축키')}>
-        <div>
-          <ShortcutRecorder />
-          <div className="mt-3 space-y-2 border-t border-separator pt-3">
-            <Toggle
-              checked={shortcut.click}
-              onChange={(v) => void toggleClick(v)}
-              disabled={!isModifierOnly(shortcut.accelerator)}
-              label={t('Require mouse click', '마우스 클릭 필요')}
-              hint={
-                isModifierOnly(shortcut.accelerator)
-                  ? t(
-                      'Hold the shortcut and click the selected button. The keys alone do nothing.',
-                      '단축키를 누른 채 선택한 버튼을 클릭해야 발동합니다. 키만 누르면 아무 일도 일어나지 않습니다.',
-                    )
-                  : t(
-                      'Only modifier-only shortcuts can require a click.',
-                      '보조키만 쓰는 단축키에서만 클릭을 요구할 수 있습니다.',
-                    )
-              }
-            />
-            {shortcut.click && (
-              <div className="flex items-center justify-between gap-3 px-1">
-                <span className="shrink-0 whitespace-nowrap text-sm text-ink">{t('Mouse button', '마우스 버튼')}</span>
-                <Select
-                  className="w-36"
-                  aria-label={t('Mouse button', '마우스 버튼')}
-                  value={shortcut.button}
-                  onChange={(e) => void changeButton(e.target.value as MouseButton)}
-                >
-                  <option value="left">{t('Left', '좌클릭')}</option>
-                  <option value="right">{t('Right', '우클릭')}</option>
-                  <option value="middle">{t('Middle', '휠클릭')}</option>
-                </Select>
-              </div>
-            )}
-          </div>
-        </div>
-        <div>
-          <p className="text-[13px] font-medium text-ink">{t('Panic clear', '패닉 클리어')}</p>
-          <ShortcutRecorder panic />
-          <p className="mt-2 text-xs text-ink-3">
-            {t(
-              'Clears the answer, history and error log, then hides the Cue window.',
-              '답변·기록·오류 로그를 지우고 Cue 창을 숨깁니다.',
-            )}
-          </p>
-        </div>
-        <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
-          <p className="font-medium">{t('Shortcut conflicts', '단축키 충돌')}</p>
-          <p className="mt-1">
-            {t(
-              'Global shortcuts can conflict with other apps or Windows. Modifier-only combinations may be captured by another program first. The answer requires a click while the modifiers are held. Avoid sharing modifiers with the panic shortcut. If the target app runs as administrator, run Cue in administrator mode too.',
-              '전역 단축키는 다른 앱이나 Windows 단축키와 충돌할 수 있습니다. 보조키만 쓰는 조합은 다른 프로그램이 먼저 가로챌 수 있습니다. 답변은 보조키를 누른 채 클릭해야 발동합니다. 패닉 단축키와 같은 보조키를 공유하지 마세요. 대상 앱이 관리자 권한이면 Cue도 관리자 모드로 실행하세요.',
-            )}
-          </p>
-          {shortcutConflicts(shortcut, panic) && (
-            <p className="mt-2 text-danger">
-              {t(
-                'The answer and panic shortcuts share modifiers. Turn on Require mouse click or choose a different panic shortcut.',
-                '답변과 패닉 단축키가 같은 보조키를 공유합니다. 마우스 클릭 필요를 켜거나 패닉 단축키를 바꾸세요.',
-              )}
-            </p>
-          )}
-        </div>
-      </SettingsGroup>
-      <MouseTriggerCard />
-      <SettingsGroup title={t('Free mode', '자유 모드')}>
-        <div>
-          <p className="mb-3 text-xs text-ink-3">
-            {t(
-              'Hold the answer shortcut and click this button to explain or help with whatever is under the cursor. It uses the same provider, model, and key.',
-              '답변 단축키를 누른 채 이 버튼을 클릭하면 커서 아래의 내용을 설명하거나 도와줍니다. 같은 프로바이더·모델·키를 사용합니다.',
-            )}
-          </p>
-          <Toggle
-            checked={free.enabled}
-            onChange={(v) => void toggleFree(v)}
-            disabled={!shortcut.click || !isModifierOnly(shortcut.accelerator)}
-            label={t('Enable free mode', '자유 모드 사용')}
-            hint={
-              !shortcut.click || !isModifierOnly(shortcut.accelerator)
-                ? t(
-                    'Free mode needs a modifier-only answer shortcut with mouse click enabled.',
-                    '자유 모드는 보조키 전용 단축키와 마우스 클릭 필요 설정에서만 사용할 수 있습니다.',
-                  )
-                : t(
-                    'Exam mode uses the answer button; free mode uses a different button.',
-                    '시험 모드는 답변 버튼을, 자유 모드는 다른 버튼을 사용합니다.',
-                  )
-            }
-          />
-        </div>
-        {free.enabled && (
-          <>
-            <div className="flex items-center justify-between gap-3">
-              <span className="shrink-0 whitespace-nowrap text-sm text-ink">{t('Free mode button', '자유 모드 버튼')}</span>
-              <Select
-                className="w-36"
-                aria-label={t('Free mode button', '자유 모드 버튼')}
-                value={free.button}
-                onChange={(e) => void changeFreeButton(e.target.value as MouseButton)}
-              >
-                {(['left', 'right', 'middle'] as MouseButton[])
-                  .filter((button) => button !== shortcut.button)
-                  .map((button) => (
-                    <option key={button} value={button}>
-                      {button === 'left'
-                        ? t('Left', '좌클릭')
-                        : button === 'right'
-                          ? t('Right', '우클릭')
-                          : t('Middle', '휠클릭')}
-                    </option>
-                  ))}
-              </Select>
-            </div>
-            <label className="block text-sm text-ink">
-              {t('Instruction (optional)', '지시문 (선택)')}
-              <textarea
-                className="mt-2 w-full rounded-lg border border-separator bg-surface-2 px-3 py-2 text-sm text-ink transition-colors placeholder:text-ink-3 focus:border-accent focus:outline-none"
-                rows={3}
-                value={free.instruction}
-                onChange={(e) => setFree({ instruction: e.target.value })}
-                placeholder={t(
-                  'Explain the content near the cursor. If it is code, explain what it does.',
-                  '커서 근처의 내용을 설명하세요. 코드라면 하는 일을 설명하세요.',
-                )}
-              />
-            </label>
-            <Button onClick={() => void useAnswer.getState().run(true, 'free')}>
-              {t('Test free mode', '자유 모드 테스트')}
-            </Button>
-          </>
-        )}
-      </SettingsGroup>
       <SettingsGroup title={t('Language', '언어')}>
         <Select
           className="w-40"
@@ -562,6 +373,92 @@ export default function GeneralTab() {
           {backupMessage}
         </Presence>
       </SettingsGroup>
+      <Group className="p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xs font-semibold tracking-wide text-ink-3">
+            {t('Answer history', '답변 기록')}
+          </h2>
+          {storage.history && (
+            <button className="text-xs text-ink-3 transition-colors hover:text-ink" onClick={clearHistory}>
+              {t('Clear history', '기록 지우기')}
+            </button>
+          )}
+        </div>
+        {!storage.history ? (
+          <p className="text-ink-3">{t('History is off in the App tab.', '앱 탭에서 기록 보관이 꺼져 있습니다.')}</p>
+        ) : history.length === 0 ? (
+          <p className="text-ink-3">{t('None', '없음')}</p>
+        ) : (
+          <ul className="space-y-1 select-text">
+            {history.map((h, i) => (
+              <li
+                key={`${h.ts}-${i}`}
+                className="flex items-start justify-between gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-ink-2"
+              >
+                <span className="min-w-0 break-words">
+                  {new Date(h.ts).toLocaleTimeString()} · {h.text ?? h.answers.join(', ')}
+                  {h.pinned && (
+                    <span className="ml-1 text-accent">{t('Pinned', '고정됨')}</span>
+                  )}
+                  {showUsage && h.usage && (
+                    <span className="mt-0.5 block text-[11px] text-ink-3">
+                      {usageText(h.usage)}
+                    </span>
+                  )}
+                </span>
+                <span className="flex shrink-0 gap-1">
+                  <button
+                    className="text-xs text-ink-3 transition-colors hover:text-ink"
+                    aria-label={t('Copy answer', '답변 복사')}
+                    onClick={() => void copyHistory(i)}
+                  >
+                    {t('Copy', '복사')}
+                  </button>
+                  <button
+                    className="text-xs text-ink-3 transition-colors hover:text-ink"
+                    aria-label={h.pinned ? t('Unpin answer', '답변 고정 해제') : t('Pin answer', '답변 고정')}
+                    onClick={() => toggleHistoryPin(i)}
+                  >
+                    {h.pinned ? t('Unpin', '해제') : t('Pin', '고정')}
+                  </button>
+                  <button
+                    className="text-xs text-ink-3 transition-colors hover:text-danger"
+                    aria-label={t('Delete answer', '답변 삭제')}
+                    onClick={() => removeHistory(i)}
+                  >
+                    {t('Delete', '삭제')}
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Group>
+      <Group className="p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xs font-semibold tracking-wide text-ink-3">
+            {t('Recent errors', '최근 오류')}
+          </h2>
+          {storage.errors && (
+            <button className="text-xs text-ink-3 transition-colors hover:text-ink" onClick={clearErrors}>
+              {t('Clear errors', '오류 지우기')}
+            </button>
+          )}
+        </div>
+        {!storage.errors ? (
+          <p className="text-ink-3">{t('Error log is off in the App tab.', '앱 탭에서 오류 로그 보관이 꺼져 있습니다.')}</p>
+        ) : log.length === 0 ? (
+          <p className="text-ink-3">{t('None', '없음')}</p>
+        ) : (
+          <ul className="space-y-1 select-text">
+            {log.map((e, i) => (
+              <li key={`${e.ts}-${i}`} className="rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-ink-2">
+                {new Date(e.ts).toLocaleTimeString()} · <span className="font-mono">{e.code}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Group>
       <AnimatePresence>
         {pendingImport && (
           <ConfirmDialog

@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.6.2** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **0.7.0** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -153,7 +153,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full structure and [doc
 2. Run the installer. The perMachine install asks for UAC once.
 3. Launch Cue and keep the tray icon visible. Onboarding explains the steps.
 4. Go to **Settings → AI**, choose a provider preset, load models, select a vision-capable model, enter the API key, and test the connection.
-5. Go to **Settings → Mode** and enable at least one answer output.
+5. Go to **Settings → Display** and enable at least one answer output.
 6. Point at a question, hold the hotkey, and click the configured mouse button.
 
 > `npm run dev` runs only Vite and has no Tauri IPC. Verify real behavior with `npm run tauri dev` or the installed app.
@@ -206,7 +206,7 @@ Descriptive answers are overlay-only. With streaming enabled, text appears as it
 
 ### Free mode
 
-Enable free mode in Settings → General. Hold the answer hotkey and click a different mouse button to explain code, text, or diagrams near the cursor. The instruction is configurable.
+Enable free mode in Settings → Input. Hold the answer hotkey and click a different mouse button to explain code, text, or diagrams near the cursor. The instruction is configurable.
 
 If you do not want to write a prompt, paste this into the free-mode instruction:
 
@@ -238,7 +238,7 @@ Press `Ctrl+Alt+Shift+X` (configurable) to clear the answer immediately. If it c
 | Keyboard LEDs | First | Caps/Num/Scroll, 1=A … 5=E |
 | Brightness | First | DDC/CI, gamma fallback |
 
-Display duration is set in Settings → Mode. Overlay badge and text sizes use the target monitor's DPI.
+Display duration is set in Settings → Display. Overlay badge and text sizes use the target monitor's DPI.
 
 ## Stealth and protection
 

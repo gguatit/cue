@@ -71,7 +71,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 새 invoke 커맨드: `commands.rs` 구현 → `main.rs` `invoke_handler` 등록 → `src/lib/tauri.ts` 래퍼.
 - 새 사용자 문자열/오류: `t()` en/ko + `ERRORS` 쌍.
 - 새 설정: `defaults`/`mergeSettings`/`version`/`settings.test.ts`.
-- 실험 기능 변경: `settings.ts`의 `experimental`, `ExperimentalTab.tsx`의 경고·마스터·하이라이트 미리보기, `answer.ts`의 highlight/predictive, `windows.rs`의 cursor/auto-fit, `commands.rs`의 overlay payload·pre-capture, `shortcut.rs`의 predictive, `ai.rs`의 optional highlight box를 함께 확인한다. 실험 기능은 기본 OFF와 실험실 경고를 유지한다. 커서 밀착 답변은 모드 탭의 `display.textPosition='cursor'`로 정식 제공한다.
+- 실험 기능 변경: `settings.ts`의 `experimental`, `ExperimentalTab.tsx`의 경고·마스터·하이라이트 미리보기, `answer.ts`의 highlight/predictive, `windows.rs`의 cursor/auto-fit, `commands.rs`의 overlay payload·pre-capture, `shortcut.rs`의 predictive, `ai.rs`의 optional highlight box를 함께 확인한다. 실험 기능은 기본 OFF와 실험실 경고를 유지한다. 커서 밀착 답변은 표시 탭의 `display.textPosition='cursor'`로 정식 제공한다.
 - 새 오류: `ERRORS` en/ko. 업데이트 오류는 `update_check`, `update_install`, `update_signature`, `update_unavailable`, `update_busy`, `update_disk`.
 - 창/오버레이 변경: `windows.rs`와 `App.tsx` label 분기, DPI·음수 좌표 테스트 확인.
 - 업데이트 변경: `updates.rs` + `commands.rs` + `main.rs` 등록 + `src/lib/tauri.ts` 래퍼 + `src/stores/updates.ts`. `npm run check`, `npm test`, `cargo test` 후 서명 빌드로 `.sig`/`latest.json` 확인.
@@ -92,7 +92,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.6.2**.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.7.0**.
 - 릴리스는 GitHub Actions 없이 수동으로 진행한다.
   1. `npm run check`, `npm test`, Rust 변경 시 `cargo test`.
   2. 서명 키 환경 변수를 설정하고 `npm run tauri build`.
@@ -104,13 +104,13 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 첫 업데이터 릴리스(0.1.2)는 0.1.0/0.1.1 사용자가 한 번 직접 설치해야 한다. 이후 버전은 설정 → 정보에서 자동으로 확인·설치할 수 있다.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.6.2 코드 검증: `npm run check`, `npm test`(228), `cargo test`(177). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
-- 보안 탭 자동 갱신은 `src/lib/securityAutoRefresh.ts`에서 5분 캐시한다. 새로고침 버튼과 보호 복구는 강제 갱신을 사용한다.
+- 0.7.0 코드 검증: `npm run check`, `npm test`(229), `cargo test`(177). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
+- 보호 탭 자동 갱신은 `src/lib/securityAutoRefresh.ts`에서 5분 캐시한다. 새로고침 버튼과 보호 복구는 강제 갱신을 사용한다.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
 - README의 시험 규정·제재 경고는 의도된 내용이므로 삭제하거나 약화하지 말 것.
 - 워치독·관리자 모드·회의 감지·LED/밝기·언인스톨은 헤드리스로 검증 불가. 릴리스 전 수동으로 확인한다.
 - NSIS는 perMachine, WebView2 offline installer, `windows/hooks.nsh`를 쓴다. 설치/제거 경로를 바꾸면 수동으로 확인한다.
-- 리소스 최적화: 회의 감지 프로세스 스냅샷은 3초 캐시, 포그라운드 창은 매 poll·전체 창 열거는 2초 간격, 보안 탭의 Defender·보호 상태는 탭을 열 때 자동 조회(주기적 폴링 없음), WebView2 `BROWSER_ARGS`의 백그라운드 네트워킹 차단, guard는 실행 파일 이름으로 먼저 필터링, 캡처는 CatmullRom 리사이즈, 오버레이는 첫 표시 때 지연 생성하되 오버레이가 필요한 설정에서만 단축키 보조키 입력 시 prewarm한다. 오버레이/설정 탭은 지연 로드 청크로 분리되어 있다. 초기 번들에는 `react-dom/server`와 `motion`을 넣지 않는다(트레이는 `camouflageSvg.ts` 정적 SVG, 모션은 설정·오버레이 청크). 관리자 모드의 `watch_guard`는 5분마다 작업을 유지보수하고, 시작 시 보호 복구·업데이트 확인·회의 첫 폴링은 창 표시 뒤로 미룬다.
+- 리소스 최적화: 회의 감지 프로세스 스냅샷은 3초 캐시, 포그라운드 창은 매 poll·전체 창 열거는 2초 간격, 보호 탭의 Defender·보호 상태는 탭을 열 때 자동 조회(주기적 폴링 없음), WebView2 `BROWSER_ARGS`의 백그라운드 네트워킹 차단, guard는 실행 파일 이름으로 먼저 필터링, 캡처는 CatmullRom 리사이즈, 오버레이는 첫 표시 때 지연 생성하되 오버레이가 필요한 설정에서만 단축키 보조키 입력 시 prewarm한다. 오버레이/설정 탭은 지연 로드 청크로 분리되어 있다. 초기 번들에는 `react-dom/server`와 `motion`을 넣지 않는다(트레이는 `camouflageSvg.ts` 정적 SVG, 모션은 설정·오버레이 청크). 관리자 모드의 `watch_guard`는 5분마다 작업을 유지보수하고, 시작 시 보호 복구·업데이트 확인·회의 첫 폴링은 창 표시 뒤로 미룬다.
 - 입력 훅과 트레이는 메인 스레드에서 60초마다 재등록·복구한다. 명령 스레드에서 `SetWindowsHookEx`를 호출하지 않는다. 캡처 보호는 fail-closed: `show_overlay`가 WDA 적용 실패 또는 affinity != 0x11을 확인하면 답변을 표시하지 않고 숨긴다.
 - 테마: 설정 창은 iOS/Fluent 하이브리드 셸(`SettingsHome` 사이드바, `Group`/`Row`/`Switch`/`SegmentedControl`). `appearance.theme`은 dark/light/system이며 `src/lib/appearance.ts`가 `data-theme`, `color-scheme`, DWM 제목 표시줄 테마를 적용한다. `appearance.accent`가 `system`이면 `commands::system_accent`가 DWM 색을 읽고 `--color-accent*`를 적용한다. 오버레이·트레이는 항상 다크다.
 
@@ -122,7 +122,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 전역 키보드/마우스 훅은 다른 앱·Windows 단축키와 충돌할 수 있다. 답변 단축키가 modifier-only이고 패닉과 mods가 겹치면 패닉이 가려질 수 있다. `shortcut.click` 기본값(true)과 `shortcut.button`을 유지하고, 클릭 모드에서는 키보드 답변 발동을 끈다.
 - OpenCode/Anthropic 네이티브 엔드포인트는 `temperature`를 거부한다.
 - `cargo fmt`는 강제가 아니고 저장소가 rustfmt-clean이 아니다. 전체 포맷 금지.
-- 서명 없는 빌드는 Defender가 `Behavior:Win32/Execution.A!ml`/`Behavior:Win32/Persistence.A!ml`로 오탐할 수 있다. 보안 탭의 "Defender 예외 추가"가 현재 exe 폴더·`C:\ProgramData\Cue`·`cue.exe`/`cue-guard.exe`를 예외 처리한다. 이미 격리됐으면 보호 기록에서 복원하거나 폴더를 수동 제외한 뒤 실행한다. 근본 해결은 코드 서명.
+- 서명 없는 빌드는 Defender가 `Behavior:Win32/Execution.A!ml`/`Behavior:Win32/Persistence.A!ml`로 오탐할 수 있다. 보호 탭의 "Defender 예외 추가"가 현재 exe 폴더·`C:\ProgramData\Cue`·`cue.exe`/`cue-guard.exe`를 예외 처리한다. 이미 격리됐으면 보호 기록에서 복원하거나 폴더를 수동 제외한 뒤 실행한다. 근본 해결은 코드 서명.
 - main/overlay는 같은 `index.html`을 쓰고 label로 분기한다.
 - guard/service 상태는 `C:\ProgramData\Cue`에 남는다. 언인스톨 훅의 정리를 깨지 말 것.
 - 관리자 모드는 설치 위치와 무관하게 동작한다. 설치 프로그램이 `C:\ProgramData\Cue\cue.exe` 보호 복사본을 만들고, 그 복사본이 없거나 ProgramData ACL이 사용자 쓰기 가능하면 관리자 모드는 `admin_copy` 오류로 거부된다. 설치 프로그램을 다시 실행하거나 `C:\ProgramData\Cue`를 직접 정리하는 것은 사용자가 한다.
@@ -134,7 +134,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 시스템 프록시가 release 리다이렉트를 캐시하면 이전 `latest.json`을 계속 반환할 수 있다. updater 요청의 `Cache-Control`/`Pragma: no-cache`를 제거하지 말 것.
 - GitHub Release가 draft/prerelease면 `/releases/latest/download/latest.json`이 404다. 정식 published 릴리스만 updater가 본다.
 - 서명 키를 잃으면 `latest.json`을 서명할 수 없어 자동 업데이트가 영구히 끊긴다. 키 교체는 기존 사용자의 수동 설치를 의미한다.
-- `admin-prepare.failed` 마커는 업데이트 중 관리자 보호 복사본 갱신 실패를 뜻한다. `main.rs`는 마커가 있으면 오래된 보호 복사본으로 재실행하지 않고, 보안 탭의 보호 복구가 `setAdminMode(true)`로 복구한다.
+- `admin-prepare.failed` 마커는 업데이트 중 관리자 보호 복사본 갱신 실패를 뜻한다. `main.rs`는 마커가 있으면 오래된 보호 복사본으로 재실행하지 않고, 보호 탭의 보호 복구가 `setAdminMode(true)`로 복구한다.
 
 ## 보고 형식
 

@@ -7,22 +7,12 @@ import { fade } from '../../lib/motion'
 import { useT, errorMessage } from '../../i18n'
 import { cleanupUpdateFiles, openExternal, preflightUpdate, type UpdatePreflight } from '../../lib/tauri'
 import { formatBytes } from '../../lib/updates'
-import { useAnswer } from '../../stores/answer'
 import { useSettings } from '../../stores/settings'
 import { useUpdates } from '../../stores/updates'
+import HelpTab from './HelpTab'
 
 export default function AboutTab() {
   const t = useT()
-  const log = useAnswer((s) => s.log)
-  const history = useAnswer((s) => s.history)
-  const lastRequest = useAnswer((s) => s.lastRequest)
-  const clearHistory = useAnswer((s) => s.clearHistory)
-  const clearErrors = useAnswer((s) => s.clearErrors)
-  const copyHistory = useAnswer((s) => s.copyHistory)
-  const removeHistory = useAnswer((s) => s.removeHistory)
-  const toggleHistoryPin = useAnswer((s) => s.toggleHistoryPin)
-  const storage = useSettings((s) => s.storage)
-  const showUsage = useSettings((s) => s.answer.showUsage)
   const updatePrefs = useSettings((s) => s.updates)
   const setUpdates = useSettings((s) => s.setUpdates)
   const checking = useUpdates((s) => s.checking)
@@ -42,12 +32,6 @@ export default function AboutTab() {
   const [preflight, setPreflight] = useState<UpdatePreflight | null>(null)
   const [preflightError, setPreflightError] = useState('')
   const [preflightBusy, setPreflightBusy] = useState(false)
-
-  const usageText = (usage: { input?: number; output?: number; total?: number }) =>
-    t(
-      `Tokens ${usage.input ?? '—'} in / ${usage.output ?? '—'} out / ${usage.total ?? '—'} total`,
-      `토큰 입력 ${usage.input ?? '—'} / 출력 ${usage.output ?? '—'} / 합계 ${usage.total ?? '—'}`,
-    )
 
   const confirmInstall = async () => {
     setPreflightBusy(true)
@@ -245,124 +229,7 @@ export default function AboutTab() {
           )}
         </p>
       </Group>
-      {lastRequest && (
-        <Group className="p-4">
-          <h2 className="text-xs font-semibold tracking-wide text-ink-3">
-            {t('Last request', '마지막 요청')}
-          </h2>
-          <div className="mt-2 space-y-1 text-xs text-ink-2">
-            <p>
-              {new Date(lastRequest.at).toLocaleTimeString()} · {lastRequest.ms}ms ·{' '}
-              {lastRequest.provider} / {lastRequest.model}
-            </p>
-            <p>
-              {lastRequest.kind === 'choice'
-                ? t('Multiple choice', '객관식')
-                : lastRequest.kind === 'text'
-                  ? t('Descriptive', '서술형')
-                  : lastRequest.kind === 'none'
-                    ? t('No answer', '답 없음')
-                    : t('Failed', '실패')}
-              {lastRequest.fallback && ` · ${t('Fallback used', '대체 모델 사용')}`}
-            </p>
-            {lastRequest.verification && (
-              <p>
-                {lastRequest.verification.matched
-                  ? t('Models agree', '모델 일치')
-                  : t('Models disagree', '모델 불일치')}
-              </p>
-            )}
-            {showUsage && lastRequest.usage && <p>{usageText(lastRequest.usage)}</p>}
-            {lastRequest.error && <p className="text-warning">{errorMessage(lastRequest.error)}</p>}
-          </div>
-        </Group>
-      )}
-      <Group className="p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-semibold tracking-wide text-ink-3">
-            {t('Answer history', '답변 기록')}
-          </h2>
-          {storage.history && (
-            <button className="text-xs text-ink-3 transition-colors hover:text-ink" onClick={clearHistory}>
-              {t('Clear history', '기록 지우기')}
-            </button>
-          )}
-        </div>
-        {!storage.history ? (
-          <p className="text-ink-3">{t('History is off in General.', '일반 탭에서 기록 보관이 꺼져 있습니다.')}</p>
-        ) : history.length === 0 ? (
-          <p className="text-ink-3">{t('None', '없음')}</p>
-        ) : (
-          <ul className="space-y-1 select-text">
-            {history.map((h, i) => (
-              <li
-                key={`${h.ts}-${i}`}
-                className="flex items-start justify-between gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-ink-2"
-              >
-                <span className="min-w-0 break-words">
-                  {new Date(h.ts).toLocaleTimeString()} · {h.text ?? h.answers.join(', ')}
-                  {h.pinned && (
-                    <span className="ml-1 text-accent">{t('Pinned', '고정됨')}</span>
-                  )}
-                  {showUsage && h.usage && (
-                    <span className="mt-0.5 block text-[11px] text-ink-3">
-                      {usageText(h.usage)}
-                    </span>
-                  )}
-                </span>
-                <span className="flex shrink-0 gap-1">
-                  <button
-                    className="text-xs text-ink-3 transition-colors hover:text-ink"
-                    aria-label={t('Copy answer', '답변 복사')}
-                    onClick={() => void copyHistory(i)}
-                  >
-                    {t('Copy', '복사')}
-                  </button>
-                  <button
-                    className="text-xs text-ink-3 transition-colors hover:text-ink"
-                    aria-label={h.pinned ? t('Unpin answer', '고정 해제') : t('Pin answer', '답변 고정')}
-                    onClick={() => toggleHistoryPin(i)}
-                  >
-                    {h.pinned ? t('Unpin', '해제') : t('Pin', '고정')}
-                  </button>
-                  <button
-                    className="text-xs text-ink-3 transition-colors hover:text-danger"
-                    aria-label={t('Delete answer', '답변 삭제')}
-                    onClick={() => removeHistory(i)}
-                  >
-                    {t('Delete', '삭제')}
-                  </button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Group>
-      <Group className="p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-semibold tracking-wide text-ink-3">
-            {t('Recent errors', '최근 오류')}
-          </h2>
-          {storage.errors && (
-            <button className="text-xs text-ink-3 transition-colors hover:text-ink" onClick={clearErrors}>
-              {t('Clear errors', '오류 지우기')}
-            </button>
-          )}
-        </div>
-        {!storage.errors ? (
-          <p className="text-ink-3">{t('Error log is off in General.', '일반 탭에서 오류 로그 보관이 꺼져 있습니다.')}</p>
-        ) : log.length === 0 ? (
-          <p className="text-ink-3">{t('None', '없음')}</p>
-        ) : (
-          <ul className="space-y-1 select-text">
-            {log.map((e, i) => (
-              <li key={i} className="rounded-lg bg-surface-2 px-3 py-1.5 font-mono text-xs text-ink-2">
-                {new Date(e.ts).toLocaleTimeString()} · {errorMessage(e.code)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Group>
+      <HelpTab />
       <AnimatePresence>
         {confirming && available && (
           <UpdateConfirmDialog

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { MotionConfig, motion } from 'motion/react'
-import { BookOpen, Crosshair, FlaskConical, Info, Settings, Shield, Sparkles } from 'lucide-react'
+import { FlaskConical, Info, Keyboard, Monitor, Settings, Shield, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useT } from '../../i18n'
 import { fade, layoutSpring } from '../../lib/motion'
@@ -8,71 +8,71 @@ import { useUi } from '../../stores/ui'
 
 const AboutTab = lazy(() => import('./AboutTab'))
 const AiTab = lazy(() => import('./AiTab'))
+const AppTab = lazy(() => import('./AppTab'))
+const DisplayTab = lazy(() => import('./ModeTab'))
 const ExperimentalTab = lazy(() => import('./ExperimentalTab'))
-const GeneralTab = lazy(() => import('./GeneralTab'))
-const HelpTab = lazy(() => import('./HelpTab'))
-const ModeTab = lazy(() => import('./ModeTab'))
-const SecurityTab = lazy(() => import('./SecurityTab'))
+const InputTab = lazy(() => import('./InputTab'))
+const ProtectionTab = lazy(() => import('./SecurityTab'))
 
-const TABS = ['general', 'mode', 'ai', 'security', 'experimental', 'help', 'about'] as const
+const TABS = ['input', 'display', 'ai', 'protection', 'app', 'experimental', 'info'] as const
 type Tab = (typeof TABS)[number]
 
 const LABELS: Record<Tab, [string, string]> = {
-  general: ['General', '일반'],
-  mode: ['Mode', '모드'],
+  input: ['Input', '입력'],
+  display: ['Display', '표시'],
   ai: ['AI', 'AI'],
-  security: ['Security', '보안'],
+  protection: ['Protection', '보호'],
+  app: ['App', '앱'],
   experimental: ['Lab', '실험실'],
-  help: ['Help', '사용법'],
-  about: ['About', '정보'],
+  info: ['Info', '정보'],
 }
 
 const DESCRIPTIONS: Record<Tab, [string, string]> = {
-  general: [
-    'Shortcuts, mouse trigger, language, startup, and local data.',
-    '단축키, 마우스 트리거, 언어, 시작 및 로컬 데이터를 설정합니다.',
+  input: [
+    'Answer shortcut, mouse trigger, and free mode.',
+    '답변 단축키, 마우스 트리거, 자유 모드를 설정합니다.',
   ],
-  mode: [
-    'Choose how answers appear and tune the display.',
-    '답 표시 방식과 표시 시간을 조정합니다.',
+  display: [
+    'Choose how answers appear and how long they stay.',
+    '답 표시 방식과 지속 시간을 조정합니다.',
   ],
   ai: [
     'Connect a vision model and tune how answers are generated.',
     '비전 모델을 연결하고 답변 생성 방식을 조정합니다.',
   ],
-  security: [
-    'Protection, meeting detection, capture exclusion, and updates.',
-    '보호, 회의 감지, 캡처 제외, 업데이트를 설정합니다.',
+  protection: [
+    'Capture protection, meeting mode, and system protection.',
+    '화면 캡처·회의·시스템 보호를 관리합니다.',
+  ],
+  app: [
+    'Language, appearance, startup, history, and backups.',
+    '언어, 모양, 시작, 기록과 백업을 관리합니다.',
   ],
   experimental: [
-    'Try features that are still being validated in real use.',
-    '실사용으로 검증 중인 기능을 미리 사용합니다.',
+    'Features being tested before moving to normal tabs.',
+    '실사용 검증 후 정식 탭으로 옮기는 기능입니다.',
   ],
-  help: [
-    'Shortcuts, setup, and troubleshooting.',
-    '단축키, 설정 방법, 문제 해결을 확인합니다.',
-  ],
-  about: [
-    'Version, updates, license, and local data.',
-    '버전, 업데이트, 라이선스, 로컬 데이터를 확인합니다.',
+  info: [
+    'Help, test exam, updates, and license.',
+    '도움말, 테스트 시험지, 업데이트, 라이선스를 확인합니다.',
   ],
 }
 
 const ICONS: Record<Tab, LucideIcon> = {
-  general: Settings,
-  mode: Crosshair,
+  input: Keyboard,
+  display: Monitor,
   ai: Sparkles,
-  security: Shield,
+  protection: Shield,
+  app: Settings,
   experimental: FlaskConical,
-  help: BookOpen,
-  about: Info,
+  info: Info,
 }
 
 export default function SettingsHome() {
   const t = useT()
   const tab = useUi((s) => s.tab)
   const setTab = useUi((s) => s.setTab)
-  const activeTab: Tab = (TABS as readonly string[]).includes(tab) ? (tab as Tab) : 'general'
+  const activeTab: Tab = (TABS as readonly string[]).includes(tab) ? (tab as Tab) : 'input'
 
   return (
     <MotionConfig reducedMotion="user">
@@ -90,7 +90,7 @@ export default function SettingsHome() {
         <nav className="space-y-0.5" aria-label={t('Settings sections', '설정 섹션')}>
           {TABS.map((id) => {
             const Icon = ICONS[id]
-            const active = tab === id
+            const active = activeTab === id
             const label = t(...LABELS[id])
             return (
               <button
@@ -156,13 +156,14 @@ export default function SettingsHome() {
                 </div>
               }
             >
-              {tab === 'general' && <GeneralTab />}
-              {tab === 'mode' && <ModeTab />}
-              {tab === 'ai' && <AiTab />}
-              {tab === 'security' && <SecurityTab />}
-              {tab === 'experimental' && <ExperimentalTab />}
-              {tab === 'help' && <HelpTab />}
-              {tab === 'about' && <AboutTab />}
+              {activeTab === 'input' && <InputTab />}
+              {activeTab === 'display' && <DisplayTab />}
+              {activeTab === 'ai' && <AiTab />}
+              {activeTab === 'protection' && <ProtectionTab />}
+              {activeTab === 'app' && <AppTab />}
+              {activeTab === 'experimental' && <ExperimentalTab />}
+              {activeTab === 'info' && <AboutTab />}
+
             </Suspense>
           </motion.div>
         </div>

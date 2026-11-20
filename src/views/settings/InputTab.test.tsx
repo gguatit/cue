@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { defaults, useSettings } from '../../stores/settings'
-import GeneralTab from './GeneralTab'
+import InputTab from './InputTab'
 
 beforeEach(() => {
   useSettings.setState({
@@ -11,9 +11,9 @@ beforeEach(() => {
   })
 })
 
-describe('GeneralTab shortcut warnings', () => {
+describe('InputTab shortcut warnings', () => {
   it('shows the click requirement and the global conflict warning', () => {
-    const html = renderToStaticMarkup(<GeneralTab />)
+    const html = renderToStaticMarkup(<InputTab />)
     expect(html).toContain('마우스 클릭 필요')
     expect(html).toContain('단축키 충돌')
   })

@@ -64,6 +64,9 @@ export default function AiTab() {
   const setProvider = useSettings((s) => s.setProvider)
   const answer = useSettings((s) => s.answer)
   const setAnswer = useSettings((s) => s.setAnswer)
+  const privacy = useSettings((s) => s.privacy)
+  const setPrivacy = useSettings((s) => s.setPrivacy)
+  const lastRequest = useAnswer((s) => s.lastRequest)
   const [keyInput, setKeyInput] = useState('')
   const [keyState, setKeyState] = useState<'saved' | 'none' | 'unknown'>('none')
   const [status, setStatus] = useState('')
@@ -78,6 +81,12 @@ export default function AiTab() {
   const loadId = useRef(0)
   const keyId = useRef(0)
   const testTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const usageText = (usage: { input?: number; output?: number; total?: number }) =>
+    t(
+      `Tokens ${usage.input ?? '—'} in / ${usage.output ?? '—'} out / ${usage.total ?? '—'} total`,
+      `토큰 입력 ${usage.input ?? '—'} / 출력 ${usage.output ?? '—'} / 합계 ${usage.total ?? '—'}`,
+    )
 
   useEffect(() => {
     let cancelled = false
@@ -701,6 +710,20 @@ export default function AiTab() {
           </p>
         )}
       </Group>
+      <Group className="p-4">
+        <GroupHeader className="px-0 pb-0 pt-0">
+          {t('Capture range', '캡처 범위')}
+        </GroupHeader>
+        <Toggle
+          checked={privacy.crop}
+          onChange={(crop) => setPrivacy({ crop })}
+          label={t('Send only the area around the cursor', '커서 주변 영역만 전송')}
+          hint={t(
+            'Cue sends a 1600×1000 pixel region centered on the pointer instead of the whole display. The crop happens before the image leaves your device.',
+            'Cue는 화면 전체 대신 포인터를 중심으로 한 1600×1000 픽셀 영역만 전송합니다. 이미지가 기기를 떠나기 전에 잘립니다.',
+          )}
+        />
+      </Group>
       <Group className="space-y-3 p-4">
         <GroupHeader className="px-0 pb-0 pt-0">
           {t('Extra parameters (JSON)', '추가 파라미터 (JSON)')}
@@ -783,6 +806,38 @@ export default function AiTab() {
           '바꿔 표현을 켜면 추출된 답변 텍스트가 한 번의 추가 재작성 요청으로 프로바이더에 전송됩니다. 화면에는 정리된 답변만 표시되며, 보이지 않는 워터마크 문자와 HTML 태그는 제거됩니다.',
         )}
       </p>
+      {lastRequest && (
+        <Group className="p-4">
+          <h2 className="text-xs font-semibold tracking-wide text-ink-3">
+            {t('Last request', '마지막 요청')}
+          </h2>
+          <div className="mt-2 space-y-1 text-xs text-ink-2">
+            <p>
+              {new Date(lastRequest.at).toLocaleTimeString()} · {lastRequest.ms}ms ·{' '}
+              {lastRequest.provider} / {lastRequest.model}
+            </p>
+            <p>
+              {lastRequest.kind === 'choice'
+                ? t('Multiple choice', '객관식')
+                : lastRequest.kind === 'text'
+                  ? t('Descriptive', '서술형')
+                  : lastRequest.kind === 'none'
+                    ? t('No answer', '답 없음')
+                    : t('Failed', '실패')}
+              {lastRequest.fallback && ` · ${t('Fallback used', '대체 모델 사용')}`}
+            </p>
+            {lastRequest.verification && (
+              <p>
+                {lastRequest.verification.matched
+                  ? t('Models agree', '모델 일치')
+                  : t('Models disagree', '모델 불일치')}
+              </p>
+            )}
+            {answer.showUsage && lastRequest.usage && <p>{usageText(lastRequest.usage)}</p>}
+            {lastRequest.error && <p className="text-warning">{errorMessage(lastRequest.error)}</p>}
+          </div>
+        </Group>
+      )}
       <AnimatePresence>
         {confirmDelete && (
           <ConfirmDialog
