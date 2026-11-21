@@ -3,7 +3,7 @@
 이 문서는 Cue가 AI 요청을 만들고, 공급자에 보내고, 응답을 검증하고, 화면에 표시할 답으로 바꾸는 과정을 정리합니다.
 
 - 런타임 코드: `src-tauri/src/ai.rs`, `src-tauri/src/commands.rs`
-- 현재 버전: **0.7.2**
+- 현재 버전: **0.7.3**
 - 관련 문서: [ARCHITECTURE.md](ARCHITECTURE.md), [README](../README.md)
 
 ## 1. "하네스"의 의미

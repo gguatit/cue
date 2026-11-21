@@ -1313,7 +1313,11 @@ pub fn shortcut_installed() -> bool {
     crate::shortcut::installed()
 }
 
-const ALLOWED_LINKS: [&str; 2] = ["https://github.com/gguatit/cue", "https://github.com/gguatit"];
+const ALLOWED_LINKS: [&str; 3] = [
+    "https://github.com/gguatit/cue",
+    "https://github.com/gguatit",
+    "https://cue.neikos.kr",
+];
 
 fn link_allowed(url: &str) -> bool {
     ALLOWED_LINKS
@@ -2068,8 +2072,13 @@ mod tests {
         assert!(link_allowed("https://github.com/gguatit/cue/issues"));
         assert!(link_allowed("https://github.com/gguatit"));
         assert!(link_allowed("https://github.com/gguatit/"));
+        assert!(link_allowed("https://cue.neikos.kr"));
+        assert!(link_allowed("https://cue.neikos.kr/prompts/cue-prompts.md"));
         assert!(!link_allowed("https://example.com"));
         assert!(!link_allowed("http://github.com/gguatit"));
+        assert!(!link_allowed("http://cue.neikos.kr"));
+        assert!(!link_allowed("https://cue.neikos.kr@evil.example"));
+        assert!(!link_allowed("https://cue.neikos.kr.evil.example"));
         assert!(!link_allowed("ms-settings:taskbar"));
         assert!(!link_allowed("https://github.com/gguatit@evil.example"));
         assert!(!link_allowed("https://github.com/gguatit-foo"));
