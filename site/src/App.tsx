@@ -41,6 +41,51 @@ import { cn } from '@/lib/utils'
 
 type Screen = 'home' | 'test' | 'prompts'
 
+type Route = {
+  screen: Screen
+  id?: number
+  subject: string
+  topic: string
+  difficulty: string
+  type: string
+  search: string
+}
+
+function readRoute(): Route {
+  const parts = window.location.pathname.replace(/\/+$/, '').split('/').filter(Boolean)
+  const params = new URLSearchParams(window.location.search)
+  const rawId = parts[0] === 'test' ? Number(parts[1]) : NaN
+  return {
+    screen: parts[0] === 'test' ? 'test' : parts[0] === 'prompts' ? 'prompts' : 'home',
+    id: Number.isInteger(rawId) && rawId > 0 ? rawId : undefined,
+    subject: params.get('subject') ?? 'all',
+    topic: params.get('topic') ?? 'all',
+    difficulty: params.get('difficulty') ?? 'all',
+    type: params.get('type') ?? 'all',
+    search: params.get('q') ?? '',
+  }
+}
+
+function routePath(route: Route): string {
+  const path =
+    route.screen === 'home'
+      ? '/'
+      : route.screen === 'prompts'
+        ? '/prompts'
+        : route.id
+          ? `/test/${route.id}`
+          : '/test'
+  if (route.screen !== 'test') return path
+  const params = new URLSearchParams()
+  if (route.subject !== 'all') params.set('subject', route.subject)
+  if (route.topic !== 'all') params.set('topic', route.topic)
+  if (route.difficulty !== 'all') params.set('difficulty', route.difficulty)
+  if (route.type !== 'all') params.set('type', route.type)
+  if (route.search.trim()) params.set('q', route.search.trim())
+  const query = params.toString()
+  return query ? `${path}?${query}` : path
+}
+
 const scenarioCards: {
   id: ScenarioId
   title: string
@@ -98,14 +143,15 @@ function formatCount(value: number): string {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('home')
+  const initialRoute = readRoute()
+  const [screen, setScreen] = useState<Screen>(initialRoute.screen)
   const [prefs, setPrefs] = useState<LabPrefs>(() => loadPrefs())
-  const [currentId, setCurrentId] = useState(1)
-  const [subject, setSubject] = useState('all')
-  const [topic, setTopic] = useState('all')
-  const [difficulty, setDifficulty] = useState('all')
-  const [type, setType] = useState('all')
-  const [search, setSearch] = useState('')
+  const [currentId, setCurrentId] = useState(initialRoute.id ?? 1)
+  const [subject, setSubject] = useState(initialRoute.subject)
+  const [topic, setTopic] = useState(initialRoute.topic)
+  const [difficulty, setDifficulty] = useState(initialRoute.difficulty)
+  const [type, setType] = useState(initialRoute.type)
+  const [search, setSearch] = useState(initialRoute.search)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [clean, setClean] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
@@ -120,6 +166,51 @@ export default function App() {
     document.addEventListener('fullscreenchange', onChange)
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [])
+
+  useEffect(() => {
+    const onPop = () => {
+      const route = readRoute()
+      setScreen(route.screen)
+      if (route.id) setCurrentId(route.id)
+      setSubject(route.subject)
+      setTopic(route.topic)
+      setDifficulty(route.difficulty)
+      setType(route.type)
+      setSearch(route.search)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  const routeState = (patch: Partial<Route> = {}): Route => ({
+    screen,
+    id: currentId,
+    subject,
+    topic,
+    difficulty,
+    type,
+    search,
+    ...patch,
+  })
+
+  const pushRoute = (next: Route) => {
+    window.history.pushState({}, '', routePath(next))
+  }
+
+  const replaceRoute = (next: Route) => {
+    window.history.replaceState({}, '', routePath(next))
+  }
+
+  const navigate = (nextScreen: Screen, id = currentId) => {
+    const next = routeState({ screen: nextScreen, id })
+    pushRoute(next)
+    setScreen(nextScreen)
+    if (nextScreen === 'test') setCurrentId(id)
+  }
+
+  const replaceFilters = (patch: Partial<Route>) => {
+    replaceRoute(routeState(patch))
+  }
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -139,9 +230,11 @@ export default function App() {
 
   useEffect(() => {
     if (filtered.length > 0 && !filtered.some((question) => question.id === currentId)) {
-      setCurrentId(filtered[0].id)
+      const id = filtered[0].id
+      setCurrentId(id)
+      if (screen === 'test') replaceRoute(routeState({ id }))
     }
-  }, [filtered, currentId])
+  }, [filtered, currentId, screen])
 
   const current = filtered.find((question) => question.id === currentId) ?? filtered[0]
   const currentIndex = current ? filtered.findIndex((question) => question.id === current.id) : -1
@@ -150,6 +243,7 @@ export default function App() {
     setCurrentId(id)
     setScreen('test')
     setFiltersOpen(false)
+    pushRoute(routeState({ screen: 'test', id }))
   }
 
   const resetFilters = () => {
@@ -163,6 +257,13 @@ export default function App() {
   const startScenario = (scenario: ScenarioId) => {
     const question = findScenario(questions, scenario)
     if (!question) return
+    const nextFilters = {
+      subject: 'all',
+      topic: 'all',
+      difficulty: 'all',
+      type: 'all',
+      search: '',
+    }
     resetFilters()
     setCurrentId(question.id)
     if (scenario === 'watermark') {
@@ -170,24 +271,28 @@ export default function App() {
     }
     setClean(false)
     setScreen('test')
+    pushRoute(routeState({ screen: 'test', id: question.id, ...nextFilters }))
   }
 
   const startFlow = () => {
     setClean(false)
-    setScreen('test')
     startScenario('choice')
   }
 
   const previous = () => {
     if (filtered.length === 0) return
     const index = (currentIndex - 1 + filtered.length) % filtered.length
-    setCurrentId(filtered[index].id)
+    const id = filtered[index].id
+    setCurrentId(id)
+    pushRoute(routeState({ screen: 'test', id }))
   }
 
   const next = () => {
     if (filtered.length === 0) return
     const index = (currentIndex + 1) % filtered.length
-    setCurrentId(filtered[index].id)
+    const id = filtered[index].id
+    setCurrentId(id)
+    pushRoute(routeState({ screen: 'test', id }))
   }
 
   useEffect(() => {
@@ -237,12 +342,28 @@ export default function App() {
       onSubject={(value) => {
         setSubject(value)
         setTopic('all')
+        replaceFilters({ subject: value, topic: 'all' })
       }}
-      onTopic={setTopic}
-      onDifficulty={setDifficulty}
-      onType={setType}
-      onSearch={setSearch}
-      onReset={resetFilters}
+      onTopic={(value) => {
+        setTopic(value)
+        replaceFilters({ topic: value })
+      }}
+      onDifficulty={(value) => {
+        setDifficulty(value)
+        replaceFilters({ difficulty: value })
+      }}
+      onType={(value) => {
+        setType(value)
+        replaceFilters({ type: value })
+      }}
+      onSearch={(value) => {
+        setSearch(value)
+        replaceFilters({ search: value })
+      }}
+      onReset={() => {
+        resetFilters()
+        replaceFilters({ subject: 'all', topic: 'all', difficulty: 'all', type: 'all', search: '' })
+      }}
       onSelect={goTo}
     />
   ) : null
@@ -260,7 +381,7 @@ export default function App() {
           <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-4">
             <button
               type="button"
-              onClick={() => setScreen('home')}
+              onClick={() => navigate('home')}
               className="group flex items-center gap-2.5"
             >
               <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
@@ -278,7 +399,7 @@ export default function App() {
               <Button
                 variant={screen === 'home' ? 'secondary' : 'ghost'}
                 size="sm"
-                onClick={() => setScreen('home')}
+                onClick={() => navigate('home')}
               >
                 <Home data-icon="inline-start" />
                 <span className="hidden sm:inline">홈</span>
@@ -286,7 +407,7 @@ export default function App() {
               <Button
                 variant={screen === 'test' ? 'secondary' : 'ghost'}
                 size="sm"
-                onClick={() => setScreen('test')}
+                onClick={() => navigate('test')}
               >
                 <FlaskConical data-icon="inline-start" />
                 <span className="hidden sm:inline">테스트</span>
@@ -294,7 +415,7 @@ export default function App() {
               <Button
                 variant={screen === 'prompts' ? 'secondary' : 'ghost'}
                 size="sm"
-                onClick={() => setScreen('prompts')}
+                onClick={() => navigate('prompts')}
               >
                 <FileText data-icon="inline-start" />
                 <span className="hidden sm:inline">프롬프트</span>
@@ -334,7 +455,7 @@ export default function App() {
                     테스트 시작
                     <ArrowRight data-icon="inline-end" />
                   </Button>
-                  <Button variant="outline" onClick={() => setScreen('prompts')}>
+                  <Button variant="outline" onClick={() => navigate('prompts')}>
                     <FileText data-icon="inline-start" />
                     프롬프트 보기
                   </Button>
@@ -417,7 +538,7 @@ export default function App() {
                 <p className="font-medium text-foreground">모델 연결 · API 키</p>
                 <p>워터마크 강도 · 전체 화면 · 커서 위치</p>
                 <p>발표 중에는 정답 입력 없이 화면만 사용합니다.</p>
-                <Button variant="outline" size="sm" className="mt-2" onClick={() => setScreen('prompts')}>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate('prompts')}>
                   <FileText data-icon="inline-start" />
                   프롬프트 라이브러리
                 </Button>
@@ -471,7 +592,7 @@ export default function App() {
               <Button variant="outline" size="sm" onClick={() => setClean(true)}>
                 깔끔 모드
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setScreen('prompts')}>
+              <Button variant="outline" size="sm" onClick={() => navigate('prompts')}>
                 <FileText data-icon="inline-start" />
                 프롬프트
               </Button>
