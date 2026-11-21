@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.7.0** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **0.7.1** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -128,7 +128,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full structure and [doc
 - **Settings**: provider, model, key, answer language/level, display duration, output methods, hotkeys, mouse trigger, theme, and meeting detection policy.
 - **Profiles**: save and apply local settings profiles. API keys are not included.
 - **Backup/import**: export and import settings as JSON. Keys are never exported.
-- **Test exam**: `docs/test-exam.html`, including a watermark toggle.
+- **Test site**: [Cue Test Lab](https://cue.neikos.kr) in the browser, for checking capture, AI answers, and watermarks during a presentation.
 - **Theme**: dark, light, or system theme and accent color in settings. Overlay and tray stay dark.
 
 ### Lab

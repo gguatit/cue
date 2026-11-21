@@ -4,18 +4,18 @@ import { openExternal } from '../../lib/tauri'
 import { useAnswer } from '../../stores/answer'
 import { ERROR_CODES, SECTIONS } from './helpContent'
 
-const TEST_EXAM_URL = 'https://github.com/gguatit/cue/raw/main/docs/test-exam.html'
+const TEST_EXAM_URL = 'https://cue.neikos.kr'
 
 export default function HelpTab() {
   const t = useT()
   return (
     <div className="space-y-4 text-sm">
       <Group className="p-4">
-        <SectionTitle>{t('Test exam', '테스트 시험지')}</SectionTitle>
+        <SectionTitle>{t('Test site', '테스트 사이트')}</SectionTitle>
         <p className="mb-3 mt-2 text-ink-2">
           {t(
-            'Download the practice exam from the Cue GitHub repository. It covers choice, OX, short, descriptive, calculation, code and reading questions.',
-            'Cue GitHub 저장소에서 연습 시험지를 다운로드합니다. 객관식, OX, 단답형, 서술형, 계산, 코드, 독해 문제를 포함합니다.',
+            'Open Cue Test Lab in the browser to test capture, AI answers and watermarks. It covers choice, OX, short, descriptive, calculation, code and reading questions.',
+            '브라우저에서 Cue Test Lab을 열어 캡처, AI 답변, 워터마크를 테스트합니다. 객관식, OX, 단답형, 서술형, 계산, 코드, 독해 문제를 포함합니다.',
           )}
         </p>
         <Button
@@ -25,7 +25,7 @@ export default function HelpTab() {
             })
           }
         >
-          {t('Download test exam', '테스트 시험지 다운로드')}
+          {t('Open test site', '테스트 사이트 열기')}
         </Button>
       </Group>
       {SECTIONS.map((s, i) => (

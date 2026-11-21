@@ -2,79 +2,124 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
   BookOpen,
-  CheckCircle2,
-  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Code2,
   FileText,
   FlaskConical,
   Home,
+  Languages,
+  Maximize2,
   Menu,
-  PanelRight,
-  Search,
-  Sparkles,
-  Target,
+  Minimize2,
+  MousePointer2,
+  ScanLine,
+  Type,
   X,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
-import { Textarea } from '@/components/ui/textarea'
-import { AnswerSheet, StudySidebar } from '@/components/StudyPanels'
-import { PromptPanel } from '@/components/PromptPanel'
+import { PromptLibrary } from '@/components/PromptLibrary'
 import { QuestionView } from '@/components/QuestionView'
-import { Watermark, watermarkLabels } from '@/components/Watermark'
-import { questions, subjects, topicsBySubject, type Question } from '@/data/questions'
-import { checkAnswer, revealAnswer } from '@/lib/api'
+import { TestSidebar } from '@/components/TestSidebar'
+import { Watermark } from '@/components/Watermark'
+import { questions, subjects, topicsBySubject } from '@/data/questions'
 import {
-  loadProgress,
-  saveProgress,
+  findScenario,
+  loadPrefs,
+  matchesType,
+  savePrefs,
   sessionId,
-  type StoredProgress,
+  watermarkLabels,
+  type FontScale,
+  type LabPrefs,
+  type ScenarioId,
   type WatermarkLevel,
-} from '@/lib/study'
-import type { AnswerValue, Grade } from '@/lib/study'
+} from '@/lib/lab'
 import { cn } from '@/lib/utils'
 
-type Screen = 'home' | 'study' | 'cue'
-type MobilePanel = 'subjects' | 'answers' | null
+type Screen = 'home' | 'test' | 'prompts'
 
-function formatTime(total: number): string {
-  const minutes = Math.floor(total / 60)
-  const seconds = total % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-}
+const scenarioCards: {
+  id: ScenarioId
+  title: string
+  description: string
+  icon: typeof MousePointer2
+}[] = [
+  {
+    id: 'choice',
+    title: '객관식',
+    description: '5지선다 문제로 캡처와 답변 표시를 확인합니다.',
+    icon: MousePointer2,
+  },
+  {
+    id: 'descriptive',
+    title: '서술형',
+    description: '긴 답변과 스트리밍 표시를 확인합니다.',
+    icon: FileText,
+  },
+  {
+    id: 'english',
+    title: '영어',
+    description: '영어 지문과 선택지를 읽는지 확인합니다.',
+    icon: Languages,
+  },
+  {
+    id: 'code',
+    title: '코드',
+    description: '코드 블록과 긴 줄을 캡처해 봅니다.',
+    icon: Code2,
+  },
+  {
+    id: 'reading',
+    title: '긴 지문',
+    description: '지문이 긴 화면에서 캡처 범위를 확인합니다.',
+    icon: BookOpen,
+  },
+  {
+    id: 'hard',
+    title: '고난도',
+    description: '난이도 4 문제로 긴 풀이를 테스트합니다.',
+    icon: ScanLine,
+  },
+]
 
-function matchesType(question: Question, filter: string): boolean {
-  if (filter === 'all') return true
-  if (filter === 'choice') return question.type.startsWith('choice') || question.type === 'reading'
-  return question.type === filter
+const scenarioFlow: { id: ScenarioId; label: string }[] = [
+  { id: 'choice', label: '객관식' },
+  { id: 'descriptive', label: '서술형' },
+  { id: 'english', label: '영어' },
+  { id: 'watermark', label: '워터마크' },
+  { id: 'hard', label: '고난도' },
+]
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat('ko-KR').format(value)
 }
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home')
-  const [progress, setProgress] = useState<StoredProgress>(() => loadProgress())
+  const [prefs, setPrefs] = useState<LabPrefs>(() => loadPrefs())
   const [currentId, setCurrentId] = useState(1)
   const [subject, setSubject] = useState('all')
   const [topic, setTopic] = useState('all')
   const [difficulty, setDifficulty] = useState('all')
   const [type, setType] = useState('all')
   const [search, setSearch] = useState('')
-  const [revealed, setRevealed] = useState<Record<string, string>>({})
-  const [checking, setChecking] = useState(false)
-  const [checkError, setCheckError] = useState('')
-  const [elapsed, setElapsed] = useState(0)
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [clean, setClean] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
   const [session] = useState(() => sessionId())
 
   useEffect(() => {
-    saveProgress(progress)
-  }, [progress])
+    savePrefs(prefs)
+  }, [prefs])
 
   useEffect(() => {
-    if (screen === 'home') return
-    const timer = window.setInterval(() => setElapsed((value) => value + 1), 1000)
-    return () => window.clearInterval(timer)
-  }, [screen])
+    const onChange = () => setFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -84,7 +129,8 @@ export default function App() {
       if (difficulty !== 'all' && String(question.difficulty) !== difficulty) return false
       if (!matchesType(question, type)) return false
       if (query) {
-        const haystack = `${question.id} ${question.subject} ${question.topic} ${question.prompt} ${question.passage}`.toLowerCase()
+        const haystack =
+          `${question.id} ${question.subject} ${question.topic} ${question.prompt} ${question.passage}`.toLowerCase()
         if (!haystack.includes(query)) return false
       }
       return true
@@ -97,115 +143,109 @@ export default function App() {
     }
   }, [filtered, currentId])
 
-  useEffect(() => {
-    setCheckError('')
-  }, [currentId, screen])
-
   const current = filtered.find((question) => question.id === currentId) ?? filtered[0]
-  const currentAnswer = current ? progress.answers[String(current.id)] : undefined
-  const currentGrade = current ? progress.grades[String(current.id)] : undefined
-  const currentRevealed = current ? revealed[String(current.id)] : undefined
-  const completed = Object.keys(progress.grades).length
-  const correct = Object.values(progress.grades).filter((grade) => grade === 'correct').length
-
-  const updateAnswer = (value: AnswerValue) => {
-    if (!current) return
-    setProgress((state) => ({
-      ...state,
-      answers: { ...state.answers, [String(current.id)]: value },
-    }))
-  }
-
-  const updateGrade = (grade: Grade) => {
-    if (!current) return
-    setProgress((state) => ({
-      ...state,
-      grades: { ...state.grades, [String(current.id)]: grade },
-    }))
-  }
-
-  const apiError = (error: unknown): string => {
-    const code = error instanceof Error ? error.message : String(error)
-    if (code === 'attempt_required') return '먼저 채점해야 정답을 볼 수 있습니다.'
-    if (code === 'already_revealed') return '이 세션에서는 이미 정답을 확인했습니다.'
-    if (code === 'rate_limit') return '요청이 너무 많습니다. 잠시 후 다시 시도하세요.'
-    if (code === 'empty_answer') return '답을 먼저 입력하세요.'
-    return '서버에 연결하지 못했습니다. 잠시 후 다시 시도하세요.'
-  }
-
-  const checkCurrent = async () => {
-    if (!current) return
-    const value = currentAnswer
-    const empty = value === undefined || (Array.isArray(value) ? value.length === 0 : !value.trim())
-    if (empty) {
-      setCheckError('답을 먼저 입력하세요.')
-      return
-    }
-    setChecking(true)
-    setCheckError('')
-    try {
-      const result = await checkAnswer(current.id, value)
-      updateGrade(result.review ? 'review' : result.correct ? 'correct' : 'incorrect')
-    } catch (error) {
-      setCheckError(apiError(error))
-    } finally {
-      setChecking(false)
-    }
-  }
-
-  const revealCurrent = async () => {
-    if (!current) return
-    setCheckError('')
-    try {
-      const result = await revealAnswer(current.id)
-      setRevealed((value) => ({ ...value, [String(current.id)]: result.answer }))
-    } catch (error) {
-      setCheckError(apiError(error))
-    }
-  }
-
-  const toggleBookmark = () => {
-    if (!current) return
-    setProgress((state) => ({
-      ...state,
-      bookmarks: state.bookmarks.includes(current.id)
-        ? state.bookmarks.filter((id) => id !== current.id)
-        : [...state.bookmarks, current.id],
-    }))
-  }
-
-  const setWatermark = (value: WatermarkLevel) => {
-    setProgress((state) => ({ ...state, watermark: value }))
-  }
+  const currentIndex = current ? filtered.findIndex((question) => question.id === current.id) : -1
 
   const goTo = (id: number) => {
     setCurrentId(id)
-    setScreen('study')
-    setMobilePanel(null)
+    setScreen('test')
+    setFiltersOpen(false)
   }
 
-  const start = (nextSubject = 'all') => {
-    setSubject(nextSubject)
+  const resetFilters = () => {
+    setSubject('all')
     setTopic('all')
-    const first = questions.find((question) => nextSubject === 'all' || question.subject === nextSubject)
-    if (first) setCurrentId(first.id)
-    setScreen('study')
+    setDifficulty('all')
+    setType('all')
+    setSearch('')
   }
 
-  const currentIndex = current ? filtered.findIndex((question) => question.id === current.id) : -1
-  const prev = () => {
-    if (filtered.length === 0) return
-    const nextIndex = (currentIndex - 1 + filtered.length) % filtered.length
-    setCurrentId(filtered[nextIndex].id)
+  const startScenario = (scenario: ScenarioId) => {
+    const question = findScenario(questions, scenario)
+    if (!question) return
+    resetFilters()
+    setCurrentId(question.id)
+    if (scenario === 'watermark') {
+      setPrefs((value) => ({ ...value, watermark: 'strong' }))
+    }
+    setClean(false)
+    setScreen('test')
   }
+
+  const startFlow = () => {
+    setClean(false)
+    setScreen('test')
+    startScenario('choice')
+  }
+
+  const previous = () => {
+    if (filtered.length === 0) return
+    const index = (currentIndex - 1 + filtered.length) % filtered.length
+    setCurrentId(filtered[index].id)
+  }
+
   const next = () => {
     if (filtered.length === 0) return
-    const nextIndex = (currentIndex + 1) % filtered.length
-    setCurrentId(filtered[nextIndex].id)
+    const index = (currentIndex + 1) % filtered.length
+    setCurrentId(filtered[index].id)
+  }
+
+  useEffect(() => {
+    if (screen !== 'test' || clean) return
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+      if (event.key === 'ArrowLeft') previous()
+      if (event.key === 'ArrowRight') next()
+      if (event.key === 'Escape' && filtersOpen) setFiltersOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen()
+      else await document.documentElement.requestFullscreen()
+    } catch {
+      // The browser may reject fullscreen without a user gesture.
+    }
+  }
+
+  const setWatermark = (watermark: WatermarkLevel) => {
+    setPrefs((value) => ({ ...value, watermark }))
+  }
+
+  const setFontScale = (fontScale: FontScale) => {
+    setPrefs((value) => ({ ...value, fontScale }))
   }
 
   const effectiveWatermark: WatermarkLevel =
-    screen === 'cue' && progress.watermark === 'basic' ? 'strong' : progress.watermark
+    screen === 'test' && prefs.watermark === 'basic' ? 'strong' : prefs.watermark
+
+  const sidebar = current ? (
+    <TestSidebar
+      subjects={subjects}
+      topics={topicsBySubject}
+      questions={questions}
+      selectedSubject={subject}
+      selectedTopic={topic}
+      difficulty={difficulty}
+      type={type}
+      search={search}
+      currentId={current.id}
+      onSubject={(value) => {
+        setSubject(value)
+        setTopic('all')
+      }}
+      onTopic={setTopic}
+      onDifficulty={setDifficulty}
+      onType={setType}
+      onSearch={setSearch}
+      onReset={resetFilters}
+      onSelect={goTo}
+    />
+  ) : null
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -215,480 +255,287 @@ export default function App() {
         questionLabel={current ? `Q.${current.id}` : 'HOME'}
       />
 
-      <header className="relative z-10 border-b border-border/70 bg-background/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-4">
-          <button type="button" onClick={() => setScreen('home')} className="group flex items-center gap-2.5">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-              C
-            </span>
-            <span className="text-left leading-tight">
-              <span className="block text-sm font-semibold tracking-[-0.02em]">Cue Test Lab</span>
-              <span className="block text-[10px] tracking-wide text-muted-foreground">STUDY & CAPTURE TEST</span>
-            </span>
-          </button>
-
-          <nav className="ml-4 hidden items-center gap-1 sm:flex">
-            <Button
-              variant={screen === 'home' ? 'secondary' : 'ghost'}
-              size="sm"
+      {!clean && (
+        <header className="relative z-10 border-b border-border/70 bg-background/90 backdrop-blur">
+          <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-4">
+            <button
+              type="button"
               onClick={() => setScreen('home')}
+              className="group flex items-center gap-2.5"
             >
-              <Home data-icon="inline-start" />
-              홈
-            </Button>
-            <Button
-              variant={screen === 'study' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setScreen('study')}
-            >
-              <BookOpen data-icon="inline-start" />
-              학습
-            </Button>
-            <Button
-              variant={screen === 'cue' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setScreen('cue')}
-            >
-              <FlaskConical data-icon="inline-start" />
-              Cue 테스트
-            </Button>
-          </nav>
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+                C
+              </span>
+              <span className="text-left leading-tight">
+                <span className="block text-sm font-semibold tracking-[-0.02em]">Cue Test Lab</span>
+                <span className="block text-[10px] tracking-wide text-muted-foreground">
+                  PRESENTATION &amp; CAPTURE TEST
+                </span>
+              </span>
+            </button>
 
-          <div className="ml-auto flex items-center gap-2">
-            <Badge variant="outline" className="hidden font-normal md:inline-flex">
-              <Clock className="mr-1 size-3" />
-              {formatTime(elapsed)}
-            </Badge>
-            <Badge variant="outline" className="hidden font-normal md:inline-flex">
-              {completed}/{questions.length}
-            </Badge>
-            <select
-              value={progress.watermark}
-              onChange={(event) => setWatermark(event.target.value as WatermarkLevel)}
-              className="h-8 rounded-lg border border-input bg-background px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="워터마크 단계"
-            >
-              {(Object.keys(watermarkLabels) as WatermarkLevel[]).map((level) => (
-                <option key={level} value={level}>
-                  {watermarkLabels[level]}
-                </option>
-              ))}
-            </select>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="sm:hidden"
-              onClick={() => setMobilePanel('subjects')}
-              aria-label="메뉴"
-            >
-              <Menu />
-            </Button>
+            <nav className="ml-2 flex items-center gap-0.5 sm:ml-4 sm:gap-1">
+              <Button
+                variant={screen === 'home' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setScreen('home')}
+              >
+                <Home data-icon="inline-start" />
+                <span className="hidden sm:inline">홈</span>
+              </Button>
+              <Button
+                variant={screen === 'test' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setScreen('test')}
+              >
+                <FlaskConical data-icon="inline-start" />
+                <span className="hidden sm:inline">테스트</span>
+              </Button>
+              <Button
+                variant={screen === 'prompts' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setScreen('prompts')}
+              >
+                <FileText data-icon="inline-start" />
+                <span className="hidden sm:inline">프롬프트</span>
+              </Button>
+            </nav>
+
+            <div className="ml-auto flex items-center gap-2">
+              <Badge variant="outline" className="hidden font-normal md:inline-flex">
+                {formatCount(questions.length)}문제
+              </Badge>
+              <Button variant="ghost" size="icon-sm" onClick={() => void toggleFullscreen()} aria-label="전체 화면">
+                {fullscreen ? <Minimize2 /> : <Maximize2 />}
+              </Button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
-      <main className="relative z-10">
-        {screen === 'home' ? (
-          <HomeScreen
-            completed={completed}
-            correct={correct}
-            onStart={() => start()}
-            onCue={() => setScreen('cue')}
-            onSubject={(nextSubject) => start(nextSubject)}
-          />
-        ) : (
-          <div className="mx-auto max-w-[1600px] px-4 py-4">
-            {screen === 'cue' && (
-              <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                <FlaskConical className="size-4 text-primary" />
-                <p className="text-sm font-medium text-foreground">Cue 테스트 모드</p>
-                <p className="text-xs text-muted-foreground">
-                  Ctrl+Alt+Win을 누른 채 왼쪽 클릭 → 답변 확인. 정답은 직접 확인하기 전까지 숨겨집니다.
+      {screen === 'home' && (
+        <main className="relative z-10 mx-auto max-w-[1200px] space-y-6 px-4 py-8">
+          <Card className="overflow-hidden border-border/80 shadow-sm">
+            <CardContent className="grid gap-6 p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
+              <div>
+                <Badge variant="secondary" className="mb-4 font-normal">
+                  <FlaskConical data-icon="inline-start" />
+                  발표용 기능 테스트
+                </Badge>
+                <h1 className="text-3xl font-semibold tracking-[-0.04em] md:text-4xl">
+                  Cue Test Lab
+                </h1>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+                  발표 중 Cue의 화면 캡처·AI 답변·워터마크를 바로 확인하는 테스트 화면입니다.
+                  문제 풀이·채점·정답 입력은 넣지 않았습니다.
                 </p>
-                <Button variant="outline" size="sm" className="ml-auto" onClick={() => setScreen('study')}>
-                  학습으로 돌아가기
-                </Button>
-              </div>
-            )}
-
-            <div className={cn('grid gap-4', screen === 'cue' ? 'grid-cols-1' : 'lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_280px]')}>
-              {screen !== 'cue' && (
-                <aside className="hidden lg:block">
-                  <StudySidebar
-                    subjects={subjects}
-                    topics={topicsBySubject}
-                    questions={questions}
-                    selectedSubject={subject}
-                    selectedTopic={topic}
-                    difficulty={difficulty}
-                    type={type}
-                    search={search}
-                    onSubject={(value) => {
-                      setSubject(value)
-                      setTopic('all')
-                    }}
-                    onTopic={setTopic}
-                    onDifficulty={setDifficulty}
-                    onType={setType}
-                    onSearch={setSearch}
-                    onReset={() => {
-                      setSubject('all')
-                      setTopic('all')
-                      setDifficulty('all')
-                      setType('all')
-                      setSearch('')
-                    }}
-                  />
-                </aside>
-              )}
-
-              <section className="min-w-0 space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="font-normal">
-                    {screen === 'cue' ? 'Cue 테스트' : subject === 'all' ? '전체 문제' : subject}
-                  </Badge>
-                  {filtered.length > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      {currentIndex + 1} / {filtered.length}
-                    </span>
-                  )}
-                  <div className="ml-auto flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="lg:hidden"
-                      onClick={() => setMobilePanel('subjects')}
-                    >
-                      <Search data-icon="inline-start" />
-                      과목·필터
-                    </Button>
-                    {screen !== 'cue' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="xl:hidden"
-                        onClick={() => setMobilePanel('answers')}
-                      >
-                        <PanelRight data-icon="inline-start" />
-                        답안지
-                      </Button>
-                    )}
-                  </div>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <Button onClick={startFlow}>
+                    테스트 시작
+                    <ArrowRight data-icon="inline-end" />
+                  </Button>
+                  <Button variant="outline" onClick={() => setScreen('prompts')}>
+                    <FileText data-icon="inline-start" />
+                    프롬프트 보기
+                  </Button>
                 </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 self-end md:self-center">
+                {[
+                  ['문제', questions.length],
+                  ['과목', subjects.length],
+                  ['유형', new Set(questions.map((question) => question.type)).size],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-border/70 bg-muted/30 p-3 text-center">
+                    <p className="text-2xl font-semibold tracking-tight">{value}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-                {current ? (
-                  <>
-                    <QuestionView
-                      key={current.id}
-                      question={current}
-                      value={currentAnswer}
-                      grade={screen === 'cue' ? undefined : currentGrade}
-                      answer={screen === 'cue' ? undefined : currentRevealed}
-                      bookmarked={progress.bookmarks.includes(current.id)}
-                      cueMode={screen === 'cue'}
-                      checking={checking}
-                      error={checkError}
-                      onAnswer={updateAnswer}
-                      onGrade={updateGrade}
-                      onCheck={() => void checkCurrent()}
-                      onReveal={() => void revealCurrent()}
-                      onHideAnswer={() =>
-                        setRevealed((value) => {
-                          const next = { ...value }
-                          delete next[String(current.id)]
-                          return next
-                        })
-                      }
-                      onToggleBookmark={toggleBookmark}
-                      onPrev={prev}
-                      onNext={next}
-                    />
-                    <PromptPanel
-                      question={current}
-                      myAnswer={currentAnswer}
-                      compact={screen === 'cue'}
-                    />
-                    <Card className="border-border/80 shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 text-sm">
-                          <FileText className="size-4 text-primary" />
-                          내 메모
-                        </CardTitle>
-                        <CardDescription>이 문제에 대한 오답 노트나 풀이 메모를 남겨두세요.</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <Textarea
-                          value={progress.notes[String(current.id)] ?? ''}
-                          onChange={(event) =>
-                            setProgress((state) => ({
-                              ...state,
-                              notes: { ...state.notes, [String(current.id)]: event.target.value },
-                            }))
-                          }
-                          placeholder="예: 이 문제는 조건 범위를 먼저 정리해야 함."
-                          rows={3}
-                          className="resize-y text-sm"
-                        />
-                      </CardContent>
-                    </Card>
-                  </>
-                ) : (
-                  <Card className="p-10 text-center">
-                    <p className="text-sm text-muted-foreground">조건에 맞는 문제가 없습니다. 필터를 초기화해 보세요.</p>
-                    <Button
-                      className="mt-4"
-                      variant="outline"
-                      onClick={() => {
-                        setSubject('all')
-                        setTopic('all')
-                        setDifficulty('all')
-                        setType('all')
-                        setSearch('')
-                      }}
-                    >
-                      필터 초기화
-                    </Button>
-                  </Card>
-                )}
-              </section>
+          <section>
+            <div className="mb-3 flex items-end justify-between">
+              <div>
+                <h2 className="text-lg font-semibold tracking-[-0.02em]">테스트 시나리오</h2>
+                <p className="text-xs text-muted-foreground">발표에서 확인할 화면을 바로 엽니다.</p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {scenarioCards.map((scenario) => {
+                const Icon = scenario.icon
+                return (
+                  <button
+                    key={scenario.id}
+                    type="button"
+                    onClick={() => startScenario(scenario.id)}
+                    className="group rounded-2xl border border-border/80 bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/20"
+                  >
+                    <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="size-4" />
+                    </span>
+                    <span className="mt-3 block text-sm font-semibold">{scenario.title}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                      {scenario.description}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
 
-              {screen !== 'cue' && (
-                <aside className="hidden xl:block">
-                  <AnswerSheet
-                    questions={filtered}
-                    current={current?.id ?? 0}
-                    grades={progress.grades}
-                    bookmarks={progress.bookmarks}
-                    onSelect={goTo}
-                  />
-                </aside>
+          <div className="grid gap-4 lg:grid-cols-[1fr_0.8fr]">
+            <Card className="border-border/80 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">발표 순서</CardTitle>
+                <CardDescription>3~5분 안에 기능을 확인하는 순서입니다.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {scenarioFlow.map((step, index) => (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => startScenario(step.id)}
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted/50"
+                  >
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+                      {index + 1}
+                    </span>
+                    <span className="flex-1">{step.label}</span>
+                    <ArrowRight className="size-3.5 text-muted-foreground" />
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/80 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">테스트 전 확인</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs leading-5 text-muted-foreground">
+                <p className="font-medium text-foreground">모델 연결 · API 키</p>
+                <p>워터마크 강도 · 전체 화면 · 커서 위치</p>
+                <p>발표 중에는 정답 입력 없이 화면만 사용합니다.</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => setScreen('prompts')}>
+                  <FileText data-icon="inline-start" />
+                  프롬프트 라이브러리
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      )}
+
+      {screen === 'test' && (
+        <main className={cn('relative z-10 mx-auto max-w-[1600px] px-4 py-5', clean && 'max-w-none px-6 py-6')}>
+          {!clean && (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => setFiltersOpen(true)}
+              >
+                <Menu data-icon="inline-start" />
+                문제 선택
+              </Button>
+              <div className="flex items-center gap-1 rounded-lg border border-border/70 bg-card p-1">
+                {(['sm', 'md', 'lg'] as FontScale[]).map((value) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={prefs.fontScale === value ? 'secondary' : 'ghost'}
+                    onClick={() => setFontScale(value)}
+                  >
+                    {value === 'sm' ? '작게' : value === 'md' ? '보통' : '크게'}
+                  </Button>
+                ))}
+              </div>
+              <label className="flex items-center gap-2 rounded-lg border border-border/70 bg-card px-2 py-1.5 text-xs">
+                <Type className="size-3.5 text-muted-foreground" />
+                <select
+                  value={prefs.watermark}
+                  onChange={(event) => setWatermark(event.target.value as WatermarkLevel)}
+                  className="bg-transparent text-xs outline-none"
+                  aria-label="워터마크"
+                >
+                  {(Object.keys(watermarkLabels) as WatermarkLevel[]).map((level) => (
+                    <option key={level} value={level}>
+                      {watermarkLabels[level]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button variant="outline" size="sm" onClick={() => setClean(true)}>
+                깔끔 모드
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setScreen('prompts')}>
+                <FileText data-icon="inline-start" />
+                프롬프트
+              </Button>
+            </div>
+          )}
+
+          {clean && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="fixed right-4 top-4 z-40 shadow-sm"
+              onClick={() => setClean(false)}
+            >
+              <X data-icon="inline-start" />
+              나가기
+            </Button>
+          )}
+
+          <div className={cn('grid gap-5', !clean && 'lg:grid-cols-[260px_minmax(0,1fr)]')}>
+            {!clean && <aside className="hidden lg:block">{sidebar}</aside>}
+            <div className="min-w-0">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {current ? `${currentIndex + 1} / ${filtered.length}` : '문제 없음'}
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon-sm" onClick={previous} aria-label="이전 문제">
+                    <ChevronLeft />
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" onClick={next} aria-label="다음 문제">
+                    <ChevronRight />
+                  </Button>
+                </div>
+              </div>
+              {current ? (
+                <QuestionView question={current} size={prefs.fontScale} cueMode />
+              ) : (
+                <Card className="p-10 text-center text-sm text-muted-foreground">
+                  조건에 맞는 문제가 없습니다. 필터를 초기화하세요.
+                </Card>
               )}
             </div>
           </div>
-        )}
-      </main>
+        </main>
+      )}
 
-      {mobilePanel && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/25 lg:hidden" onClick={() => setMobilePanel(null)}>
-          <div
-            className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl border-t border-border bg-background p-4 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-semibold">{mobilePanel === 'answers' ? '답안지' : '과목·필터'}</p>
-              <Button variant="ghost" size="icon-sm" onClick={() => setMobilePanel(null)} aria-label="닫기">
+      {screen === 'prompts' && (
+        <main className="relative z-10 mx-auto max-w-[1400px] px-4 py-8">
+          <PromptLibrary />
+        </main>
+      )}
+
+      {filtersOpen && (
+        <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden">
+          <div className="absolute inset-y-0 left-0 w-[min(340px,90vw)] overflow-y-auto bg-background p-3 shadow-xl">
+            <div className="mb-2 flex justify-end">
+              <Button variant="ghost" size="icon-sm" onClick={() => setFiltersOpen(false)} aria-label="닫기">
                 <X />
               </Button>
             </div>
-            {mobilePanel === 'answers' ? (
-              <AnswerSheet
-                questions={filtered}
-                current={current?.id ?? 0}
-                grades={progress.grades}
-                bookmarks={progress.bookmarks}
-                onSelect={goTo}
-              />
-            ) : (
-              <StudySidebar
-                subjects={subjects}
-                topics={topicsBySubject}
-                questions={questions}
-                selectedSubject={subject}
-                selectedTopic={topic}
-                difficulty={difficulty}
-                type={type}
-                search={search}
-                onSubject={(value) => {
-                  setSubject(value)
-                  setTopic('all')
-                  setMobilePanel(null)
-                }}
-                onTopic={setTopic}
-                onDifficulty={setDifficulty}
-                onType={setType}
-                onSearch={setSearch}
-                onReset={() => {
-                  setSubject('all')
-                  setTopic('all')
-                  setDifficulty('all')
-                  setType('all')
-                  setSearch('')
-                }}
-              />
-            )}
+            {sidebar}
           </div>
         </div>
       )}
-
-      <footer className="relative z-10 border-t border-border/70 px-4 py-5">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>Cue Test Lab · 학습용 예시 문제 · 실제 시험에서는 사용을 권장하지 않습니다.</span>
-          <span>174 questions · 21 subjects · local only</span>
-        </div>
-      </footer>
-    </div>
-  )
-}
-
-function HomeScreen({
-  completed,
-  correct,
-  onStart,
-  onCue,
-  onSubject,
-}: {
-  completed: number
-  correct: number
-  onStart: () => void
-  onCue: () => void
-  onSubject: (subject: string) => void
-}) {
-  const subjectCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const question of questions) counts.set(question.subject, (counts.get(question.subject) ?? 0) + 1)
-    return counts
-  }, [])
-  const progress = questions.length ? Math.round((completed / questions.length) * 100) : 0
-
-  return (
-    <div className="mx-auto max-w-[1200px] px-4 pb-16">
-      <section className="grid items-center gap-8 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
-        <div>
-          <Badge variant="outline" className="mb-4 border-primary/20 bg-primary/5 font-normal text-primary">
-            <Sparkles className="mr-1 size-3" />
-            2026 Cue Test Lab
-          </Badge>
-          <h1 className="max-w-2xl text-4xl font-semibold leading-[1.15] tracking-[-0.04em] sm:text-5xl">
-            문제를 풀고,
-            <br />
-            막히면 프롬프트로.
-          </h1>
-          <p className="mt-5 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
-            174개 예시 문제를 과목·난이도별로 풀고, 자유응답과 오답 노트를 남기세요.
-            Cue 자유 모드에 바로 붙여넣을 프리셋 프롬프트도 문제마다 제공합니다.
-          </p>
-          <div className="mt-7 flex flex-wrap gap-2">
-            <Button size="lg" onClick={onStart}>
-              학습 시작
-              <ArrowRight data-icon="inline-end" />
-            </Button>
-            <Button size="lg" variant="outline" onClick={onCue}>
-              <FlaskConical data-icon="inline-start" />
-              Cue 테스트
-            </Button>
-            <a
-              href="/prompts/cue-prompts.md"
-              download
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              프롬프트 MD
-            </a>
-          </div>
-          <div className="mt-8 flex flex-wrap gap-6">
-            {[
-              ['174', '문제'],
-              ['21', '과목'],
-              ['10', '유형'],
-              ['4', '난이도'],
-            ].map(([value, label]) => (
-              <div key={label}>
-                <p className="text-2xl font-semibold tracking-[-0.03em]">{value}</p>
-                <p className="text-xs text-muted-foreground">{label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <Card className="paper-grid overflow-hidden border-border/80 bg-white shadow-sm">
-          <CardHeader className="border-b border-border/70 pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base">오늘의 진행</CardTitle>
-                <CardDescription>학습 기록은 이 브라우저에만 저장됩니다.</CardDescription>
-              </div>
-              <Target className="size-5 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-5">
-            <div className="flex items-end justify-between">
-              <p className="text-4xl font-semibold tracking-[-0.04em]">{progress}%</p>
-              <p className="text-xs text-muted-foreground">
-                {completed} / {questions.length} 완료
-              </p>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-            </div>
-            <Separator />
-            <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-lg bg-muted/45 p-3">
-                <p className="text-lg font-semibold">{completed}</p>
-                <p className="text-[11px] text-muted-foreground">채점</p>
-              </div>
-              <div className="rounded-lg bg-muted/45 p-3">
-                <p className="text-lg font-semibold">{correct}</p>
-                <p className="text-[11px] text-muted-foreground">맞음</p>
-              </div>
-              <div className="rounded-lg bg-muted/45 p-3">
-                <p className="text-lg font-semibold">{questions.length - completed}</p>
-                <p className="text-[11px] text-muted-foreground">남음</p>
-              </div>
-            </div>
-            <Button variant="outline" className="w-full" onClick={onStart}>
-              이어서 학습
-              <ArrowRight data-icon="inline-end" />
-            </Button>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-medium tracking-wide text-primary">SUBJECTS</p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em]">과목별로 시작하기</h2>
-          </div>
-          <p className="hidden text-xs text-muted-foreground sm:block">과목을 누르면 바로 학습 화면으로 이동합니다.</p>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {subjects.map((subjectName) => (
-            <button
-              key={subjectName}
-              type="button"
-              onClick={() => onSubject(subjectName)}
-              className="group flex items-center justify-between rounded-xl border border-border/80 bg-card px-4 py-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
-            >
-              <span>
-                <span className="block text-sm font-medium">{subjectName}</span>
-                <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                  {subjectCounts.get(subjectName) ?? 0}문제
-                </span>
-              </span>
-              <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="mt-14 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          [BookOpen, '학습 모드', '객관식·서술형·단답형을 유형별로 풀고 채점합니다.'],
-          [CheckCircle2, '자유응답', '내 답안을 저장하고 모범답안과 직접 비교합니다.'],
-          [FileText, '프리셋 프롬프트', '정답·이유, 오답 분석, 힌트, 채점 기준을 복사합니다.'],
-          [FlaskConical, 'Cue 테스트', '워터마크와 정답 숨김으로 실제 캡처 흐름을 테스트합니다.'],
-        ].map(([Icon, title, description]) => {
-          const Component = Icon as typeof BookOpen
-          return (
-            <Card key={String(title)} className="border-border/80 shadow-sm">
-              <CardContent className="pt-4">
-                <Component className="mb-3 size-5 text-primary" />
-                <p className="text-sm font-medium">{String(title)}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{String(description)}</p>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </section>
     </div>
   )
 }

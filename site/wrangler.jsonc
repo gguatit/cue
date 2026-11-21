@@ -1,20 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cue-test-lab",
-  "main": "worker/index.ts",
   "compatibility_date": "2026-11-21",
   "assets": {
     "directory": "./dist",
-    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "cue-test-lab",
-      "database_id": "c2bafb75-238b-43db-99e3-ed8dd848fa8c"
-    }
-  ],
   "routes": [
     {
       "pattern": "cue.neikos.kr",

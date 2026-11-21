@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { WatermarkLevel } from '../lib/study'
+import type { WatermarkLevel } from '../lib/lab'
 
 function svgTile(text: string, width: number, height: number, fontSize: number, opacity: number) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><text x="${width / 2}" y="${height / 2 + fontSize / 3}" text-anchor="middle" transform="rotate(-24 ${width / 2} ${height / 2})" fill="#52525b" fill-opacity="${opacity}" font-family="Malgun Gothic, sans-serif" font-size="${fontSize}" font-weight="600">${text}</text></svg>`
