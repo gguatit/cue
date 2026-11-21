@@ -317,7 +317,6 @@ Cue를 만드는 데는 OpenCode를 개발 파트너로 사용했습니다. Cont
 | [docs/AI_PARAMETER_PRESETS.md](docs/AI_PARAMETER_PRESETS.md) | 모델별 토큰·파라미터 프리셋 |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | 버전별 변경 기록 |
 | [AGENTS.md](AGENTS.md) | 저장소 작업 규칙과 불변식 |
-| [site/README.md](site/README.md) | 홍보 사이트 개발·배포 |
 
 ## 빌드와 테스트
 

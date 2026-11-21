@@ -317,7 +317,6 @@ Cue was built with OpenCode as a development partner, using Context7, sequential
 | [docs/AI_PARAMETER_PRESETS.md](docs/AI_PARAMETER_PRESETS.md) | Model-specific token and parameter presets (Korean) |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Version history (Korean) |
 | [AGENTS.md](AGENTS.md) | Repository rules and invariants (Korean) |
-| [site/README.md](site/README.md) | Promo site development and deployment (Korean) |
 
 ## Build and test
 
