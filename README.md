@@ -4,7 +4,7 @@
 
 [English](README.en.md) · [아키텍처](docs/ARCHITECTURE.md) · [AI 하네스](docs/AI_HARNESS.md) · [아이디어와 결정](docs/IDEAS.md) · [변경 기록](docs/CHANGELOG.md)
 
-현재 버전 **0.7.1** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+현재 버전 **0.7.2** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 만든 사람: **kalpha (최재영)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -128,7 +128,7 @@ Cue는 Windows에서 **포인터가 가리키는 문제를 캡처해 비전 지�
 - **설정**: AI 공급자, 모델, 키, 답변 언어·수준, 표시 시간, 출력 방식, 단축키, 마우스 트리거, 테마, 회의 감지 기준.
 - **프로필**: 현재 설정을 로컬 프로필로 저장·적용합니다. API 키는 프로필에 포함되지 않습니다.
 - **백업/가져오기**: 설정을 JSON으로 내보내고 가져옵니다. 키는 내보내지 않습니다.
-- **테스트 사이트**: 브라우저에서 여는 [Cue Test Lab](https://cue.neikos.kr). 캡처·AI 답변·워터마크를 발표 중 바로 확인합니다.
+- **테스트 바로가기**: 브라우저에서 여는 [Cue Test Lab](https://cue.neikos.kr). 캡처·AI 답변·워터마크를 발표 중 바로 확인합니다.
 - **테마**: 설정 창은 다크·라이트·시스템 테마와 강조 색을 지원합니다. 오버레이와 트레이는 항상 다크입니다.
 
 ### 실험실

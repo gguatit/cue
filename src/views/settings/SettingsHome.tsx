@@ -53,8 +53,8 @@ const DESCRIPTIONS: Record<Tab, [string, string]> = {
     '실사용 검증 후 정식 탭으로 옮기는 기능입니다.',
   ],
   info: [
-    'Help, test exam, updates, and license.',
-    '도움말, 테스트 시험지, 업데이트, 라이선스를 확인합니다.',
+    'Help, test shortcut, updates, and license.',
+    '도움말, 테스트 바로가기, 업데이트, 라이선스를 확인합니다.',
   ],
 }
 

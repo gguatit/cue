@@ -49,8 +49,8 @@ export const SECTIONS: HelpSection[] = [
         '포인터를 Cue 창 위에 두고 단축키를 누른 채 클릭하면 4초 뒤 샘플 답변(B)이 나옵니다 — 동작 확인용입니다.',
       ],
       [
-        'Download the practice exam from the GitHub link in the Help tab. It covers choice, OX, short, descriptive, calculation, code and reading questions.',
-        '사용법 탭의 GitHub 링크에서 연습 시험지를 다운로드할 수 있습니다. 객관식, OX, 단답형, 서술형, 계산, 코드, 독해 문제를 포함합니다.',
+        'Open Cue Test Lab from the Test shortcut in the Help tab. It covers choice, OX, short, descriptive, calculation, code and reading questions.',
+        '도움말 탭의 테스트 바로가기에서 Cue Test Lab을 열 수 있습니다. 객관식, OX, 단답형, 서술형, 계산, 코드, 독해 문제를 포함합니다.',
       ],
     ],
   },
