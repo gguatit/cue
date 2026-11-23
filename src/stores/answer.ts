@@ -8,6 +8,7 @@ import {
   copyText,
   hideOverlay,
   meetingActive,
+  publishCueAir,
   showOverlay,
   type CaptureResult,
   type HighlightBox,
@@ -292,6 +293,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       hideForMeeting()
       return
     }
+    void publishCueAir(joined).catch(() => {})
     if (d.tray) {
       try {
         await setTrayAnswer(first)

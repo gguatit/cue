@@ -78,6 +78,17 @@ export const onGestureTest = (handler: (event: GestureTestEvent) => void) =>
 export const setOverlayPrewarm = (enabled: boolean) =>
   invoke<void>('set_overlay_prewarm', { enabled })
 export const setPredictive = (enabled: boolean) => invoke<void>('set_predictive', { enabled })
+export interface CueAirInfo {
+  enabled: boolean
+  url: string
+  qrSvg: string
+  lan: boolean
+  error: string
+}
+export const setCueAir = (enabled: boolean) =>
+  invoke<CueAirInfo>('set_cue_air', { enabled })
+export const cueAirStatus = () => invoke<CueAirInfo>('cue_air_status')
+export const publishCueAir = (answer: string) => invoke<void>('publish_cue_air', { answer })
 export const setPanicShortcut = (accelerator: string) =>
   invoke<void>('set_panic_shortcut', { accelerator })
 export const setShortcutRecording = (recording: boolean) => invoke<void>('set_shortcut_recording', { recording })

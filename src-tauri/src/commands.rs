@@ -24,6 +24,7 @@ pub struct AppState {
     pub content_protection: AtomicBool,
     pub overlay_state: Mutex<OverlayDelivery>,
     pub tray_visible: AtomicBool,
+    pub cue_air: Mutex<Option<crate::air::AirServer>>,
 }
 
 #[derive(Default)]
@@ -50,6 +51,7 @@ impl Default for AppState {
             content_protection: AtomicBool::new(true),
             overlay_state: Mutex::new(OverlayDelivery::default()),
             tray_visible: AtomicBool::new(true),
+            cue_air: Mutex::new(None),
         }
     }
 }
@@ -813,6 +815,14 @@ fn start_hide_timer(app: tauri::AppHandle, duration_ms: u64, gen: u64) {
     });
 }
 
+fn publish_air(state: &AppState, answer: &str) {
+    if let Ok(air) = state.cue_air.lock() {
+        if let Some(server) = air.as_ref() {
+            server.publish(answer);
+        }
+    }
+}
+
 fn hide_overlay_now(app: &tauri::AppHandle, state: &AppState) {
     use tauri::Manager;
     OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -911,6 +921,7 @@ pub async fn show_overlay(
         })
     };
     deliver_overlay(&app, state.inner(), payload)?;
+    publish_air(state.inner(), &answer);
     start_hide_timer(app.clone(), duration_ms, gen);
     Ok(())
 }
@@ -1023,6 +1034,9 @@ fn emit_overlay_stream(
         "final": final_chunk,
         "id": id,
     });
+    if !text.is_empty() {
+        publish_air(state, text);
+    }
     deliver_overlay(app, state, payload)
 }
 
@@ -1267,6 +1281,48 @@ pub fn set_overlay_prewarm(enabled: bool) -> Result<(), String> {
 #[tauri::command]
 pub fn set_predictive(enabled: bool) -> Result<(), String> {
     crate::shortcut::set_predictive(enabled)
+}
+
+#[tauri::command]
+pub fn set_cue_air(
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> Result<crate::air::CueAirInfo, String> {
+    let mut air = state.cue_air.lock().map_err(|_| "air".to_string())?;
+    if enabled {
+        if air.is_none() {
+            *air = Some(crate::air::AirServer::start()?);
+        }
+        Ok(air.as_ref().expect("air server").info())
+    } else {
+        if let Some(mut server) = air.take() {
+            server.stop();
+        }
+        Ok(crate::air::CueAirInfo::default())
+    }
+}
+
+#[tauri::command]
+pub fn cue_air_status(
+    state: State<'_, AppState>,
+) -> Result<crate::air::CueAirInfo, String> {
+    let air = state.cue_air.lock().map_err(|_| "air".to_string())?;
+    Ok(air
+        .as_ref()
+        .map(crate::air::AirServer::info)
+        .unwrap_or_default())
+}
+
+#[tauri::command]
+pub fn publish_cue_air(
+    state: State<'_, AppState>,
+    answer: String,
+) -> Result<(), String> {
+    let air = state.cue_air.lock().map_err(|_| "air".to_string())?;
+    if let Some(server) = air.as_ref() {
+        server.publish(&answer);
+    }
+    Ok(())
 }
 
 #[tauri::command]

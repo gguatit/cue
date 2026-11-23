@@ -74,7 +74,7 @@ export default function AboutTab() {
       <Group className="space-y-2 p-4">
         <p className="font-medium text-ink">Cue v{__APP_VERSION__}</p>
         <p className="text-ink-2">
-          {t('Made by kalpha (Choi Jaeyoung)', '만든 사람: kalpha (최재영)')}
+          {t('Made by kalpha', '만든 사람: kalpha')}
         </p>
         <p className="text-ink-3">MIT License</p>
         <Button

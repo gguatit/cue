@@ -103,6 +103,7 @@ export interface Settings {
     enabled: boolean
     predictive: boolean
     highlight: boolean
+    cueAir: boolean
     showWarnings: boolean
   }
   onboarded: boolean
@@ -194,6 +195,7 @@ export const defaults: Settings = {
     enabled: false,
     predictive: false,
     highlight: false,
+    cueAir: false,
     showWarnings: true,
   },
   onboarded: false,
@@ -334,6 +336,7 @@ export function mergeSettings(persisted: unknown): Settings {
       enabled: bool(p.experimental?.enabled, defaults.experimental.enabled),
       predictive: bool(p.experimental?.predictive, defaults.experimental.predictive),
       highlight: bool(p.experimental?.highlight, defaults.experimental.highlight),
+      cueAir: bool(p.experimental?.cueAir, defaults.experimental.cueAir),
       showWarnings: bool(p.experimental?.showWarnings, defaults.experimental.showWarnings),
     },
     onboarded: bool(p.onboarded, defaults.onboarded),
@@ -442,7 +445,7 @@ export const useSettings = create<Settings & Actions>()(
     }),
     {
       name: 'cue-settings',
-      version: 27,
+      version: 28,
       migrate: (persisted) => mergeSettings(persisted),
       merge: mergePersisted,
     },

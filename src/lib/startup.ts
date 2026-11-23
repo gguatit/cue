@@ -3,6 +3,7 @@ import {
   isTauri,
   listenEvent,
   setContentProtection,
+  setCueAir,
   setFreeShortcut,
   setGuard,
   setHideFromTaskbar,
@@ -98,6 +99,9 @@ export async function runStartup(): Promise<void> {
   await setPredictive(s.experimental.enabled && s.experimental.predictive).catch(() =>
     useAnswer.getState().logError('gesture'),
   )
+  await setCueAir(s.experimental.enabled && s.experimental.cueAir).catch(() =>
+    useAnswer.getState().logError('air'),
+  )
   await setOverlayPrewarm(wantsOverlayPrewarm(s)).catch(() =>
     useAnswer.getState().logError('shortcut'),
   )
@@ -118,4 +122,7 @@ useSettings.subscribe((state, prev) => {
   const predictive = state.experimental.enabled && state.experimental.predictive
   const prevPredictive = prev.experimental.enabled && prev.experimental.predictive
   if (predictive !== prevPredictive) void setPredictive(predictive).catch(() => {})
+  const cueAir = state.experimental.enabled && state.experimental.cueAir
+  const prevCueAir = prev.experimental.enabled && prev.experimental.cueAir
+  if (cueAir !== prevCueAir) void setCueAir(cueAir).catch(() => {})
 })

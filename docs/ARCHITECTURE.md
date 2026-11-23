@@ -2,7 +2,7 @@
 
 이 문서는 Cue가 **어떻게 동작하는지**를 코드 기준으로 정리한 내부 문서입니다. 사용법은 [README](../README.md), AI 요청·프롬프트 계약은 [AI_HARNESS.md](AI_HARNESS.md), 제품 결정은 [IDEAS.md](IDEAS.md)를 참고하세요.
 
-- 현재 버전: **0.7.3**
+- 현재 버전: **0.8.0**
 - 플랫폼: Windows 10/11 x64
 - 스택: Tauri 2, React 19, Vite, Tailwind CSS 4, Rust
 
@@ -176,6 +176,14 @@ AnswerPayload
 - `overlay_ready` 전에는 첫 payload를 표시하지 않습니다.
 - 실험실의 하이라이트는 모델이 반환한 정답 선택지 위에 박스만 그립니다. 화면 전체 딤과 정답·검증 텍스트는 표시하지 않으며, 전체 화면 오버레이에서도 fail-closed와 클릭 통과를 유지합니다.
 
+### Cue Air (실험실)
+
+- 실험실에서 `휴대폰에 답변 표시`를 켜면 PC가 로컬 HTTP 서버를 연다.
+- 같은 Wi-Fi의 휴대폰이 QR의 URL과 일회성 토큰으로 접속한다.
+- 서버는 최신 답변 하나만 보관하고, 답변이 갱신될 때마다 휴대폰이 폴링한다.
+- 기능을 끄거나 앱을 종료하면 서버와 세션을 즉시 닫는다. 계정·클라우드·답변 기록은 없다.
+- 로컬 HTTP는 암호화되지 않으므로 같은 네트워크에서 토큰을 아는 사람은 답변을 볼 수 있다. 기본 OFF와 경고를 유지한다.
+
 ### 회의 안전 모드
 
 `meeting.rs`가 프로세스·창 제목 신호를 수집하고, 설정(`stealth.meetingPolicy`)에 따라 회의 여부를 판단합니다.
@@ -257,7 +265,7 @@ AnswerPayload
 `src/stores/settings.ts`는 zustand persist를 사용합니다.
 
 - 저장 키: `cue-settings`
-- 현재 버전: **27**
+- 현재 버전: **28**
 - `defaults` + `mergeSettings` + `version`을 함께 올려 마이그레이션합니다.
 
 주요 설정:
@@ -267,7 +275,7 @@ AnswerPayload
 - `provider`: preset, model, baseUrl, consensus, verifyModel, fallbackModel, streaming
 - `answer`: language, level, displayTime, showUsage
 - `display`: textPosition, output methods
-- `experimental`: enabled, predictive, highlight, showWarnings
+- `experimental`: enabled, predictive, highlight, cueAir, showWarnings
 - `stealth`: meetingPolicy, hideOnBlur
 - `appearance`: theme, accent
 - `shortcut`, `panic`, `onboarded`
@@ -334,6 +342,7 @@ AnswerPayload
 | `src-tauri/src/updates.rs` | 업데이트 확인·다운로드·서명 설치 |
 | `src-tauri/src/models.rs` | 모델 목록 |
 | `src-tauri/src/secrets.rs` | 자격증명 관리자 |
+| `src-tauri/src/air.rs` | Cue Air 로컬 서버·QR·최신 답변 |
 | `src/App.tsx` | main/overlay 분기 |
 | `src/lib/tauri.ts` | invoke 래퍼 |
 | `src/views/settings/*` | 설정 UI |

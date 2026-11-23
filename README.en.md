@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.7.3** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **0.8.0** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -138,6 +138,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full structure and [doc
 - **Pre-capture while resting**: after about 0.4 seconds of rest, captures the raw screen locally. Nothing is sent to AI until you trigger an answer.
 - **Answer highlight**: draws only a box when the model returns optional coordinates for the correct option. It does not dim the screen or show answer text, and no box is drawn when coordinates are missing.
 - **Preview**: use **Preview highlight** to check the layout without an AI request.
+- **Cue Air**: starts a temporary local server and QR code. Opening the QR on a phone on the same Wi-Fi shows only the latest answer. No account, cloud, or history; stopping the feature or quitting the app stops the server. Local HTTP is not encrypted, so do not share the QR.
 - Experimental features either graduate to a normal tab after real-use validation or are removed. **Cursor-anchored answers** moved to **Mode → Descriptive answer position → Next to cursor** in 0.6.0.
 
 ### Updates and UI

@@ -10,6 +10,7 @@ vi.mock('../lib/tauri', () => ({
   meetingActive: vi.fn().mockResolvedValue(false),
   cancelAnswer: vi.fn().mockResolvedValue(undefined),
   clearClipboard: vi.fn().mockResolvedValue(undefined),
+  publishCueAir: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('../lib/trayDisplay', () => ({
   setTrayIdle: vi.fn().mockResolvedValue(undefined),

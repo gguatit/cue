@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod ai;
+mod air;
 mod appearance;
 mod brightness;
 mod capture;
@@ -173,6 +174,9 @@ fn main() {
             commands::set_free_shortcut,
             commands::set_overlay_prewarm,
             commands::set_predictive,
+            commands::set_cue_air,
+            commands::cue_air_status,
+            commands::publish_cue_air,
             commands::set_mouse_trigger,
             commands::set_gesture_test,
             commands::set_panic_shortcut,

@@ -416,6 +416,7 @@ describe('mouse trigger settings', () => {
       enabled: false,
       predictive: false,
       highlight: false,
+      cueAir: false,
       showWarnings: true,
     })
     const merged = mergeSettings({
@@ -423,6 +424,7 @@ describe('mouse trigger settings', () => {
         enabled: true,
         predictive: true,
         highlight: true,
+        cueAir: true,
         showWarnings: false,
       },
     })
@@ -430,10 +432,11 @@ describe('mouse trigger settings', () => {
       enabled: true,
       predictive: true,
       highlight: true,
+      cueAir: true,
       showWarnings: false,
     })
     const invalid = mergeSettings({
-      experimental: { enabled: 1, predictive: 'yes', showWarnings: null },
+      experimental: { enabled: 1, predictive: 'yes', cueAir: 'yes', showWarnings: null },
     })
     expect(invalid.experimental).toEqual(defaults.experimental)
   })

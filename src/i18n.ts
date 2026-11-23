@@ -38,6 +38,7 @@ export const ERRORS: Record<string, [string, string]> = {
   gesture: ['Could not register the mouse trigger', '마우스 트리거를 등록할 수 없습니다'],
   tray: ['Could not update the tray icon', '트레이 아이콘을 갱신할 수 없습니다'],
   link: ['This link is not permitted', '허용되지 않은 링크입니다'],
+  air: ['Could not start Cue Air', 'Cue Air를 시작할 수 없습니다'],
   autostart: ['Could not change the autostart setting', '자동 실행 설정을 변경할 수 없습니다'],
   guard: ['Could not change the survival guard', '생존 보호를 변경할 수 없습니다'],
   stealth: ['Could not apply the security setting', '보안 설정을 적용할 수 없습니다'],
