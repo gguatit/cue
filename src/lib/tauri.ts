@@ -88,6 +88,7 @@ export interface CueAirInfo {
 export const setCueAir = (enabled: boolean) =>
   invoke<CueAirInfo>('set_cue_air', { enabled })
 export const cueAirStatus = () => invoke<CueAirInfo>('cue_air_status')
+export const regenerateCueAir = () => invoke<CueAirInfo>('regenerate_cue_air')
 export const publishCueAir = (answer: string) => invoke<void>('publish_cue_air', { answer })
 export const setPanicShortcut = (accelerator: string) =>
   invoke<void>('set_panic_shortcut', { accelerator })

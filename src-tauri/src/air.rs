@@ -194,6 +194,29 @@ mod tests {
     }
 
     #[test]
+    fn a_new_server_rotates_the_token() {
+        let first = AirServer::start().unwrap();
+        let first_token = query_param(&first.info().url, "token").unwrap();
+        drop(first);
+        let second = AirServer::start().unwrap();
+        let second_info = second.info();
+        let second_token = query_param(&second_info.url, "token").unwrap();
+        assert_ne!(first_token, second_token);
+        let port = second_info
+            .url
+            .split(':')
+            .nth(2)
+            .unwrap()
+            .split('/')
+            .next()
+            .unwrap()
+            .parse::<u16>()
+            .unwrap();
+        assert!(get(port, &format!("/api/latest?token={first_token}")).starts_with("HTTP/1.1 403"));
+        assert!(get(port, &format!("/api/latest?token={second_token}")).starts_with("HTTP/1.1 200"));
+    }
+
+    #[test]
     fn serves_only_the_latest_answer_with_the_token() {
         let server = AirServer::start().unwrap();
         let info = server.info();

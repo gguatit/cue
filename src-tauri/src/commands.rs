@@ -289,6 +289,7 @@ async fn streamed_text(
     let mut stream_id: Option<u64> = None;
     let mut start_failed = false;
     let mut last_emit = std::time::Instant::now();
+    let mut last_air = std::time::Instant::now();
     let mut sink = |text: &str| {
         if text.is_empty() {
             return;
@@ -302,6 +303,8 @@ async fn streamed_text(
                     Ok(id) => {
                         stream_id = Some(id);
                         last_emit = std::time::Instant::now();
+                        publish_air(state, text);
+                        last_air = std::time::Instant::now();
                     }
                     Err(_) => start_failed = true,
                 }
@@ -310,6 +313,10 @@ async fn streamed_text(
                 if last_emit.elapsed() >= std::time::Duration::from_millis(80) {
                     let _ = emit_overlay_stream(app, state, text, id, false, text_position);
                     last_emit = std::time::Instant::now();
+                }
+                if last_air.elapsed() >= std::time::Duration::from_millis(250) {
+                    publish_air(state, text);
+                    last_air = std::time::Instant::now();
                 }
             }
         }
@@ -344,6 +351,7 @@ async fn streamed_text(
         Ok(result) => {
             if let Some(id) = stream_id {
                 let _ = emit_overlay_stream(app, state, &result.text, id, true, text_position);
+                publish_air(state, &result.text);
                 Ok((result.text, result.usage, true))
             } else {
                 Ok((result.text, result.usage, false))
@@ -921,7 +929,6 @@ pub async fn show_overlay(
         })
     };
     deliver_overlay(&app, state.inner(), payload)?;
-    publish_air(state.inner(), &answer);
     start_hide_timer(app.clone(), duration_ms, gen);
     Ok(())
 }
@@ -1034,9 +1041,6 @@ fn emit_overlay_stream(
         "final": final_chunk,
         "id": id,
     });
-    if !text.is_empty() {
-        publish_air(state, text);
-    }
     deliver_overlay(app, state, payload)
 }
 
@@ -1311,6 +1315,20 @@ pub fn cue_air_status(
         .as_ref()
         .map(crate::air::AirServer::info)
         .unwrap_or_default())
+}
+
+#[tauri::command]
+pub fn regenerate_cue_air(
+    state: State<'_, AppState>,
+) -> Result<crate::air::CueAirInfo, String> {
+    let mut air = state.cue_air.lock().map_err(|_| "air".to_string())?;
+    if let Some(mut server) = air.take() {
+        server.stop();
+    }
+    let server = crate::air::AirServer::start()?;
+    let info = server.info();
+    *air = Some(server);
+    Ok(info)
 }
 
 #[tauri::command]

@@ -176,6 +176,7 @@ fn main() {
             commands::set_predictive,
             commands::set_cue_air,
             commands::cue_air_status,
+            commands::regenerate_cue_air,
             commands::publish_cue_air,
             commands::set_mouse_trigger,
             commands::set_gesture_test,

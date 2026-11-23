@@ -72,7 +72,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 새 사용자 문자열/오류: `t()` en/ko + `ERRORS` 쌍.
 - 새 설정: `defaults`/`mergeSettings`/`version`/`settings.test.ts`.
 - 실험 기능 변경: `settings.ts`의 `experimental`, `ExperimentalTab.tsx`의 경고·마스터·하이라이트 미리보기, `answer.ts`의 highlight/predictive, `windows.rs`의 cursor/auto-fit, `commands.rs`의 overlay payload·pre-capture, `shortcut.rs`의 predictive, `ai.rs`의 optional highlight box를 함께 확인한다. 실험 기능은 기본 OFF와 실험실 경고를 유지한다. 커서 밀착 답변은 표시 탭의 `display.textPosition='cursor'`로 정식 제공한다.
-- Cue Air 변경: `air.rs`·`air_page.html`, `commands.rs`의 `cue_air`/`publish_air`, `answer.ts`의 publish, `ExperimentalTab.tsx` QR/토글, `startup.ts` 동기화를 함께 확인한다. 서버는 기능을 켤 때만 열고, 최신 답변만 제공하며, 끄거나 종료하면 즉시 닫는다.
+- Cue Air 변경: `air.rs`·`air_page.html`, `commands.rs`의 `cue_air`/`publish_air`/`regenerate_cue_air`, `answer.ts`의 publish, `ExperimentalTab.tsx` QR/재생성/토글, `startup.ts` 동기화를 함께 확인한다. 서버는 기능을 켤 때만 열고, 최신 답변만 제공하며, 끄거나 종료하면 즉시 닫는다. 재생성은 기존 서버를 닫고 새 토큰·포트로 열어야 한다.
 - 새 오류: `ERRORS` en/ko. 업데이트 오류는 `update_check`, `update_install`, `update_signature`, `update_unavailable`, `update_busy`, `update_disk`.
 - 창/오버레이 변경: `windows.rs`와 `App.tsx` label 분기, DPI·음수 좌표 테스트 확인.
 - 업데이트 변경: `updates.rs` + `commands.rs` + `main.rs` 등록 + `src/lib/tauri.ts` 래퍼 + `src/stores/updates.ts`. `npm run check`, `npm test`, `cargo test` 후 서명 빌드로 `.sig`/`latest.json` 확인.
@@ -93,7 +93,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.8.0**.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.8.1**.
 - 릴리스는 GitHub Actions 없이 수동으로 진행한다.
   1. `npm run check`, `npm test`, Rust 변경 시 `cargo test`.
   2. 서명 키 환경 변수를 설정하고 `npm run tauri build`.
@@ -105,7 +105,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 첫 업데이터 릴리스(0.1.2)는 0.1.0/0.1.1 사용자가 한 번 직접 설치해야 한다. 이후 버전은 설정 → 정보에서 자동으로 확인·설치할 수 있다.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.8.0 코드 검증: `npm run check`, `npm test`(229), `cargo test`(180). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
+- 0.8.1 코드 검증: `npm run check`, `npm test`(229), `cargo test`(181). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
 - 보호 탭 자동 갱신은 `src/lib/securityAutoRefresh.ts`에서 5분 캐시한다. 새로고침 버튼과 보호 복구는 강제 갱신을 사용한다.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
 - README의 시험 규정·제재 경고는 의도된 내용이므로 삭제하거나 약화하지 말 것.

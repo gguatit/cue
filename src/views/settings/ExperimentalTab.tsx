@@ -8,6 +8,7 @@ import { errorMessage, useT } from '../../i18n'
 import {
   cueAirStatus,
   isTauri,
+  regenerateCueAir,
   setCueAir,
   showOverlay,
   type CueAirInfo,
@@ -23,6 +24,7 @@ export default function ExperimentalTab() {
   const [air, setAir] = useState<CueAirInfo | null>(null)
   const [airBusy, setAirBusy] = useState(false)
   const [airError, setAirError] = useState('')
+  const [airNotice, setAirNotice] = useState('')
 
   useEffect(() => {
     if (!isTauri() || !experimental.enabled || !experimental.cueAir) {
@@ -73,6 +75,25 @@ export default function ExperimentalTab() {
     } catch (error) {
       setExperimental({ cueAir: false })
       setAir(null)
+      setAirError(errorMessage(String(error)))
+    } finally {
+      setAirBusy(false)
+    }
+  }
+
+  const regenerateAir = async () => {
+    if (!isTauri()) {
+      setNotice(t('Run Cue Air inside the Cue app.', 'Cue 앱에서 Cue Air를 실행하세요.'))
+      return
+    }
+    setAirBusy(true)
+    setAirError('')
+    setAirNotice('')
+    try {
+      const info = await regenerateCueAir()
+      setAir(info.enabled ? info : null)
+      setAirNotice(t('New QR code. Scan it again on your phone.', '새 QR 코드를 휴대폰으로 다시 스캔하세요.'))
+    } catch (error) {
       setAirError(errorMessage(String(error)))
     } finally {
       setAirBusy(false)
@@ -215,6 +236,20 @@ export default function ExperimentalTab() {
                         'LAN 주소를 찾지 못했습니다. PC와 휴대폰을 같은 Wi-Fi에 연결하세요.',
                       )}
                 </p>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Button
+                    variant="secondary"
+                    disabled={airBusy}
+                    onClick={() => void regenerateAir()}
+                  >
+                    {airBusy
+                      ? t('Restarting…', '재생성 중…')
+                      : t('Regenerate server', '서버 재생성')}
+                  </Button>
+                  <Presence show={Boolean(airNotice)} className="text-[10.5px] text-ink-3">
+                    {airNotice}
+                  </Presence>
+                </div>
               </div>
             </div>
           )}

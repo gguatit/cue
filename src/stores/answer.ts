@@ -383,6 +383,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       hideForMeeting()
       return
     }
+    void publishCueAir(text).catch(() => {})
     const display = useSettings.getState().display
     await showOverlay(text, 'text', display.textMs, undefined, display.textPosition)
     if (seq !== my) return
