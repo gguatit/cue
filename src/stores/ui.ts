@@ -6,6 +6,6 @@ interface UiState {
 }
 
 export const useUi = create<UiState>((set) => ({
-  tab: 'general',
+  tab: 'input',
   setTab: (tab) => set({ tab }),
 }))

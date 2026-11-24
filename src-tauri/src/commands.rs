@@ -31,6 +31,7 @@ pub struct AppState {
 pub struct OverlayDelivery {
     ready: bool,
     pending: Option<serde_json::Value>,
+    pending_hide: Option<(u64, u64)>,
 }
 
 impl Default for AppState {
@@ -787,7 +788,8 @@ fn deliver_overlay(
     app: &tauri::AppHandle,
     state: &AppState,
     payload: serde_json::Value,
-) -> Result<(), String> {
+    pending_hide: Option<(u64, u64)>,
+) -> Result<bool, String> {
     use tauri::Emitter;
     let deliver_now = {
         let mut delivery = state.overlay_state.lock().map_err(|_| "capture")?;
@@ -795,13 +797,16 @@ fn deliver_overlay(
             true
         } else {
             delivery.pending = Some(payload.clone());
+            if pending_hide.is_some() {
+                delivery.pending_hide = pending_hide;
+            }
             false
         }
     };
     if deliver_now {
         let _ = app.emit_to("overlay", "overlay-show", payload);
     }
-    Ok(())
+    Ok(deliver_now)
 }
 
 fn start_hide_timer(app: tauri::AppHandle, duration_ms: u64, gen: u64) {
@@ -820,6 +825,7 @@ fn hide_overlay_now(app: &tauri::AppHandle, state: &AppState) {
     OVERLAY_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     if let Ok(mut delivery) = state.overlay_state.lock() {
         delivery.pending = None;
+        delivery.pending_hide = None;
     }
     if let Some(w) = app.get_webview_window("overlay") {
         let _ = w.hide();
@@ -912,8 +918,15 @@ pub async fn show_overlay(
             "highlight": highlight,
         })
     };
-    deliver_overlay(&app, state.inner(), payload)?;
-    start_hide_timer(app.clone(), duration_ms, gen);
+    let delivered = deliver_overlay(
+        &app,
+        state.inner(),
+        payload,
+        Some((duration_ms, gen)),
+    )?;
+    if delivered {
+        start_hide_timer(app.clone(), duration_ms, gen);
+    }
     Ok(())
 }
 
@@ -970,7 +983,7 @@ fn show_overlay_stream_start(
         "final": false,
         "id": id,
     });
-    deliver_overlay(app, state, payload)?;
+    deliver_overlay(app, state, payload, None)?;
     Ok(id)
 }
 
@@ -1025,12 +1038,28 @@ fn emit_overlay_stream(
         "final": final_chunk,
         "id": id,
     });
-    deliver_overlay(app, state, payload)
+    deliver_overlay(app, state, payload, None).map(|_| ())
 }
 
 #[tauri::command]
-pub fn stream_done(app: tauri::AppHandle, id: u64, duration_ms: u64) {
-    if OVERLAY_GEN.load(std::sync::atomic::Ordering::SeqCst) == id {
+pub fn stream_done(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    id: u64,
+    duration_ms: u64,
+) {
+    if OVERLAY_GEN.load(std::sync::atomic::Ordering::SeqCst) != id {
+        return;
+    }
+    let delivered = match state.overlay_state.lock() {
+        Ok(mut delivery) if !delivery.ready => {
+            delivery.pending_hide = Some((duration_ms, id));
+            false
+        }
+        Ok(_) => true,
+        Err(_) => false,
+    };
+    if delivered {
         start_hide_timer(app, duration_ms, id);
     }
 }
@@ -1041,13 +1070,16 @@ pub fn overlay_ready(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     use tauri::Emitter;
-    let pending = {
+    let (pending, pending_hide) = {
         let mut delivery = state.overlay_state.lock().map_err(|_| "capture")?;
         delivery.ready = true;
-        delivery.pending.take()
+        (delivery.pending.take(), delivery.pending_hide.take())
     };
     if let Some(payload) = pending {
         let _ = app.emit_to("overlay", "overlay-show", payload);
+    }
+    if let Some((duration_ms, gen)) = pending_hide {
+        start_hide_timer(app, duration_ms, gen);
     }
     Ok(())
 }

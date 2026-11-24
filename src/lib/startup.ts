@@ -53,7 +53,7 @@ export async function runStartup(): Promise<void> {
       useAnswer.getState().clearTray()
     }).catch(() => {}),
     listenEvent('open-help', () => {
-      useUi.getState().setTab('help')
+      useUi.getState().setTab('info')
     }).catch(() => {}),
     listenEvent('main-shown', () => {
       useAnswer.setState({ panicHidden: false })

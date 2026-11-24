@@ -8,12 +8,25 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+if (-not $Version.Trim()) {
+  throw 'The version is empty.'
+}
+if (-not (Test-Path -LiteralPath $Setup)) {
+  throw "The setup file does not exist: $Setup"
+}
+if (-not (Test-Path -LiteralPath $Signature)) {
+  throw "The signature file does not exist: $Signature"
+}
+
 $signatureText = (Get-Content -Raw -LiteralPath $Signature).Trim()
 if (-not $signatureText) {
   throw 'The updater signature is empty.'
 }
 
 $setupName = Split-Path -Leaf $Setup
+if ($setupName -notmatch [regex]::Escape($Version)) {
+  throw "The setup file name does not contain version $Version."
+}
 $manifest = [ordered]@{
   version = $Version
   pub_date = (Get-Date).ToUniversalTime().ToString('o')

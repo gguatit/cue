@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.8.2** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **0.8.3** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -350,7 +350,7 @@ Never put the signing key or password in the repository, logs, or settings expor
 
 - Update endpoint: `https://github.com/gguatit/cue/releases/latest/download/latest.json` (fixed HTTPS).
 - `latest.json` must be UTF-8 without BOM.
-- The installer is perMachine NSIS with the WebView2 offline runtime (about 221 MB).
+- The installer is perMachine NSIS with the WebView2 offline runtime (about 302 MB).
 - Updates run NSIS `/P /UPDATE /R` only after user confirmation.
 - Draft/prerelease versions are not exposed by `/releases/latest`.
 - Update checks and downloads use `Cache-Control` / `Pragma: no-cache`.

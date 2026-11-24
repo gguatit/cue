@@ -609,7 +609,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
           const text = result.text
           const usage = keepUsage(result.usage)
           recordRequest('text', { fallback: result.fallback, usage })
-          if (useSettings.getState().storage.history) {
+          if (!sample && useSettings.getState().storage.history) {
             set((s) => ({
               history: historyAfterAdd(s.history, {
                 ts: Date.now(),
@@ -626,7 +626,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
           const verification = result.verification
           const usage = keepUsage(result.usage)
           recordRequest('choice', { fallback: result.fallback, verification, usage })
-          if (useSettings.getState().storage.history) {
+          if (!sample && useSettings.getState().storage.history) {
             set((s) => ({
               history: historyAfterAdd(s.history, {
                 ts: Date.now(),

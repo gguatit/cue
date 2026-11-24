@@ -337,7 +337,7 @@ export default function AiTab() {
           setExtraError(t('Invalid JSON', '올바른 JSON이 아닙니다'))
           return
         }
-        const reserved = ['temperature', 'model', 'messages', 'input', 'contents', 'stream']
+        const reserved = ['temperature', 'model', 'messages', 'input', 'contents', 'stream', 'stream_options']
         if (Object.keys(parsed).some((key) => reserved.includes(key))) {
           setExtraError(
             t(

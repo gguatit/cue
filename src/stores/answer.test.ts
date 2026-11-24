@@ -73,6 +73,7 @@ describe('answer store', () => {
     await vi.advanceTimersByTimeAsync(4000)
     await p
     expect(useAnswer.getState().mode).toEqual({ kind: 'answer', answers: ['B'] })
+    expect(useAnswer.getState().history).toEqual([])
     expect(setTrayAnswer).toHaveBeenCalledWith('B')
     await vi.advanceTimersByTimeAsync(8000)
     expect(useAnswer.getState().mode.kind).toBe('idle')

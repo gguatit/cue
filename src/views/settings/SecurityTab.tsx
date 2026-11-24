@@ -141,7 +141,7 @@ export default function SecurityTab() {
   useEffect(() => {
     void refreshGuard()
     void refreshMeetingSignals()
-    void autoRefreshSecurity(refreshProtection, refreshDefender)
+    void autoRefreshSecurity(refreshProtection, refreshDefender, true)
   }, [])
 
   useEffect(() => {

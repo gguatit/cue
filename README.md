@@ -4,7 +4,7 @@
 
 [English](README.en.md) · [아키텍처](docs/ARCHITECTURE.md) · [AI 하네스](docs/AI_HARNESS.md) · [아이디어와 결정](docs/IDEAS.md) · [변경 기록](docs/CHANGELOG.md)
 
-현재 버전 **0.8.2** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+현재 버전 **0.8.3** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 만든 사람: **kalpha (최재영)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -350,7 +350,7 @@ npm run tauri build
 
 - 업데이트 엔드포인트: `https://github.com/gguatit/cue/releases/latest/download/latest.json` (고정 HTTPS).
 - `latest.json`은 UTF-8 BOM 없이 생성해야 합니다.
-- 설치 파일은 perMachine NSIS이며 WebView2 오프라인 런타임을 포함합니다(약 221MB).
+- 설치 파일은 perMachine NSIS이며 WebView2 오프라인 런타임을 포함합니다(약 302MB).
 - 업데이트는 사용자가 확인한 뒤 NSIS `/P /UPDATE /R`로 실행합니다.
 - draft/prerelease는 `/releases/latest`에 노출되지 않습니다.
 - 업데이트 확인·다운로드 요청에는 `Cache-Control`/`Pragma: no-cache`를 사용합니다.
