@@ -1,6 +1,6 @@
 [package]
 name = "cue"
-version = "0.8.1"
+version = "0.8.2"
 authors = ["kalpha"]
 edition = "2021"
 
@@ -25,7 +25,7 @@ rand = "0.9"
 tiny_http = "0.12"
 keyring = { version = "3", features = ["windows-native"] }
 winreg = "0.56"
-tokio = { version = "1", features = ["sync", "macros", "rt"] }
+tokio = { version = "1", features = ["sync", "macros", "rt", "time"] }
 windows = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Devices_Display",

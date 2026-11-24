@@ -21,7 +21,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 | `npm run build` | check + vite build | 프론트 배포 빌드 |
 | `cargo check --manifest-path src-tauri/Cargo.toml` | 빠른 Rust 컴파일 확인 | Windows |
 | `cargo test --manifest-path src-tauri/Cargo.toml` | Rust 테스트 | Windows |
-| `npm run tauri build` | release + NSIS | 서명 키가 있으면 `.sig` 생성. `latest.json`은 릴리스 시 직접 생성·업로드. `src-tauri/target/release/bundle/nsis/` |
+| `npm run tauri build` | release + NSIS | **서명 키 필수**. 키가 없으면 릴리스용 `.sig`를 만들 수 없다. `latest.json`은 릴리스 시 직접 생성·업로드. `src-tauri/target/release/bundle/nsis/` |
 | `npm run icon` | 아이콘 재생성 | 아이콘 변경 시만 |
 
 - 검증 순서: `npm run check` → `npm test` → (Rust 변경 시) `cargo test` → 릴리스는 `npm run tauri build`.
@@ -93,7 +93,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 ## 릴리스·검증
 
 - **설치·제거는 사용자가 직접 한다.** 빌드한 설치 파일 경로만 알려주고, 에이전트가 실행해서 설치/업그레이드/삭제하지 않는다. `uninstall.exe`, `Cue_*_x64-setup.exe`, `taskkill`, `sc`, `schtasks`로 앱 상태를 바꾸지 않는다.
-- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.8.1**.
+- 버전은 `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`(+ lockfile)을 함께 올리고 `docs/CHANGELOG.md`를 갱신한다. 현재 버전: **0.8.2**.
 - 릴리스는 GitHub Actions 없이 수동으로 진행한다.
   1. `npm run check`, `npm test`, Rust 변경 시 `cargo test`.
   2. 서명 키 환경 변수를 설정하고 `npm run tauri build`.
@@ -105,7 +105,7 @@ Windows 10/11 x64 전용 시험 보조 데스크톱 앱. React 19 + Vite + Tailw
 - 첫 업데이터 릴리스(0.1.2)는 0.1.0/0.1.1 사용자가 한 번 직접 설치해야 한다. 이후 버전은 설정 → 정보에서 자동으로 확인·설치할 수 있다.
 - 빌드 산출물은 항상 `artifacts/`에 일반 이름(`Cue_<version>_x64-setup.exe`, `cue.exe`)으로 복사하고 `SHA256.txt`를 갱신한다. 임시 접미사(`-new` 등)를 쓰지 않는다.
 - 새 버전 빌드와 해시 검증이 끝난 뒤에만 이전 버전 installer/exe를 삭제한다. 실패하면 이전 버전을 유지한다.
-- 0.8.1 코드 검증: `npm run check`, `npm test`(229), `cargo test`(181). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
+- 0.8.2 코드 검증: `npm run check`, `npm test`(230), `cargo test`(183). 서명 릴리스 빌드는 키를 설정한 뒤 `npm run tauri build`로 확인한다.
 - 보호 탭 자동 갱신은 `src/lib/securityAutoRefresh.ts`에서 5분 캐시한다. 새로고침 버튼과 보호 복구는 강제 갱신을 사용한다.
 - 빌드 캐시는 삭제하지 않는다: `src-tauri/target/debug`, `src-tauri/target/release/deps`, `build`, `.fingerprint`, `incremental`, `node_modules`, Cargo/npm 캐시.
 - README의 시험 규정·제재 경고는 의도된 내용이므로 삭제하거나 약화하지 말 것.

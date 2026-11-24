@@ -42,6 +42,7 @@ vi.mock('./tauri', () => ({
   copyText: vi.fn(async () => {}),
   cancelAnswer: vi.fn(async () => {}),
   clearClipboard: vi.fn(async () => {}),
+  publishCueAir: vi.fn(async () => {}),
   quitApp: mocks.quitApp,
   meetingActive: vi.fn(async () => false),
 }))

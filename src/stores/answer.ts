@@ -202,6 +202,7 @@ function hideForMeeting(): void {
   useAnswer.setState({ meetingHidden: true })
   void hideOverlay().catch(() => {})
   void setTrayVisible(false).catch(() => {})
+  void publishCueAir('').catch(() => {})
 }
 
 function meetingBlocked(): boolean {
@@ -372,7 +373,9 @@ export const useAnswer = create<AnswerState>()((set, get) => {
     await setTrayIdle().catch(() => {})
     if (hidden || meetingBlocked()) {
       hideForMeeting()
+      return
     }
+    void publishCueAir(text).catch(() => {})
   }
 
   const displayText = async (text: string, my: number, hidden: boolean): Promise<void> => {
@@ -416,6 +419,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       removeStored(ERRORS_KEY)
       void cancelAnswer().catch(() => {})
       void clearClipboard().catch(() => {})
+      void publishCueAir('').catch(() => {})
       void setTrayIdle().catch(() => {})
       void setTrayVisible(false).catch(() => {})
       void hideOverlay().catch(() => {})
@@ -465,6 +469,7 @@ export const useAnswer = create<AnswerState>()((set, get) => {
       if (useSettings.getState().storage.errors) {
         set((s) => ({ log: [{ ts: Date.now(), code }, ...s.log].slice(0, MAX_ERRORS) }))
       }
+      if (get().running || get().mode.kind !== 'idle') return
       if (!useSettings.getState().display.tray) return
       const my = ++traySeq
       try {

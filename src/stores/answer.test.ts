@@ -29,6 +29,7 @@ import {
   copyText,
   hideOverlay,
   meetingActive,
+  publishCueAir,
   showOverlay,
 } from '../lib/tauri'
 import { setTrayAnswer, setTrayError, setTrayIdle, setTrayLoading, setTrayVisible } from '../lib/trayDisplay'
@@ -380,6 +381,7 @@ describe('answer store', () => {
     useSettings.setState({ provider: { ...defaults.provider, answerType: 'text' } })
     await useAnswer.getState().run(false)
     expect(showOverlay).not.toHaveBeenCalled()
+    expect(publishCueAir).toHaveBeenCalledWith('스트리밍 답변')
     expect(useAnswer.getState().mode).toEqual({ kind: 'text', text: '스트리밍 답변' })
     expect(useAnswer.getState().history[0]).toMatchObject({
       answers: [],
@@ -784,6 +786,7 @@ describe('answer store', () => {
       expect(hideOverlay).toHaveBeenCalled()
       expect(cancelAnswer).toHaveBeenCalled()
       expect(clearClipboard).toHaveBeenCalled()
+      expect(publishCueAir).toHaveBeenCalledWith('')
     })
 
     it('panicClear hides the tray icon', () => {
@@ -812,6 +815,15 @@ describe('answer store', () => {
     expect(JSON.parse(localStorage.getItem('cue-errors') ?? '[]')).toEqual([
       expect.objectContaining({ code: 'parse' }),
     ])
+  })
+
+  it('does not replace an active answer with a transient error', async () => {
+    useAnswer.setState({ mode: { kind: 'answer', answers: ['B'] }, running: false })
+    await useAnswer.getState().logError('parse')
+    expect(useAnswer.getState().mode).toEqual({ kind: 'answer', answers: ['B'] })
+    expect(setTrayError).not.toHaveBeenCalled()
+    expect(hideOverlay).not.toHaveBeenCalled()
+    expect(useAnswer.getState().log[0]?.code).toBe('parse')
   })
 
   it('clears the stored key when storage is turned off', () => {

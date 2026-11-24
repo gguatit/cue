@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.8.1** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **0.8.2** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -336,7 +336,7 @@ npm run tauri build
 - `npm run build`: TypeScript check + Vite build.
 - `npm run tauri build`: release build + NSIS installer.
 - Installer: `src-tauri/target/release/bundle/nsis/`.
-- Signed builds need `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+- **Release builds require the signing key.** Without `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, `npm run tauri build` cannot produce the release `.sig`.
 
 ```powershell
 $env:TAURI_SIGNING_PRIVATE_KEY = "$env:USERPROFILE\.tauri\cue\cue.key"

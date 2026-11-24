@@ -1,5 +1,4 @@
 const SERVICE: &str = "cue";
-const LEGACY_USER: &str = "api-key";
 
 pub fn entry_user(preset: &str) -> String {
     format!("api-key:{preset}")
@@ -18,30 +17,8 @@ fn read(user: &str) -> Result<Option<String>, String> {
     }
 }
 
-pub fn can_migrate_legacy(preset: &str) -> bool {
-    crate::ai::preset_base_url(preset).is_some()
-}
-
 pub fn get_key(preset: &str) -> Result<Option<String>, String> {
-    if let Some(key) = read(&entry_user(preset))? {
-        return Ok(Some(key));
-    }
-    let Some(legacy) = read(LEGACY_USER)? else {
-        return Ok(None);
-    };
-    // 커스텀/미지의 프리셋으로 복사하면 그 base URL로 키가 전송될 수 있다.
-    if !can_migrate_legacy(preset) {
-        return Ok(None);
-    }
-    let migrated = entry(&entry_user(preset))
-        .map(|entry| entry.set_password(&legacy).is_ok())
-        .unwrap_or(false);
-    if migrated {
-        if let Ok(entry) = entry(LEGACY_USER) {
-            let _ = entry.delete_credential();
-        }
-    }
-    Ok(Some(legacy))
+    read(&entry_user(preset))
 }
 
 pub fn set_key(preset: &str, key: &str) -> Result<(), String> {
@@ -74,11 +51,4 @@ mod tests {
         assert_ne!(entry_user("google"), entry_user("openai"));
     }
 
-    #[test]
-    fn legacy_migration_is_limited_to_known_presets() {
-        assert!(can_migrate_legacy("opencode"));
-        assert!(can_migrate_legacy("openai"));
-        assert!(!can_migrate_legacy("custom"));
-        assert!(!can_migrate_legacy("unknown"));
-    }
 }

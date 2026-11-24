@@ -4,7 +4,7 @@
 
 [English](README.en.md) · [아키텍처](docs/ARCHITECTURE.md) · [AI 하네스](docs/AI_HARNESS.md) · [아이디어와 결정](docs/IDEAS.md) · [변경 기록](docs/CHANGELOG.md)
 
-현재 버전 **0.8.1** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+현재 버전 **0.8.2** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 만든 사람: **kalpha (최재영)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -336,7 +336,7 @@ npm run tauri build
 - `npm run build`: TypeScript 검사 + Vite 빌드.
 - `npm run tauri build`: release 빌드 + NSIS 설치 파일.
 - 설치 파일: `src-tauri/target/release/bundle/nsis/`.
-- 서명 빌드에는 `TAURI_SIGNING_PRIVATE_KEY`와 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`가 필요합니다.
+- **릴리스 빌드는 서명 키가 필수입니다.** `TAURI_SIGNING_PRIVATE_KEY`와 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` 없이 `npm run tauri build`를 실행하면 릴리스용 `.sig`를 만들 수 없습니다.
 
 ```powershell
 $env:TAURI_SIGNING_PRIVATE_KEY = "$env:USERPROFILE\.tauri\cue\cue.key"

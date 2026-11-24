@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,6 +14,14 @@ static UPDATING: AtomicBool = AtomicBool::new(false);
 
 const UPDATE_TEMP_MIN_AGE: Duration = Duration::from_secs(10 * 60);
 const UPDATE_REQUIRED_BYTES: u64 = 350 * 1024 * 1024;
+const CHECK_TIMEOUT: Duration = Duration::from_secs(30);
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
+async fn bounded<T>(duration: Duration, future: impl Future<Output = T>) -> Result<T, String> {
+    tokio::time::timeout(duration, future)
+        .await
+        .map_err(|_| "timeout".to_string())
+}
 
 #[derive(Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -193,9 +202,8 @@ fn install_error_code(error: &Error) -> &'static str {
 
 pub async fn check(app: &AppHandle) -> Result<Option<UpdateInfo>, String> {
     let updater = build_updater(app)?;
-    let update = updater
-        .check()
-        .await
+    let update = bounded(CHECK_TIMEOUT, updater.check())
+        .await?
         .map_err(|e| error_code(&e).to_string())?;
     Ok(update.map(|update| UpdateInfo {
         version: update.version,
@@ -217,9 +225,8 @@ pub async fn install(app: &AppHandle) -> Result<(), String> {
 async fn install_inner(app: &AppHandle) -> Result<(), String> {
     cleanup_temp_installers();
     let updater = build_updater(app)?;
-    let update = updater
-        .check()
-        .await
+    let update = bounded(CHECK_TIMEOUT, updater.check())
+        .await?
         .map_err(|e| error_code(&e).to_string())?
         .ok_or_else(|| "update_unavailable".to_string())?;
 
@@ -228,16 +235,18 @@ async fn install_inner(app: &AppHandle) -> Result<(), String> {
     }
 
     let mut downloaded = 0u64;
-    let bytes = update
-        .download(
+    let bytes = bounded(
+        DOWNLOAD_TIMEOUT,
+        update.download(
             |chunk, total| {
                 downloaded += chunk as u64;
                 let _ = app.emit("update-progress", UpdateProgress { downloaded, total });
             },
             || {},
-        )
-        .await
-        .map_err(|e| error_code(&e).to_string())?;
+        ),
+    )
+    .await?
+    .map_err(|e| error_code(&e).to_string())?;
 
     // The Windows installer kills and replaces cue.exe. Stop the guard from
     // reviving the old process while the installer is running.
@@ -264,6 +273,12 @@ mod tests {
         assert!(enough_space(None));
         assert!(!enough_space(Some(UPDATE_REQUIRED_BYTES - 1)));
         assert!(enough_space(Some(UPDATE_REQUIRED_BYTES)));
+    }
+
+    #[tokio::test]
+    async fn bounded_update_work_times_out() {
+        let result = bounded(Duration::from_millis(1), std::future::pending::<()>()).await;
+        assert_eq!(result, Err("timeout".to_string()));
     }
 
     #[test]

@@ -100,13 +100,39 @@ pub fn is_meeting_title(title: &str) -> bool {
         .any(|marker| lower.contains(marker))
 }
 
-fn window_scan_cache() -> &'static Mutex<Option<Instant>> {
-    static CACHE: OnceLock<Mutex<Option<Instant>>> = OnceLock::new();
+#[derive(Clone, Copy)]
+struct WindowCache {
+    checked: Instant,
+    active: bool,
+}
+
+fn window_scan_cache() -> &'static Mutex<Option<WindowCache>> {
+    static CACHE: OnceLock<Mutex<Option<WindowCache>>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(None))
 }
 
 fn window_scan_due(last: Option<Instant>, now: Instant) -> bool {
     last.map_or(true, |checked| now.duration_since(checked) >= WINDOW_SCAN_INTERVAL)
+}
+
+fn cached_window_scan(
+    cache: Option<WindowCache>,
+    now: Instant,
+    scan: impl FnOnce() -> bool,
+) -> (WindowCache, bool) {
+    if let Some(cached) = cache {
+        if !window_scan_due(Some(cached.checked), now) {
+            return (cached, cached.active);
+        }
+    }
+    let active = scan();
+    (
+        WindowCache {
+            checked: now,
+            active,
+        },
+        active,
+    )
 }
 
 fn title_of(hwnd: HWND) -> Option<String> {
@@ -143,15 +169,12 @@ fn window_active() -> bool {
         return true;
     }
     let now = Instant::now();
-    let Ok(mut last) = window_scan_cache().lock() else {
+    let Ok(mut cache) = window_scan_cache().lock() else {
         return window_active_full();
     };
-    if !window_scan_due(*last, now) {
-        return false;
-    }
-    *last = Some(now);
-    drop(last);
-    window_active_full()
+    let (next, active) = cached_window_scan(*cache, now, window_active_full);
+    *cache = Some(next);
+    active
 }
 
 pub fn meeting_decision(
@@ -358,5 +381,33 @@ mod tests {
             now
         ));
         assert!(window_scan_due(Some(now - WINDOW_SCAN_INTERVAL), now));
+    }
+
+    #[test]
+    fn window_scan_reuses_the_cached_result_during_throttle() {
+        let now = Instant::now();
+        let cached = WindowCache {
+            checked: now,
+            active: true,
+        };
+        let (next, active) = cached_window_scan(Some(cached), now, || {
+            panic!("cached scan must not run")
+        });
+        assert!(active);
+        assert!(next.active);
+        assert_eq!(next.checked, now);
+    }
+
+    #[test]
+    fn expired_window_scan_runs_and_stores_the_new_result() {
+        let now = Instant::now();
+        let cached = WindowCache {
+            checked: now - WINDOW_SCAN_INTERVAL,
+            active: false,
+        };
+        let (next, active) = cached_window_scan(Some(cached), now, || true);
+        assert!(active);
+        assert!(next.active);
+        assert_eq!(next.checked, now);
     }
 }

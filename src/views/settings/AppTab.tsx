@@ -80,21 +80,35 @@ export default function AppTab() {
       `토큰 입력 ${usage.input ?? '—'} / 출력 ${usage.output ?? '—'} / 합계 ${usage.total ?? '—'}`,
     )
 
-  const applySettings = async (next: ReturnType<typeof mergeSettings>) => {
+  const applySettings = async (next: ReturnType<typeof mergeSettings>): Promise<boolean> => {
+    const failures = new Set<string>()
     const logError = (code: string) => void useAnswer.getState().logError(code)
-    await setShortcut(next.shortcut.accelerator, next.shortcut.click, next.shortcut.button).catch(
-      () => logError('shortcut'),
+    const attempt = async (run: () => Promise<unknown>, code: string) => {
+      try {
+        await run()
+      } catch {
+        failures.add(code)
+      }
+    }
+    await attempt(
+      () => setShortcut(next.shortcut.accelerator, next.shortcut.click, next.shortcut.button),
+      'shortcut',
     )
-    await setFreeShortcut(next.free.enabled, next.free.button).catch(() => logError('shortcut'))
-    await setMouseTrigger(next.mouse).catch(() => logError('gesture'))
+    await attempt(() => setFreeShortcut(next.free.enabled, next.free.button), 'shortcut')
+    await attempt(() => setMouseTrigger(next.mouse), 'gesture')
     await Promise.all([
-      setPanicShortcut(next.panic.accelerator).catch(() => logError('shortcut')),
-      setContentProtection(next.stealth.contentProtection).catch(() => logError('stealth')),
-      setHideFromTaskbar(next.stealth.skipTaskbar).catch(() => logError('stealth')),
-      setGuard(next.stealth.guard).catch(() => logError('guard')),
+      attempt(() => setPanicShortcut(next.panic.accelerator), 'shortcut'),
+      attempt(() => setContentProtection(next.stealth.contentProtection), 'stealth'),
+      attempt(() => setHideFromTaskbar(next.stealth.skipTaskbar), 'stealth'),
+      attempt(() => setGuard(next.stealth.guard), 'guard'),
     ])
+    if (failures.size > 0) {
+      failures.forEach(logError)
+      return false
+    }
     useSettings.setState(next)
     void applyTrayMenuLabels()
+    return true
   }
 
   const exportJson = () => {
@@ -126,8 +140,12 @@ export default function AppTab() {
         setPendingImport(next)
         return
       }
-      await applySettings(next)
-      setBackupMessage(t('Settings imported.', '설정을 가져왔습니다.'))
+      const applied = await applySettings(next)
+      setBackupMessage(
+        applied
+          ? t('Settings imported.', '설정을 가져왔습니다.')
+          : t('Could not apply settings. Check the active shortcuts and protection settings.', '설정을 적용하지 못했습니다. 단축키와 보호 설정을 확인하세요.'),
+      )
     } catch {
       setBackupMessage(t('This file is not a valid Cue settings backup.', '올바른 Cue 설정 백업 파일이 아닙니다.'))
     }
@@ -137,8 +155,12 @@ export default function AppTab() {
     const next = pendingImport
     setPendingImport(null)
     if (!next) return
-    await applySettings(next)
-    setBackupMessage(t('Settings imported.', '설정을 가져왔습니다.'))
+    const applied = await applySettings(next)
+    setBackupMessage(
+      applied
+        ? t('Settings imported.', '설정을 가져왔습니다.')
+        : t('Could not apply settings. Check the active shortcuts and protection settings.', '설정을 적용하지 못했습니다. 단축키와 보호 설정을 확인하세요.'),
+    )
   }
 
   const saveProfile = () => {
@@ -153,8 +175,12 @@ export default function AppTab() {
   }
 
   const applyProfile = async (profile: Profile) => {
-    await applySettings(mergeSettings(profile.settings))
-    setBackupMessage(t('Profile applied.', '프로필을 적용했습니다.'))
+    const applied = await applySettings(mergeSettings(profile.settings))
+    setBackupMessage(
+      applied
+        ? t('Profile applied.', '프로필을 적용했습니다.')
+        : t('Could not apply settings. Check the active shortcuts and protection settings.', '설정을 적용하지 못했습니다. 단축키와 보호 설정을 확인하세요.'),
+    )
   }
 
   const removeProfile = (profile: Profile) => {

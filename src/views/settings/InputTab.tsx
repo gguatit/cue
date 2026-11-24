@@ -62,7 +62,6 @@ export default function InputTab() {
       setShortcutButton(next)
       if (nextFree !== free.button) setFree({ button: nextFree })
     } catch {
-      setFree({ enabled: false })
       void useAnswer.getState().logError('shortcut')
     }
   }
