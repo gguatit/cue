@@ -274,6 +274,10 @@ export const onUpdateProgress = (handler: (progress: UpdateProgress) => void) =>
 
 export interface ProtectionStatus {
   elevated: boolean
+  adminPath: boolean
+  adminCopy: boolean
+  programDirLocked: boolean
+  guardRunning: boolean
   adminTasks: boolean
   guardTasks: boolean
   programMarker: boolean

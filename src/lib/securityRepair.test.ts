@@ -1,9 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
-import { resolveRepairStatus, runProtectionRepair } from './securityRepair'
+import {
+  protectionChecks,
+  protectionVerdict,
+  resolveRepairStatus,
+  runProtectionRepair,
+} from './securityRepair'
 import type { ProtectionStatus } from './tauri'
 
 const status: ProtectionStatus = {
   elevated: false,
+  adminPath: true,
+  adminCopy: true,
+  programDirLocked: true,
+  guardRunning: true,
   adminTasks: true,
   guardTasks: false,
   programMarker: true,
@@ -11,6 +20,52 @@ const status: ProtectionStatus = {
   serviceInstalled: true,
   serviceRunning: true,
 }
+
+describe('protection diagnostics', () => {
+  it('requires elevation before repairing a protected install', () => {
+    expect(protectionVerdict(status)).toBe('elevate')
+    expect(protectionChecks(status).find((check) => check.key === 'adminPath')?.ok).toBe(true)
+  })
+
+  it('reports a normal install with protection disabled as off', () => {
+    const off = {
+      ...status,
+      elevated: false,
+      adminPath: false,
+      adminCopy: false,
+      programDirLocked: false,
+      guardRunning: false,
+      adminTasks: false,
+      guardTasks: false,
+      programMarker: false,
+      adminPrepareFailed: false,
+      serviceInstalled: false,
+      serviceRunning: false,
+    }
+    expect(protectionVerdict(off)).toBe('off')
+  })
+
+  it('reports a missing protected copy as a reinstall problem', () => {
+    expect(
+      protectionVerdict({
+        ...status,
+        adminPath: false,
+        adminCopy: false,
+        adminTasks: true,
+        programMarker: true,
+      }),
+    ).toBe('reinstall')
+  })
+
+  it('reports a complete protected install as ready', () => {
+    const ready = { ...status, elevated: true, adminPrepareFailed: false }
+    expect(protectionVerdict(ready)).toBe('ready')
+  })
+
+  it('asks for repair when a protection component is missing', () => {
+    expect(protectionVerdict({ ...status, elevated: true, serviceRunning: false })).toBe('repair')
+  })
+})
 
 describe('resolveRepairStatus', () => {
   it('loads protection status when it has not been checked', async () => {

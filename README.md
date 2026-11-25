@@ -4,7 +4,7 @@
 
 [English](README.en.md) · [아키텍처](docs/ARCHITECTURE.md) · [AI 하네스](docs/AI_HARNESS.md) · [아이디어와 결정](docs/IDEAS.md) · [변경 기록](docs/CHANGELOG.md)
 
-현재 버전 **0.8.3** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+현재 버전 **0.9.0** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 만든 사람: **kalpha (최재영)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -119,6 +119,7 @@ Cue는 Windows에서 **포인터가 가리키는 문제를 캡처해 비전 지�
 - **회의 안전 모드**: 회의·화면 공유 감지 시 화면 표시를 숨깁니다.
 - **생존 보호**: 선택적 사용자 예약 작업이 Cue가 강제 종료되면 다시 실행합니다(최선의 노력).
 - **최대 보호**: 관리자 권한으로 실행해 일반 작업 관리자의 종료를 거부하고, 최고 권한 로그온 작업과 **CueWatchdog SYSTEM 서비스**를 등록합니다. 서비스는 Cue가 강제 종료되면 다시 실행합니다. 관리자의 서비스 중지·삭제, 그룹 정책, Windows 종료는 막을 수 없습니다.
+- **보호 복구 진단**: 보안 탭에서 10개 보호 구성요소를 개별 확인하고, 실패 원인과 관리자 권한·보호 복사본·ProgramData ACL 상태를 보여 줍니다. `진단 복사`로 현재 상태를 공유할 수 있습니다.
 - **캡처 보호 fail-closed**: 보호 적용 실패 또는 affinity 확인 실패 시 답을 표시하지 않고 숨깁니다.
 
 > 스텔스 기능은 **탐지 불가를 보장하지 않습니다.** 프로세스·서비스·트레이·LED·밝기·실행 흔적은 감독 환경에서 확인될 수 있습니다. 시험 규정을 먼저 확인하세요.

@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.8.3** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **0.9.0** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 
@@ -119,6 +119,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full structure and [doc
 - **Meeting safe mode**: hides screen output when a meeting or screen share is detected.
 - **Survival guard**: an optional user scheduled task restarts Cue if it is killed (best effort).
 - **Maximum protection**: run elevated to reject normal Task Manager termination and register a highest-privilege logon task plus the **CueWatchdog SYSTEM service**. The service restarts Cue when killed. It cannot prevent an administrator from stopping/deleting the service, Group Policy, or Windows shutdown.
+- **Protection recovery diagnostics**: the Protection tab checks ten protection components and shows the failing reason, administrator path, protected-copy and ProgramData ACL state. `Copy diagnostics` shares the current state.
 - **Fail-closed capture protection**: if protection or affinity verification fails, Cue hides the answer.
 
 > Stealth is not a guarantee of undetectability. Processes, services, tray icons, LEDs, brightness, and execution traces can still be observed. Check your exam rules first.

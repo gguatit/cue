@@ -1077,10 +1077,21 @@ pub fn remove_guard_copy() {
     clear_legacy_config();
 }
 
+/// A protected Program Files path is enough to bootstrap admin mode. Requiring
+/// the marker or service here made an installed copy impossible to repair after
+/// a failed setup.
+pub(crate) fn can_repair_admin(elevated: bool, admin_path: bool, admin_mode: bool) -> bool {
+    elevated && (admin_path || admin_mode)
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProtectionStatus {
     pub elevated: bool,
+    pub admin_path: bool,
+    pub admin_copy: bool,
+    pub program_dir_locked: bool,
+    pub guard_running: bool,
     pub admin_tasks: bool,
     pub guard_tasks: bool,
     pub program_marker: bool,
@@ -1090,8 +1101,15 @@ pub struct ProtectionStatus {
 }
 
 pub fn status() -> ProtectionStatus {
+    let admin_path = std::env::current_exe()
+        .map(|path| is_admin_path(&path))
+        .unwrap_or(false);
     ProtectionStatus {
         elevated: is_elevated(),
+        admin_path,
+        admin_copy: admin_app_exe().is_some_and(|path| path.is_file()),
+        program_dir_locked: program_dir_locked(),
+        guard_running: crate::guard::guard_running(),
         admin_tasks: task_exists(ELEVATED_TASK),
         guard_tasks: task_exists(GUARD_TASK) || task_exists(SYSTEM_TASK),
         program_marker: program_marker_exists(),
@@ -1111,6 +1129,14 @@ mod tests {
             program_dir_in(Path::new(r"C:\ProgramData")),
             PathBuf::from(r"C:\ProgramData\Cue")
         );
+    }
+
+    #[test]
+    fn admin_repair_can_bootstrap_from_a_protected_path() {
+        assert!(can_repair_admin(true, true, false));
+        assert!(can_repair_admin(true, false, true));
+        assert!(!can_repair_admin(false, true, true));
+        assert!(!can_repair_admin(true, false, false));
     }
 
     #[test]

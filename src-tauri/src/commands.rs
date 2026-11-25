@@ -1646,9 +1646,11 @@ pub async fn repair_guard() -> Result<(), String> {
 pub async fn repair_protection() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(|| {
         let exe = std::env::current_exe().map_err(|_| "guard".to_string())?;
+        let admin_path = crate::elevation::is_admin_path(&exe);
         let admin_mode = crate::elevation::service_installed()
             || crate::elevation::program_marker_exists();
-        if crate::elevation::is_elevated() && admin_mode {
+        if crate::elevation::can_repair_admin(crate::elevation::is_elevated(), admin_path, admin_mode)
+        {
             if crate::elevation::service_installed() {
                 crate::elevation::stop_service();
             }
@@ -1656,7 +1658,7 @@ pub async fn repair_protection() -> Result<(), String> {
             crate::elevation::ensure_guard_copy()?;
             crate::elevation::write_service_config(&exe, &crate::elevation::current_user())?;
             crate::elevation::clear_legacy_config();
-            let _ = crate::elevation::create_program_marker();
+            crate::elevation::create_program_marker()?;
             crate::elevation::install_elevated_task(&exe)?;
             crate::elevation::install_service()?;
             crate::elevation::clear_admin_prepare_failed();

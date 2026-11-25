@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Button, Group, GroupHeader, Select, Toggle } from '../../components/ui'
-import { useT } from '../../i18n'
+import { errorMessage, useT } from '../../i18n'
 import {
   addDefenderExclusion,
   captureProtectionStatus,
+  copyText,
   defenderExclusionStatus,
   guardEnabled,
   meetingSignals,
@@ -22,8 +23,39 @@ import {
 import { useAnswer } from '../../stores/answer'
 import { useSettings } from '../../stores/settings'
 import { autoRefreshSecurity } from '../../lib/securityAutoRefresh'
-import { runProtectionRepair } from '../../lib/securityRepair'
+import {
+  protectionChecks,
+  protectionVerdict,
+  runProtectionRepair,
+  type ProtectionCheckKey,
+} from '../../lib/securityRepair'
 import ExamReadiness from './ExamReadiness'
+
+const CHECK_LABELS: Record<ProtectionCheckKey, [string, string]> = {
+  elevated: ['Administrator rights', '관리자 권한'],
+  adminPath: ['Protected install path', '보호 설치 경로'],
+  adminCopy: ['Protected copy', '보호 복사본'],
+  programDirLocked: ['ProgramData ACL', 'ProgramData 권한'],
+  guardRunning: ['Guard running', '보호 실행'],
+  adminTasks: ['Autostart task', '자동 시작 작업'],
+  guardTasks: ['Guard tasks', '보호 작업'],
+  programMarker: ['Shared marker', '공용 마커'],
+  serviceInstalled: ['Watchdog service', '워치독 서비스'],
+  serviceRunning: ['Watchdog running', '워치독 실행'],
+}
+
+const CHECK_HINTS: Record<ProtectionCheckKey, [string, string]> = {
+  elevated: ['Run Cue as administrator first.', '먼저 Cue를 관리자 권한으로 실행하세요.'],
+  adminPath: ['Install under Program Files or create the protected copy.', 'Program Files에 설치하거나 보호 복사본을 만드세요.'],
+  adminCopy: ['Run the Cue installer again.', 'Cue 설치 프로그램을 다시 실행하세요.'],
+  programDirLocked: ['The shared folder must be administrator-only.', '공용 폴더는 관리자만 쓸 수 있어야 합니다.'],
+  guardRunning: ['Repair the guard so Cue can recover.', 'Cue가 복구되도록 보호를 다시 켜세요.'],
+  adminTasks: ['Recreate the highest-privilege logon task.', '최고 권한 로그온 작업을 다시 만드세요.'],
+  guardTasks: ['Recreate the guard scheduled tasks.', '보호 예약 작업을 다시 만드세요.'],
+  programMarker: ['Recreate the shared marker.', '공용 마커를 다시 만드세요.'],
+  serviceInstalled: ['Install the CueWatchdog service.', 'CueWatchdog 서비스를 설치하세요.'],
+  serviceRunning: ['Start the CueWatchdog service.', 'CueWatchdog 서비스를 시작하세요.'],
+}
 
 function captureProtectionLabel(
   capture: CaptureProtectionStatus | null,
@@ -85,6 +117,7 @@ export default function SecurityTab() {
   const [defenderStatus, setDefenderStatus] = useState<DefenderExclusionStatus | null>(null)
   const [meetingState, setMeetingState] = useState<MeetingSignals | null>(null)
   const [adminMessage, setAdminMessage] = useState('')
+  const [copyMessage, setCopyMessage] = useState('')
   const [restartNeeded, setRestartNeeded] = useState(false)
 
   const refreshGuard = async () => {
@@ -269,26 +302,31 @@ export default function SecurityTab() {
         repair: repairProtection,
       })
       if (current) setProtection(current)
-    } catch {
-      void useAnswer.getState().logError('guard')
+    } catch (error) {
+      const code = typeof error === 'string' && error ? error : 'guard'
+      setAdminMessage(errorMessage(code))
+      void useAnswer.getState().logError(code)
     }
     await refreshProtection()
     await refreshGuard()
   }
 
-  const chip = (on: boolean | null, onText: string) => (
-    <span
-      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-        on === null
-          ? 'bg-surface-3 text-ink-2'
-          : on
-            ? 'bg-success/15 text-success'
-            : 'bg-surface-3 text-ink-2'
-      }`}
-    >
-      {on === null ? t('Unknown', '알 수 없음') : on ? onText : t('Off', '꺼짐')}
-    </span>
-  )
+  const copyDiagnostics = async () => {
+    const payload = {
+      version: __APP_VERSION__,
+      protection,
+      guard: guardStatus,
+      capture,
+      defender: defenderStatus,
+      adminMessage,
+    }
+    try {
+      await copyText(JSON.stringify(payload, null, 2))
+      setCopyMessage(t('Diagnostics copied.', '진단 정보를 복사했습니다.'))
+    } catch {
+      setCopyMessage(t('Could not copy diagnostics.', '진단 정보를 복사하지 못했습니다.'))
+    }
+  }
 
   const repair = async () => {
     try {
@@ -311,6 +349,43 @@ export default function SecurityTab() {
       void useAnswer.getState().logError(code)
     }
   }
+
+  const verdict = protection ? protectionVerdict(protection) : null
+  const checkList =
+    protection && verdict !== 'off'
+      ? protectionChecks(protection).filter(
+          (check) => check.key !== 'guardTasks' || !protection.serviceInstalled,
+        )
+      : []
+  const verdictMessage =
+    verdict === 'ready'
+      ? t('All maximum-protection components are healthy.', '최대 보호 구성이 모두 정상입니다.')
+      : verdict === 'off'
+        ? protection?.adminPath || protection?.adminCopy
+          ? t(
+              'Maximum protection is off. Turn it on when you need it.',
+              '최대 보호가 꺼져 있습니다. 필요할 때 켜세요.',
+            )
+          : t(
+              'Maximum protection needs a Program Files install or the protected copy.',
+              '최대 보호를 사용하려면 Program Files에 설치하거나 보호 복사본이 필요합니다.',
+            )
+        : verdict === 'reinstall'
+          ? t(
+              'The protected copy is missing. Run the Cue installer again before repairing.',
+              '보호 복사본이 없습니다. 보호 복구 전에 Cue 설치 프로그램을 다시 실행하세요.',
+            )
+          : verdict === 'elevate'
+            ? t(
+                'Administrator rights are required. Approve the UAC prompt, then repair again.',
+                '관리자 권한이 필요합니다. UAC를 승인한 뒤 다시 복구하세요.',
+              )
+            : verdict === 'repair'
+              ? t(
+                  'Some protection components are missing. Repair them below.',
+                  '일부 보호 구성이 빠졌습니다. 아래에서 복구하세요.',
+                )
+              : t('Protection status is not available yet.', '보호 상태를 아직 확인하지 못했습니다.')
 
   return (
     <div className="space-y-4 text-sm">
@@ -478,26 +553,67 @@ export default function SecurityTab() {
             )}
           </div>
         )}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {chip(protection?.elevated ?? null, t('Elevated', '관리자'))}
-          {chip(protection?.adminTasks ?? null, t('Autostart task', '자동 시작 작업'))}
-          {!protection?.serviceInstalled && chip(protection?.guardTasks ?? null, t('Guard tasks', '보호 작업'))}
-          {chip(protection?.programMarker ?? null, t('Shared marker', '공용 마커'))}
-          {chip(protection?.serviceInstalled ?? null, t('Watchdog service', '워치독 서비스'))}
-          {chip(protection?.serviceRunning ?? null, t('Service running', '서비스 실행 중'))}
+        {verdict !== 'off' && (
+        <div className="mt-3 space-y-1.5">
+          {checkList.length === 0 ? (
+            <p className="text-xs text-ink-3">
+              {t('Protection status has not been loaded.', '보호 상태를 아직 불러오지 않았습니다.')}
+            </p>
+          ) : (
+            checkList.map(({ key, ok }) => (
+              <div
+                key={key}
+                className="flex items-start gap-2 rounded-lg border border-separator/70 bg-surface-2/40 px-3 py-2"
+              >
+                <span
+                  className={`mt-1 h-2 w-2 shrink-0 rounded-full ${ok ? 'bg-success' : 'bg-warning'}`}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-medium text-ink">
+                    {t(...CHECK_LABELS[key])}
+                  </span>
+                  {!ok && (
+                    <span className="mt-0.5 block text-[10.5px] leading-relaxed text-warning">
+                      {t(...CHECK_HINTS[key])}
+                    </span>
+                  )}
+                </span>
+                <span className={`shrink-0 text-[10.5px] ${ok ? 'text-success' : 'text-warning'}`}>
+                  {ok ? t('OK', '정상') : t('Needs attention', '확인 필요')}
+                </span>
+              </div>
+            ))
+          )}
         </div>
-        <Button className="mt-2" variant="secondary" onClick={() => void refreshProtection()}>
-          {t('Refresh protection status', '보호 상태 새로 고침')}
-        </Button>
+        )}
+        <p className={`mt-2 text-xs ${verdict === 'ready' ? 'text-success' : 'text-warning'}`}>
+          {verdictMessage}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(verdict === 'elevate' ||
+            (verdict === 'off' && (protection?.adminPath || protection?.adminCopy))) && (
+            <Button onClick={() => void toggleAdmin(true)}>
+              {t('Repair with administrator rights', '관리자 권한으로 복구')}
+            </Button>
+          )}
+          {verdict === 'repair' && (
+            <Button onClick={() => void repairAll()}>{t('Repair protection', '보호 복구')}</Button>
+          )}
+          <Button variant="secondary" onClick={() => void refreshProtection()}>
+            {t('Refresh protection status', '보호 상태 새로 고침')}
+          </Button>
+          <Button variant="secondary" onClick={() => void copyDiagnostics()}>
+            {t('Copy diagnostics', '진단 복사')}
+          </Button>
+        </div>
+        {copyMessage && <p className="mt-2 text-xs text-ink-3">{copyMessage}</p>}
         <p className="mt-2 text-xs text-ink-3">
           {t(
             'Works from any install folder. Cue keeps a protected copy for administrator mode. Asks for UAC once, then restarts Cue elevated and registers a highest-privilege logon task so it starts without another prompt. A normal Task Manager kill is denied, and a killed Cue is restarted within seconds. The CueWatchdog service runs as SYSTEM, so even an administrator killing the watchdog only delays it by about five seconds.',
             '설치 폴더와 관계없이 사용할 수 있습니다. Cue는 관리자 모드용 보호 복사본을 따로 유지합니다. UAC를 한 번만 확인한 뒤 Cue를 관리자 권한으로 다시 실행하고, 최고 권한 로그온 작업을 등록해 다음부터는 확인 없이 시작합니다. 일반 작업 관리자에서는 종료가 거부되고, 강제 종료되어도 몇 초 안에 다시 실행됩니다. CueWatchdog 서비스는 SYSTEM으로 실행되므로 관리자가 워치독을 종료해도 약 5초 뒤 다시 살아납니다.',
           )}
         </p>
-        <Button className="mt-3" onClick={() => void repairAll()}>
-          {t('Repair protection', '보호 복구')}
-        </Button>
         <p className="mt-2 text-xs text-ink-3">
           {t(
             'Repair recreates the guard copy, service, scheduled tasks and markers. An administrator can still stop or delete the service, and Group Policy, Windows shutdown and kernel-level tools cannot be blocked; protection is best effort.',
