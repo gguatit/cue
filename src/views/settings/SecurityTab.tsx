@@ -190,16 +190,9 @@ export default function SecurityTab() {
         await setAdminMode(true)
       } catch (e) {
         setStealth({ admin: false })
-        const code = String(e)
-        void useAnswer.getState().logError(code === 'admin_copy' ? 'admin_copy' : 'admin')
-        setAdminMessage(
-          code === 'admin_copy'
-            ? t(
-                'The protected administrator copy is missing. Run the Cue installer again.',
-                '관리자 모드용 보호 복사본이 없습니다. Cue 설치 프로그램을 다시 실행하세요.',
-              )
-            : t('Could not change administrator mode.', '관리자 모드를 변경하지 못했습니다.'),
-        )
+        const code = typeof e === 'string' && e ? e : 'admin'
+        void useAnswer.getState().logError(code)
+        setAdminMessage(errorMessage(code))
       }
       await refreshProtection()
       return
@@ -263,16 +256,23 @@ export default function SecurityTab() {
     }
   }
 
+  const verdict = protection ? protectionVerdict(protection) : null
   let adminLabel = t('Not checked', '확인 안 됨')
   let adminTone = 'bg-surface-3 text-ink-3'
   if (protection) {
-    if (protection.elevated) {
+    if (verdict === 'ready') {
       adminLabel = t('Configured', '설정됨')
       adminTone = 'bg-success/15 text-success'
-    } else if (stealth.admin) {
-      adminLabel = t('Restart required', '재시작 필요')
+    } else if (verdict === 'elevate') {
+      adminLabel = t('Administrator required', '관리자 권한 필요')
       adminTone = 'bg-warning/15 text-warning'
-    } else {
+    } else if (verdict === 'reinstall') {
+      adminLabel = t('Reinstall required', '재설치 필요')
+      adminTone = 'bg-warning/15 text-warning'
+    } else if (verdict === 'repair') {
+      adminLabel = t('Partially configured', '일부 복구 필요')
+      adminTone = 'bg-warning/15 text-warning'
+    } else if (verdict === 'off') {
       adminLabel = t('Not configured', '설정 안 됨')
       adminTone = 'bg-surface-3 text-ink-2'
     }
@@ -295,6 +295,7 @@ export default function SecurityTab() {
   }
 
   const repairAll = async () => {
+    setAdminMessage('')
     try {
       const current = await runProtectionRepair(protection, {
         loadStatus: protectionStatus,
@@ -350,11 +351,12 @@ export default function SecurityTab() {
     }
   }
 
-  const verdict = protection ? protectionVerdict(protection) : null
   const checkList =
     protection && verdict !== 'off'
       ? protectionChecks(protection).filter(
-          (check) => check.key !== 'guardTasks' || !protection.serviceInstalled,
+          (check) =>
+            (check.key !== 'guardTasks' && check.key !== 'guardRunning') ||
+            !protection.serviceInstalled,
         )
       : []
   const verdictMessage =
@@ -566,21 +568,31 @@ export default function SecurityTab() {
                 className="flex items-start gap-2 rounded-lg border border-separator/70 bg-surface-2/40 px-3 py-2"
               >
                 <span
-                  className={`mt-1 h-2 w-2 shrink-0 rounded-full ${ok ? 'bg-success' : 'bg-warning'}`}
+                  className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
+                    ok === null ? 'bg-ink-3' : ok ? 'bg-success' : 'bg-warning'
+                  }`}
                   aria-hidden="true"
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs font-medium text-ink">
                     {t(...CHECK_LABELS[key])}
                   </span>
-                  {!ok && (
+                  {ok === false && (
                     <span className="mt-0.5 block text-[10.5px] leading-relaxed text-warning">
                       {t(...CHECK_HINTS[key])}
                     </span>
                   )}
                 </span>
-                <span className={`shrink-0 text-[10.5px] ${ok ? 'text-success' : 'text-warning'}`}>
-                  {ok ? t('OK', '정상') : t('Needs attention', '확인 필요')}
+                <span
+                  className={`shrink-0 text-[10.5px] ${
+                    ok === null ? 'text-ink-3' : ok ? 'text-success' : 'text-warning'
+                  }`}
+                >
+                  {ok === null
+                    ? t('Cannot check while elevated', '관리자 실행 중 확인 불가')
+                    : ok
+                      ? t('OK', '정상')
+                      : t('Needs attention', '확인 필요')}
                 </span>
               </div>
             ))

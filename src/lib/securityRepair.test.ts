@@ -62,6 +62,17 @@ describe('protection diagnostics', () => {
     expect(protectionVerdict(ready)).toBe('ready')
   })
 
+  it('does not fail the ACL check when the process is elevated', () => {
+    const elevated = {
+      ...status,
+      elevated: true,
+      adminPrepareFailed: false,
+      programDirLocked: null,
+    }
+    expect(protectionVerdict(elevated)).toBe('ready')
+    expect(protectionChecks(elevated).find((check) => check.key === 'programDirLocked')?.ok).toBeNull()
+  })
+
   it('asks for repair when a protection component is missing', () => {
     expect(protectionVerdict({ ...status, elevated: true, serviceRunning: false })).toBe('repair')
   })

@@ -276,7 +276,7 @@ export interface ProtectionStatus {
   elevated: boolean
   adminPath: boolean
   adminCopy: boolean
-  programDirLocked: boolean
+  programDirLocked: boolean | null
   guardRunning: boolean
   adminTasks: boolean
   guardTasks: boolean

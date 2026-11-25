@@ -1090,7 +1090,7 @@ pub struct ProtectionStatus {
     pub elevated: bool,
     pub admin_path: bool,
     pub admin_copy: bool,
-    pub program_dir_locked: bool,
+    pub program_dir_locked: Option<bool>,
     pub guard_running: bool,
     pub admin_tasks: bool,
     pub guard_tasks: bool,
@@ -1101,14 +1101,17 @@ pub struct ProtectionStatus {
 }
 
 pub fn status() -> ProtectionStatus {
+    let elevated = is_elevated();
     let admin_path = std::env::current_exe()
         .map(|path| is_admin_path(&path))
         .unwrap_or(false);
     ProtectionStatus {
-        elevated: is_elevated(),
+        elevated,
         admin_path,
         admin_copy: admin_app_exe().is_some_and(|path| path.is_file()),
-        program_dir_locked: program_dir_locked(),
+        // An elevated process can always write to the protected folder, so a
+        // write probe there cannot prove the ACL is restrictive.
+        program_dir_locked: (!elevated).then(program_dir_locked),
         guard_running: crate::guard::guard_running(),
         admin_tasks: task_exists(ELEVATED_TASK),
         guard_tasks: task_exists(GUARD_TASK) || task_exists(SYSTEM_TASK),

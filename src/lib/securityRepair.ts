@@ -14,7 +14,7 @@ export type ProtectionCheckKey =
 
 export interface ProtectionCheck {
   key: ProtectionCheckKey
-  ok: boolean
+  ok: boolean | null
 }
 
 export type ProtectionVerdict = 'ready' | 'off' | 'reinstall' | 'elevate' | 'repair'
@@ -47,7 +47,7 @@ export function protectionVerdict(status: ProtectionStatus): ProtectionVerdict {
   if (
     status.adminPath &&
     status.adminCopy &&
-    status.programDirLocked &&
+    status.programDirLocked !== false &&
     status.adminTasks &&
     status.programMarker &&
     status.serviceInstalled &&
