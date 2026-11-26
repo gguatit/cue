@@ -304,3 +304,4 @@ export const defenderExclusionStatus = () =>
   invoke<DefenderExclusionStatus>('defender_exclusion_status')
 export const setAdminMode = (enabled: boolean) => invoke<void>('set_admin_mode', { enabled })
 export const repairProtection = () => invoke<void>('repair_protection')
+export const takeRepairPending = () => invoke<boolean>('take_repair_pending')

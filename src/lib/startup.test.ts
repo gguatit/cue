@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   setPanicShortcut: vi.fn(async () => {}),
   hideMain: vi.fn(async () => {}),
   shortcutInstalled: vi.fn(async () => true),
+  takeRepairPending: vi.fn(async () => false),
+  repairProtection: vi.fn(async () => {}),
   setTrayMenuLabels: vi.fn(async () => {}),
   setContentProtection: vi.fn(async () => {}),
   setHideFromTaskbar: vi.fn(async () => {}),
@@ -33,6 +35,8 @@ vi.mock('./tauri', () => ({
   setPanicShortcut: mocks.setPanicShortcut,
   hideMain: mocks.hideMain,
   shortcutInstalled: mocks.shortcutInstalled,
+  takeRepairPending: mocks.takeRepairPending,
+  repairProtection: mocks.repairProtection,
   setTrayMenuLabels: mocks.setTrayMenuLabels,
   setContentProtection: mocks.setContentProtection,
   setHideFromTaskbar: mocks.setHideFromTaskbar,
@@ -202,5 +206,11 @@ describe('runStartup tray menu', () => {
     await Promise.resolve()
     expect(clear).toHaveBeenCalledTimes(1)
     expect(mocks.quitApp).toHaveBeenCalledTimes(1)
+  })
+
+  it('continues a pending protection repair after startup', async () => {
+    mocks.takeRepairPending.mockResolvedValueOnce(true)
+    await runStartup()
+    expect(mocks.repairProtection).toHaveBeenCalledOnce()
   })
 })

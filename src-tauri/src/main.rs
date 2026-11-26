@@ -86,9 +86,18 @@ fn watch_guard(app: PathBuf) {
             if ticks % 30 == 0 && elevation::is_elevated() && elevation::program_marker_exists() {
                 if let Ok(exe) = std::env::current_exe() {
                     if elevation::service_running() {
-                        let _ = elevation::install_elevated_task(&exe);
-                    } else if let Ok(guard) = elevation::ensure_guard_copy() {
-                        let _ = elevation::install_tasks(&exe, &guard);
+                        if elevation::install_elevated_task(&exe).is_err() {
+                            elevation::record_admin_prepare_failure();
+                        }
+                    } else {
+                        match elevation::ensure_guard_copy() {
+                            Ok(guard) => {
+                                if elevation::install_tasks(&exe, &guard).is_err() {
+                                    elevation::record_admin_prepare_failure();
+                                }
+                            }
+                            Err(_) => elevation::record_admin_prepare_failure(),
+                        }
                     }
                 }
             }
@@ -222,6 +231,7 @@ fn main() {
             commands::add_defender_exclusion,
             commands::defender_exclusion_status,
             commands::set_admin_mode,
+            commands::take_repair_pending,
             commands::check_update,
             commands::preflight_update,
             commands::install_update,
@@ -242,14 +252,21 @@ fn main() {
                 // Stop a running watchdog before overwriting its binary; the
                 // old copy is locked and `fs::copy` would silently keep it.
                 elevation::stop_service();
-                elevation::harden_program_dir().map_err(|_| "admin")?;
-                elevation::ensure_guard_copy().map_err(|_| "admin")?;
-                elevation::write_service_config(&exe, &user).map_err(|_| "admin")?;
-                elevation::clear_legacy_config();
-                let _ = elevation::create_program_marker();
-                let _ = elevation::install_elevated_task(&exe);
-                let _ = elevation::delete_guard_tasks();
-                elevation::install_service().map_err(|_| "admin")?;
+                let setup = (|| -> Result<(), String> {
+                    elevation::harden_program_dir().map_err(|_| "admin")?;
+                    elevation::ensure_guard_copy().map_err(|_| "admin")?;
+                    elevation::write_service_config(&exe, &user).map_err(|_| "admin")?;
+                    elevation::clear_legacy_config();
+                    elevation::create_program_marker().map_err(|_| "admin")?;
+                    elevation::install_elevated_task(&exe).map_err(|_| "admin")?;
+                    elevation::delete_guard_tasks().map_err(|_| "admin")?;
+                    elevation::install_service().map_err(|_| "admin")?;
+                    Ok(())
+                })();
+                if setup.is_err() {
+                    elevation::record_admin_prepare_failure();
+                    return Err("admin".into());
+                }
                 let _ = app.autolaunch().disable();
                 elevation::remove_run_key();
                 elevation::clear_admin_prepare_failed();
@@ -262,19 +279,26 @@ fn main() {
                     if !elevation::is_admin_path(&exe) {
                         return Err("admin".into());
                     }
-                    elevation::harden_program_dir().map_err(|_| "admin")?;
-                    elevation::write_service_config(&exe, &elevation::current_user())
-                        .map_err(|_| "admin")?;
-                    elevation::clear_legacy_config();
-                    let _ = elevation::create_program_marker();
-                    if elevation::service_installed() {
-                        elevation::stop_service();
+                    let repair = (|| -> Result<(), String> {
+                        elevation::harden_program_dir().map_err(|_| "admin")?;
+                        elevation::write_service_config(&exe, &elevation::current_user())
+                            .map_err(|_| "admin")?;
+                        elevation::clear_legacy_config();
+                        elevation::create_program_marker().map_err(|_| "admin")?;
+                        if elevation::service_installed() {
+                            elevation::stop_service();
+                        }
+                        elevation::ensure_guard_copy().map_err(|_| "admin")?;
+                        elevation::install_elevated_task(&exe).map_err(|_| "admin")?;
+                        elevation::install_service().map_err(|_| "admin")?;
+                        Ok(())
+                    })();
+                    if repair.is_err() {
+                        elevation::record_admin_prepare_failure();
+                    } else {
+                        elevation::remove_run_key();
+                        elevation::clear_admin_prepare_failed();
                     }
-                    let _ = elevation::ensure_guard_copy();
-                    let _ = elevation::install_elevated_task(&exe);
-                    let _ = elevation::install_service();
-                    elevation::remove_run_key();
-                    elevation::clear_admin_prepare_failed();
                 }
             }
             tray::create(&handle)?;

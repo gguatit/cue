@@ -14,7 +14,9 @@ import {
   setShortcut,
   setTrayMenuLabels,
   quitApp,
+  repairProtection,
   shortcutInstalled,
+  takeRepairPending,
 } from './tauri'
 import { trayMenuLabels } from '../i18n'
 import { setTrayIdle } from './trayDisplay'
@@ -111,6 +113,9 @@ export async function runStartup(): Promise<void> {
   await peripheral
   const installed = await shortcutInstalled().catch(() => true)
   if (!installed) await useAnswer.getState().logError('shortcut')
+  if (await takeRepairPending().catch(() => false)) {
+    await repairProtection().catch(() => useAnswer.getState().logError('guard'))
+  }
 }
 
 useSettings.subscribe((state, prev) => {

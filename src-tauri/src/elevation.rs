@@ -268,6 +268,37 @@ pub fn admin_prepare_marker() -> Option<PathBuf> {
     program_dir().map(|d| d.join("admin-prepare.failed"))
 }
 
+pub fn repair_pending_path() -> Option<PathBuf> {
+    std::env::var_os("LOCALAPPDATA")
+        .map(|base| Path::new(&base).join("Cue").join("repair.pending"))
+}
+
+pub fn mark_repair_pending() {
+    if let Some(path) = repair_pending_path() {
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(path, "1");
+    }
+}
+
+pub fn clear_repair_pending() {
+    if let Some(path) = repair_pending_path() {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+pub fn take_repair_pending() -> bool {
+    let Some(path) = repair_pending_path() else {
+        return false;
+    };
+    if !path.exists() {
+        return false;
+    }
+    let _ = std::fs::remove_file(path);
+    true
+}
+
 pub fn admin_prepare_failed() -> bool {
     admin_prepare_marker().is_some_and(|path| path.exists())
 }
@@ -275,6 +306,15 @@ pub fn admin_prepare_failed() -> bool {
 pub fn clear_admin_prepare_failed() {
     if let Some(path) = admin_prepare_marker() {
         let _ = std::fs::remove_file(path);
+    }
+}
+
+pub fn record_admin_prepare_failure() {
+    if let Some(path) = admin_prepare_marker() {
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(path, "1");
     }
 }
 
@@ -816,6 +856,42 @@ pub fn task_exists(name: &str) -> bool {
     schtasks_ok(&["/Query", "/TN", name])
 }
 
+fn decode_process_output(bytes: &[u8]) -> String {
+    if let Some(body) = bytes.strip_prefix(&[0xFF, 0xFE]) {
+        let units: Vec<u16> = body
+            .chunks_exact(2)
+            .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+            .collect();
+        return String::from_utf16_lossy(&units);
+    }
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
+fn xml_command(xml: &str) -> Option<PathBuf> {
+    let command = xml.split_once("<Command>")?.1.split_once("</Command>")?.0;
+    let command = command
+        .trim()
+        .trim_matches('"')
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"");
+    (!command.is_empty()).then(|| PathBuf::from(command))
+}
+
+pub fn task_target_matches(name: &str, expected: &Path) -> bool {
+    let output = Command::new(system32("schtasks.exe"))
+        .args(["/Query", "/TN", name, "/XML"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    let Ok(output) = output else {
+        return false;
+    };
+    if !output.status.success() {
+        return false;
+    }
+    xml_command(&decode_process_output(&output.stdout))
+        .is_some_and(|command| same_path(&command, expected))
+}
+
 pub fn delete_tasks() -> Result<(), String> {
     let mut failed = false;
     for name in TASKS {
@@ -982,6 +1058,41 @@ pub fn service_installed() -> bool {
     sc(&["query", SERVICE_NAME])
 }
 
+fn service_binary_matches() -> bool {
+    let Some(output) = sc_output(&["qc", SERVICE_NAME]) else {
+        return false;
+    };
+    let Some(line) = output
+        .lines()
+        .find(|line| line.to_ascii_uppercase().contains("BINARY_PATH_NAME"))
+    else {
+        return false;
+    };
+    let value = line.split_once(':').map(|(_, value)| value.trim()).unwrap_or("");
+    let command = if let Some(rest) = value.strip_prefix('"') {
+        rest.split('"').next().unwrap_or("")
+    } else {
+        value.split_whitespace().next().unwrap_or("")
+    };
+    let Some(expected) = admin_app_exe().or_else(|| std::env::current_exe().ok()) else {
+        return false;
+    };
+    !command.is_empty() && same_path(Path::new(command), &expected)
+}
+
+fn current_file_matches(path: &Path) -> bool {
+    let Ok(meta) = std::fs::metadata(path) else {
+        return false;
+    };
+    let Ok(current) = std::env::current_exe() else {
+        return false;
+    };
+    let Ok(current_meta) = std::fs::metadata(current) else {
+        return false;
+    };
+    meta.len() == current_meta.len()
+}
+
 pub fn service_running() -> bool {
     sc_output(&["query", SERVICE_NAME])
         .map(|o| parse_service_running(&o))
@@ -1102,22 +1213,27 @@ pub struct ProtectionStatus {
 
 pub fn status() -> ProtectionStatus {
     let elevated = is_elevated();
-    let admin_path = std::env::current_exe()
-        .map(|path| is_admin_path(&path))
-        .unwrap_or(false);
+    let current = std::env::current_exe().ok();
+    let admin_path = current.as_deref().map(is_admin_path).unwrap_or(false);
+    let admin_copy = admin_app_exe().is_some_and(|path| current_file_matches(&path));
+    let expected_task_target = admin_app_exe().or_else(|| current.clone());
     ProtectionStatus {
         elevated,
         admin_path,
-        admin_copy: admin_app_exe().is_some_and(|path| path.is_file()),
+        admin_copy,
         // An elevated process can always write to the protected folder, so a
         // write probe there cannot prove the ACL is restrictive.
         program_dir_locked: (!elevated).then(program_dir_locked),
-        guard_running: crate::guard::guard_running(),
-        admin_tasks: task_exists(ELEVATED_TASK),
+        guard_running: crate::guard::guard_running()
+            && guard_exe().is_some_and(|path| current_file_matches(&path)),
+        admin_tasks: task_exists(ELEVATED_TASK)
+            && expected_task_target
+                .as_deref()
+                .is_some_and(|target| task_target_matches(ELEVATED_TASK, target)),
         guard_tasks: task_exists(GUARD_TASK) || task_exists(SYSTEM_TASK),
         program_marker: program_marker_exists(),
         admin_prepare_failed: admin_prepare_failed(),
-        service_installed: service_installed(),
+        service_installed: service_installed() && service_binary_matches(),
         service_running: service_running(),
     }
 }
@@ -1131,6 +1247,15 @@ mod tests {
         assert_eq!(
             program_dir_in(Path::new(r"C:\ProgramData")),
             PathBuf::from(r"C:\ProgramData\Cue")
+        );
+    }
+
+    #[test]
+    fn task_xml_command_is_unquoted() {
+        let xml = r#"<Task><Actions><Exec><Command>"C:\ProgramData\Cue\cue.exe"</Command></Exec></Actions></Task>"#;
+        assert_eq!(
+            xml_command(xml),
+            Some(PathBuf::from(r"C:\ProgramData\Cue\cue.exe"))
         );
     }
 

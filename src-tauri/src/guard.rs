@@ -266,7 +266,9 @@ fn service_loop(stop: &std::sync::atomic::AtomicBool) {
         if service_armed() {
             if let Some(app) = app.as_deref() {
                 if last_refresh.elapsed() >= TASK_REFRESH {
-                    let _ = elevation::install_elevated_task(app);
+                    if elevation::install_elevated_task(app).is_err() {
+                        elevation::record_admin_prepare_failure();
+                    }
                     last_refresh = Instant::now();
                 }
                 if !quit_flag_active() && !process_running(app) {

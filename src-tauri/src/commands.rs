@@ -1644,7 +1644,8 @@ pub async fn repair_guard() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn repair_protection() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(|| {
+    let result = tauri::async_runtime::spawn_blocking(|| {
+        crate::elevation::clear_repair_pending();
         let exe = std::env::current_exe().map_err(|_| "guard".to_string())?;
         let admin_path = crate::elevation::is_admin_path(&exe);
         let admin_mode = crate::elevation::service_installed()
@@ -1677,7 +1678,11 @@ pub async fn repair_protection() -> Result<(), String> {
         Ok(())
     })
     .await
-    .map_err(|_| "guard".to_string())?
+    .map_err(|_| "guard".to_string())?;
+    if result.is_err() {
+        crate::elevation::record_admin_prepare_failure();
+    }
+    result
 }
 
 #[tauri::command]
@@ -1731,6 +1736,11 @@ pub async fn defender_exclusion_status() -> Result<crate::elevation::DefenderSta
 }
 
 #[tauri::command]
+pub fn take_repair_pending() -> bool {
+    crate::elevation::take_repair_pending()
+}
+
+#[tauri::command]
 pub fn set_admin_mode(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|_| "admin".to_string())?;
     if !enabled {
@@ -1756,10 +1766,14 @@ pub fn set_admin_mode(app: tauri::AppHandle, enabled: bool) -> Result<(), String
     }
     let admin = crate::elevation::admin_app_for(&exe)?;
     let user = crate::elevation::current_user();
-    crate::elevation::relaunch_elevated_exe(
+    crate::elevation::mark_repair_pending();
+    if let Err(error) = crate::elevation::relaunch_elevated_exe(
         &admin,
         &format!("--admin-setup --user \"{user}\""),
-    )?;
+    ) {
+        crate::elevation::clear_repair_pending();
+        return Err(error);
+    }
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(400));
         app.exit(0);

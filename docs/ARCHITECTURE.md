@@ -2,7 +2,7 @@
 
 이 문서는 Cue가 **어떻게 동작하는지**를 코드 기준으로 정리한 내부 문서입니다. 사용법은 [README](../README.md), AI 요청·프롬프트 계약은 [AI_HARNESS.md](AI_HARNESS.md), 제품 결정은 [IDEAS.md](IDEAS.md)를 참고하세요.
 
-- 현재 버전: **0.9.1**
+- 현재 버전: **0.9.2**
 - 플랫폼: Windows 10/11 x64
 - 스택: Tauri 2, React 19, Vite, Tailwind CSS 4, Rust
 
