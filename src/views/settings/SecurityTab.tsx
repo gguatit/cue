@@ -24,6 +24,11 @@ import { useAnswer } from '../../stores/answer'
 import { useSettings } from '../../stores/settings'
 import { autoRefreshSecurity } from '../../lib/securityAutoRefresh'
 import {
+  cachedProtectionStatus,
+  clearProtectionStatusCache,
+  setProtectionStatusCache,
+} from '../../lib/protectionStatusCache'
+import {
   protectionChecks,
   protectionVerdict,
   runProtectionRepair,
@@ -118,6 +123,7 @@ export default function SecurityTab() {
   const [meetingState, setMeetingState] = useState<MeetingSignals | null>(null)
   const [adminMessage, setAdminMessage] = useState('')
   const [copyMessage, setCopyMessage] = useState('')
+  const [lastChecked, setLastChecked] = useState<number | null>(null)
   const [restartNeeded, setRestartNeeded] = useState(false)
 
   const refreshGuard = async () => {
@@ -130,13 +136,25 @@ export default function SecurityTab() {
     }
   }
 
-  const refreshProtection = async () => {
+  const refreshProtection = async (force = false) => {
+    if (!force) {
+      const cached = cachedProtectionStatus()
+      if (cached) {
+        setProtection(cached.status)
+        setLastChecked(cached.at)
+        return
+      }
+    }
     try {
       const s = await protectionStatus()
       setProtection(s)
+      setLastChecked(Date.now())
+      setProtectionStatusCache(s)
       if (s.elevated !== useSettings.getState().stealth.admin) setStealth({ admin: s.elevated })
     } catch {
+      clearProtectionStatusCache()
       setProtection(null)
+      setLastChecked(null)
     }
   }
 
@@ -194,13 +212,13 @@ export default function SecurityTab() {
         void useAnswer.getState().logError(code)
         setAdminMessage(errorMessage(code))
       }
-      await refreshProtection()
+      await refreshProtection(true)
       return
     }
     setAdminMessage('')
     await apply({ admin: false }, () => setAdminMode(false), 'admin')
     if (!useSettings.getState().stealth.admin) setRestartNeeded(true)
-    await refreshProtection()
+    await refreshProtection(true)
   }
 
   const addDefender = async () => {
@@ -308,7 +326,7 @@ export default function SecurityTab() {
       setAdminMessage(errorMessage(code))
       void useAnswer.getState().logError(code)
     }
-    await refreshProtection()
+    await refreshProtection(true)
     await refreshGuard()
   }
 
@@ -602,6 +620,12 @@ export default function SecurityTab() {
         <p className={`mt-2 text-xs ${verdict === 'ready' ? 'text-success' : 'text-warning'}`}>
           {verdictMessage}
         </p>
+        {lastChecked !== null && (
+          <p className="mt-1 text-[10.5px] text-ink-3">
+            {t('Last checked', '마지막 확인')}{' '}
+            {new Date(lastChecked).toLocaleTimeString('ko-KR')}
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           {(verdict === 'elevate' ||
             (verdict === 'off' && (protection?.adminPath || protection?.adminCopy))) && (
@@ -612,7 +636,7 @@ export default function SecurityTab() {
           {verdict === 'repair' && (
             <Button onClick={() => void repairAll()}>{t('Repair protection', '보호 복구')}</Button>
           )}
-          <Button variant="secondary" onClick={() => void refreshProtection()}>
+          <Button variant="secondary" onClick={() => void refreshProtection(true)}>
             {t('Refresh protection status', '보호 상태 새로 고침')}
           </Button>
           <Button variant="secondary" onClick={() => void copyDiagnostics()}>
