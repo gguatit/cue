@@ -1058,26 +1058,30 @@ pub fn service_installed() -> bool {
     sc(&["query", SERVICE_NAME])
 }
 
-fn service_binary_matches() -> bool {
-    let Some(output) = sc_output(&["qc", SERVICE_NAME]) else {
-        return false;
-    };
-    let Some(line) = output
+fn service_command_path(output: &str) -> Option<PathBuf> {
+    let line = output
         .lines()
-        .find(|line| line.to_ascii_uppercase().contains("BINARY_PATH_NAME"))
-    else {
-        return false;
-    };
-    let value = line.split_once(':').map(|(_, value)| value.trim()).unwrap_or("");
+        .find(|line| line.to_ascii_uppercase().contains("BINARY_PATH_NAME"))?;
+    let value = line.split_once(':').map(|(_, value)| value.trim())?;
     let command = if let Some(rest) = value.strip_prefix('"') {
         rest.split('"').next().unwrap_or("")
     } else {
         value.split_whitespace().next().unwrap_or("")
     };
-    let Some(expected) = admin_app_exe().or_else(|| std::env::current_exe().ok()) else {
+    (!command.is_empty()).then(|| PathBuf::from(command))
+}
+
+fn service_binary_matches() -> bool {
+    let Some(output) = sc_output(&["qc", SERVICE_NAME]) else {
         return false;
     };
-    !command.is_empty() && same_path(Path::new(command), &expected)
+    let Some(command) = service_command_path(&output) else {
+        return false;
+    };
+    let Some(expected) = guard_exe() else {
+        return false;
+    };
+    same_path(&command, &expected)
 }
 
 fn current_file_matches(path: &Path) -> bool {
@@ -1154,7 +1158,13 @@ pub fn install_service() -> Result<(), String> {
         return Err("admin".into());
     }
     let _ = sc(&["start", SERVICE_NAME]);
-    Ok(())
+    for _ in 0..25 {
+        if service_running() {
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    Err("admin".into())
 }
 
 pub fn stop_service() {
@@ -1247,6 +1257,15 @@ mod tests {
         assert_eq!(
             program_dir_in(Path::new(r"C:\ProgramData")),
             PathBuf::from(r"C:\ProgramData\Cue")
+        );
+    }
+
+    #[test]
+    fn service_binary_path_is_parsed() {
+        let output = "SERVICE_NAME: CueWatchdog\nBINARY_PATH_NAME   : \"C:\\ProgramData\\Cue\\cue-guard.exe\" --service";
+        assert_eq!(
+            service_command_path(output),
+            Some(PathBuf::from(r"C:\ProgramData\Cue\cue-guard.exe"))
         );
     }
 

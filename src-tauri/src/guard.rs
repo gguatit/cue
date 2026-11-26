@@ -127,7 +127,10 @@ pub fn enable(app: &Path) -> Result<(), String> {
         elevation::delete_tasks()?;
     }
     let guard = spawn_user_guard(app)?;
-    let _ = elevation::install_user_tasks(app, &guard);
+    if elevation::install_user_tasks(app, &guard).is_err() {
+        let _ = remove_marker();
+        return Err("guard".into());
+    }
     Ok(())
 }
 
