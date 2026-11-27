@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a reproducible Cue problem on Windows.
+title: "[Bug]: "
+labels: ["bug", "needs reproduction"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping. Please remove API keys, screenshots, and personal data before posting.
+        Security issues must be reported privately through SECURITY.md, not in a public issue.
+  - type: input
+    id: version
+    attributes:
+      label: Cue version
+      description: Settings → Info shows the version.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 24H2 (build 26100)"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact actions and the order.
+      placeholder: |
+        1. Open Cue
+        2. Press the answer shortcut
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Paste Settings → Protection → Copy diagnostics. Remove anything private.
+      render: json
+  - type: dropdown
+    id: protection
+    attributes:
+      label: Maximum protection
+      options:
+        - Not used
+        - Enabled and healthy
+        - Partially enabled
+        - Unknown
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: I removed API keys, screenshots, and personal data.
+          required: true

@@ -2,7 +2,7 @@
 
 이 문서는 Cue의 **제품 원칙, 검토한 아이디어, 보류·제외한 결정**을 기록합니다. 같은 아이디어를 반복해서 제안하지 않기 위한 문서이며, 기능 제안 전에 [OUT_OF_SCOPE.md](OUT_OF_SCOPE.md)와 함께 읽습니다.
 
-- 현재 버전: **0.9.5**
+- 현재 버전: **1.0.0**
 - 관련 문서: [README](../README.md), [ARCHITECTURE.md](ARCHITECTURE.md), [AI_HARNESS.md](AI_HARNESS.md)
 
 ## 1. 제품 원칙

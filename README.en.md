@@ -4,7 +4,7 @@
 
 [한국어](README.md) · [Contributing](CONTRIBUTING.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
-Current version **0.9.5** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+Current version **1.0.0** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 Created by **kalpha (Choi Jaeyoung)** · GitHub [@gguatit](https://github.com/gguatit)
 

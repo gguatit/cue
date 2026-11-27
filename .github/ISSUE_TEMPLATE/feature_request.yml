@@ -1,0 +1,50 @@
+name: Feature request
+description: Suggest a focused improvement for Cue.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Cue is a Windows-only exam helper. Read README and docs/OUT_OF_SCOPE.md before proposing a new direction.
+        Please describe the user problem first, not only the implementation.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation where Cue is inconvenient or fails today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: What should the user see or do differently?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways to solve the same problem.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Capture and overlay
+        - AI providers and prompts
+        - Protection and recovery
+        - Settings and UX
+        - Cue Air
+        - Documentation
+        - Other
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project constraints
+      options:
+        - label: I understand this project has no server, account, telemetry, or cloud storage.
+          required: true
+        - label: I understand the Windows-only scope and the exam-rule warning.
+          required: true
