@@ -2,7 +2,7 @@
 
 **A Windows exam helper that reads the question under your pointer, asks an AI, and shows the answer as discreetly as possible.**
 
-[한국어](README.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
+[한국어](README.md) · [Contributing](CONTRIBUTING.md) · [Architecture](docs/ARCHITECTURE.md) · [AI harness](docs/AI_HARNESS.md) · [Ideas and decisions](docs/IDEAS.md) · [Changelog](docs/CHANGELOG.md)
 
 Current version **0.9.5** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 

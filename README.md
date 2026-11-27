@@ -2,7 +2,7 @@
 
 **포인터 아래의 문제를 읽어 AI에 묻고, 정답을 최대한 티 나지 않게 보여 주는 Windows 시험 도우미.**
 
-[English](README.en.md) · [아키텍처](docs/ARCHITECTURE.md) · [AI 하네스](docs/AI_HARNESS.md) · [아이디어와 결정](docs/IDEAS.md) · [변경 기록](docs/CHANGELOG.md)
+[English](README.en.md) · [기여 안내](CONTRIBUTING.md) · [아키텍처](docs/ARCHITECTURE.md) · [AI 하네스](docs/AI_HARNESS.md) · [아이디어와 결정](docs/IDEAS.md) · [변경 기록](docs/CHANGELOG.md)
 
 현재 버전 **0.9.5** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
