@@ -1,5 +1,13 @@
 # 변경 기록
 
+## 0.9.5 — 2026-11-27
+
+보안
+- `Cue Elevated` 작업이 Program Files의 현재 exe를 가리키는 정상 구성도 `adminTasks:false`로 오진하던 문제를 고쳤습니다. 이제 Program Files exe와 ProgramData 보호 복사본을 모두 유효한 대상으로 인정합니다.
+
+테스트
+- 프론트 239개, Rust 186개 테스트가 통과합니다.
+
 ## 0.9.4 — 2026-11-27
 
 안정화

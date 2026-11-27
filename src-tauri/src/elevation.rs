@@ -1226,7 +1226,16 @@ pub fn status() -> ProtectionStatus {
     let current = std::env::current_exe().ok();
     let admin_path = current.as_deref().map(is_admin_path).unwrap_or(false);
     let admin_copy = admin_app_exe().is_some_and(|path| current_file_matches(&path));
-    let expected_task_target = admin_app_exe().or_else(|| current.clone());
+    // The logon task may run either the Program Files install or the
+    // ProgramData protected copy; both are valid.
+    let task_targets: Vec<PathBuf> = [current.clone(), admin_app_exe()]
+        .into_iter()
+        .flatten()
+        .collect();
+    let admin_tasks = task_exists(ELEVATED_TASK)
+        && task_targets
+            .iter()
+            .any(|target| task_target_matches(ELEVATED_TASK, target));
     ProtectionStatus {
         elevated,
         admin_path,
@@ -1236,10 +1245,7 @@ pub fn status() -> ProtectionStatus {
         program_dir_locked: (!elevated).then(program_dir_locked),
         guard_running: crate::guard::guard_running()
             && guard_exe().is_some_and(|path| current_file_matches(&path)),
-        admin_tasks: task_exists(ELEVATED_TASK)
-            && expected_task_target
-                .as_deref()
-                .is_some_and(|target| task_target_matches(ELEVATED_TASK, target)),
+        admin_tasks,
         guard_tasks: task_exists(GUARD_TASK) || task_exists(SYSTEM_TASK),
         program_marker: program_marker_exists(),
         admin_prepare_failed: admin_prepare_failed(),

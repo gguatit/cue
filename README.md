@@ -4,7 +4,7 @@
 
 [English](README.en.md) · [아키텍처](docs/ARCHITECTURE.md) · [AI 하네스](docs/AI_HARNESS.md) · [아이디어와 결정](docs/IDEAS.md) · [변경 기록](docs/CHANGELOG.md)
 
-현재 버전 **0.9.4** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
+현재 버전 **0.9.5** · Windows 10/11 x64 · Tauri 2 + React 19 + Rust · MIT License
 
 만든 사람: **kalpha (최재영)** · GitHub [@gguatit](https://github.com/gguatit)
 
